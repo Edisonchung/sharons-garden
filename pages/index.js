@@ -49,7 +49,18 @@ export default function SharonsGarden() {
       })
     );
   };
-
+  const handleShare = (id) => {
+  const url = `${window.location.origin}/flower/${id}`;
+  console.log("Sharing this link:", url);
+  navigator.clipboard.writeText(url)
+    .then(() => {
+      alert("Link copied to clipboard! 🌐\\n" + url);
+    })
+    .catch(err => {
+      console.error("Clipboard error:", err);
+      alert("Sorry, your browser may block clipboard access.");
+    });
+};
   return (
     <div className="min-h-screen bg-gradient-to-b from-pink-100 to-purple-200 p-6 relative">
       <h1 className="text-4xl font-bold text-center mb-4">🌸 Sharon's Garden of Emotions 🌸</h1>
