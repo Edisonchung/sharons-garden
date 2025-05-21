@@ -90,6 +90,9 @@ export default function SharonsGarden() {
                 ) : (
                   <p className="text-green-600 font-medium mt-2">This flower has bloomed! 🌟</p>
                 )}
+                <Button onClick={() => handleShare(flower.id)} className="mt-4 w-full bg-blue-500 hover:bg-blue-600">
+                📤 Share Flower
+                </Button>
               </CardContent>
             </Card>
           </motion.div>
