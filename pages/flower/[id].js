@@ -1,10 +1,8 @@
 // pages/flower/[id].js
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
-import { Button } from '../../components/ui/button';
-import { Card, CardContent } from '../../components/ui/card';
-
-const mockData = {}; // TEMP in-memory store
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 
 export default function FlowerDetail() {
   const router = useRouter();
@@ -49,6 +47,10 @@ export default function FlowerDetail() {
           <h2 className="text-2xl font-bold text-purple-700 mb-2">
             {bloomed ? '🌸' : '🌼'} {flower.emotion}
           </h2>
+          <p className="text-sm italic text-gray-500 mb-1">— {flower.name || 'Anonymous'}</p>
+          {flower.note && (
+            <p className="text-sm text-gray-600 mb-2">“{flower.note}”</p>
+          )}
           <p className="text-gray-600 mb-2">Watered {waterCount} / 5 times</p>
           {!bloomed ? (
             <Button onClick={handleWater}>💧 Water this flower</Button>
