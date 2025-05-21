@@ -1,14 +1,33 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
 import { motion } from 'framer-motion';
+
+const emotionMoodMap = {
+  joy: 'positive', love: 'positive', happy: 'positive', hope: 'positive',
+  sad: 'negative', lost: 'negative', angry: 'negative', alone: 'negative',
+  confused: 'neutral', calm: 'neutral', tired: 'neutral', stress: 'neutral'
+};
 
 export default function SharonsGarden() {
   const [emotion, setEmotion] = useState('');
   const [planted, setPlanted] = useState([]);
   const [rewardOpen, setRewardOpen] = useState(false);
   const [currentReward, setCurrentReward] = useState(null);
+  const [mood, setMood] = useState('');
+
+  useEffect(() => {
+    if (planted.length === 0) return;
+    const counts = { positive: 0, neutral: 0, negative: 0 };
+    planted.forEach((flower) => {
+      const category = emotionMoodMap[flower.emotion.toLowerCase()] || 'neutral';
+      counts[category] += 1;
+    });
+    const max = Math.max(counts.positive, counts.neutral, counts.negative);
+    const moodState = Object.keys(counts).find(k => counts[k] === max);
+    setMood(moodState);
+  }, [planted]);
 
   const handlePlant = () => {
     if (emotion.trim()) {
@@ -35,7 +54,7 @@ export default function SharonsGarden() {
             setCurrentReward({
               emotion: flower.emotion,
               reward: 'Access Sharon’s exclusive voice message 🌟',
-              link: 'https://example.com/sharon-reward' // Replace with real link later
+              link: 'https://example.com/sharon-reward'
             });
             setRewardOpen(true);
           }
@@ -49,22 +68,28 @@ export default function SharonsGarden() {
       })
     );
   };
+
   const handleShare = (id) => {
-  const url = `${window.location.origin}/flower/${id}`;
-  console.log("Sharing this link:", url);
-  navigator.clipboard.writeText(url)
-    .then(() => {
-      alert("Link copied to clipboard! 🌐\\n" + url);
-    })
-    .catch(err => {
-      console.error("Clipboard error:", err);
-      alert("Sorry, your browser may block clipboard access.");
-    });
-};
+    const url = `${window.location.origin}/flower/${id}`;
+    navigator.clipboard.writeText(url)
+      .then(() => {
+        alert("Link copied to clipboard! 🌐\n" + url);
+      })
+      .catch(err => {
+        console.error("Clipboard error:", err);
+        alert("Sorry, your browser may block clipboard access.");
+      });
+  };
+
+  const moodText = mood === 'positive' ? '🌞 Sunny' : mood === 'negative' ? '🌧️ Rainy' : mood === 'neutral' ? '🌫️ Calm' : '🌈 Dreamy';
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-pink-100 to-purple-200 p-6 relative">
-      <h1 className="text-4xl font-bold text-center mb-4">🌸 Sharon's Garden of Emotions 🌸</h1>
-      <p className="text-center text-lg max-w-xl mx-auto mb-8">
+      <h1 className="text-4xl font-bold text-center mb-2">🌸 Sharon's Garden of Emotions 🌸</h1>
+      {planted.length > 0 && (
+        <p className="text-center text-lg mb-4 font-semibold text-purple-700">Garden Mood: {moodText}</p>
+      )}
+      <p className="text-center text-md max-w-xl mx-auto mb-6">
         Plant your feelings, water them with love, and let them bloom into something beautiful. Sharon is your garden keeper, nurturing your emotions with music and light.
       </p>
 
@@ -101,8 +126,8 @@ export default function SharonsGarden() {
                 ) : (
                   <p className="text-green-600 font-medium mt-2">This flower has bloomed! 🌟</p>
                 )}
-                <Button onClick={() => handleShare(flower.id)} className="mt-4 w-full bg-blue-500 hover:bg-blue-600">
-                📤 Share Flower
+                <Button onClick={() => handleShare(flower.id)} className="mt-4 w-full bg-blue-500 hover:bg-blue-600 text-white">
+                  📤 Share Flower
                 </Button>
               </CardContent>
             </Card>
