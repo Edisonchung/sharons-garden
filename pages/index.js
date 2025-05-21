@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
@@ -10,12 +10,20 @@ const emotionMoodMap = {
   confused: 'neutral', calm: 'neutral', tired: 'neutral', stress: 'neutral'
 };
 
+const moodMusic = {
+  positive: '/audio/sunny.mp3',
+  negative: '/audio/rainy.mp3',
+  neutral: '/audio/calm.mp3',
+  dreamy: '/audio/dreamy.mp3'
+};
+
 export default function SharonsGarden() {
   const [emotion, setEmotion] = useState('');
   const [planted, setPlanted] = useState([]);
   const [rewardOpen, setRewardOpen] = useState(false);
   const [currentReward, setCurrentReward] = useState(null);
   const [mood, setMood] = useState('');
+  const audioRef = useRef(null);
 
   useEffect(() => {
     if (planted.length === 0) return;
@@ -25,9 +33,19 @@ export default function SharonsGarden() {
       counts[category] += 1;
     });
     const max = Math.max(counts.positive, counts.neutral, counts.negative);
-    const moodState = Object.keys(counts).find(k => counts[k] === max);
+    const moodState = Object.keys(counts).find(k => counts[k] === max) || 'dreamy';
     setMood(moodState);
   }, [planted]);
+
+  useEffect(() => {
+    if (!mood) return;
+    const audioSrc = moodMusic[mood] || moodMusic['dreamy'];
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.src = audioSrc;
+      audioRef.current.play().catch(() => {});
+    }
+  }, [mood]);
 
   const handlePlant = () => {
     if (emotion.trim()) {
@@ -85,6 +103,8 @@ export default function SharonsGarden() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-pink-100 to-purple-200 p-6 relative">
+      <audio ref={audioRef} loop hidden />
+
       <h1 className="text-4xl font-bold text-center mb-2">🌸 Sharon's Garden of Emotions 🌸</h1>
       {planted.length > 0 && (
         <p className="text-center text-lg mb-4 font-semibold text-purple-700">Garden Mood: {moodText}</p>
