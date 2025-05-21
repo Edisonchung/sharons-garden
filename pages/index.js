@@ -1,8 +1,8 @@
 // pages/flower/[id].js
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
-import { Button } from '../../components/ui/button';
-import { Card, CardContent } from '../../components/ui/card';
+import { Button } from '../components/ui/button';
+import { Card, CardContent } from '../components/ui/card';
 
 export default function FlowerDetail() {
   const router = useRouter();
