@@ -7,6 +7,8 @@ import { motion } from 'framer-motion';
 export default function SharonsGarden() {
   const [emotion, setEmotion] = useState('');
   const [planted, setPlanted] = useState([]);
+  const [rewardOpen, setRewardOpen] = useState(false);
+  const [currentReward, setCurrentReward] = useState(null);
 
   const handlePlant = () => {
     if (emotion.trim()) {
@@ -28,10 +30,19 @@ export default function SharonsGarden() {
       prev.map((flower) => {
         if (flower.id === id) {
           const newCount = flower.waterCount + 1;
+          const bloomed = newCount >= 5;
+          if (bloomed && !flower.bloomed) {
+            setCurrentReward({
+              emotion: flower.emotion,
+              reward: 'Access Sharon’s exclusive voice message 🌟',
+              link: 'https://example.com/sharon-reward' // Replace with real link later
+            });
+            setRewardOpen(true);
+          }
           return {
             ...flower,
             waterCount: newCount,
-            bloomed: newCount >= 5
+            bloomed
           };
         }
         return flower;
@@ -40,7 +51,7 @@ export default function SharonsGarden() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-pink-100 to-purple-200 p-6">
+    <div className="min-h-screen bg-gradient-to-b from-pink-100 to-purple-200 p-6 relative">
       <h1 className="text-4xl font-bold text-center mb-4">🌸 Sharon's Garden of Emotions 🌸</h1>
       <p className="text-center text-lg max-w-xl mx-auto mb-8">
         Plant your feelings, water them with love, and let them bloom into something beautiful. Sharon is your garden keeper, nurturing your emotions with music and light.
@@ -84,6 +95,27 @@ export default function SharonsGarden() {
           </motion.div>
         ))}
       </div>
+
+      {rewardOpen && currentReward && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-6 shadow-2xl max-w-md text-center">
+            <h2 className="text-2xl font-bold text-purple-700 mb-2">🎁 Reward Unlocked!</h2>
+            <p className="mb-2">Your flower "{currentReward.emotion}" has fully bloomed.</p>
+            <p className="mb-4 text-green-600 font-medium">{currentReward.reward}</p>
+            <a
+              href={currentReward.link}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-600 underline mb-4 inline-block"
+            >
+              Claim Reward
+            </a>
+            <div>
+              <Button onClick={() => setRewardOpen(false)}>Close</Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
