@@ -11,6 +11,8 @@ export default function FlowerDetail() {
   const [waterCount, setWaterCount] = useState(0);
   const [bloomed, setBloomed] = useState(false);
   const [rewardShown, setRewardShown] = useState(false);
+  const [lastWatered, setLastWatered] = useState(null);
+  const [canWater, setCanWater] = useState(true);
 
   useEffect(() => {
     if (id) {
@@ -19,15 +21,25 @@ export default function FlowerDetail() {
       if (found) {
         setFlower(found);
         setWaterCount(found.waterCount || 0);
-        setBloomed(found.waterCount >= 5);
+        setBloomed(found.waterCount >= 7);
+      }
+      const key = `lastWatered_${id}`;
+      const storedTime = localStorage.getItem(key);
+      if (storedTime) {
+        const last = new Date(storedTime);
+        const now = new Date();
+        const sameDay = last.toDateString() === now.toDateString();
+        setLastWatered(last);
+        setCanWater(!sameDay);
       }
     }
   }, [id]);
 
   const handleWater = () => {
+    if (!canWater) return alert("You've already watered this flower today. Try again tomorrow 🌙");
     const newCount = waterCount + 1;
     setWaterCount(newCount);
-    const isBloomed = newCount >= 5;
+    const isBloomed = newCount >= 7;
     setBloomed(isBloomed);
 
     const cached = JSON.parse(localStorage.getItem('flowers') || '{}');
@@ -36,6 +48,9 @@ export default function FlowerDetail() {
       cached[id].bloomed = isBloomed;
     }
     localStorage.setItem('flowers', JSON.stringify(cached));
+    const now = new Date();
+    localStorage.setItem(`lastWatered_${id}`, now.toISOString());
+    setCanWater(false);
   };
 
   if (!flower) return <p className="text-center mt-10">🌼 Loading flower...</p>;
@@ -51,9 +66,11 @@ export default function FlowerDetail() {
           {flower.note && (
             <p className="text-sm text-gray-600 mb-2">“{flower.note}”</p>
           )}
-          <p className="text-gray-600 mb-2">Watered {waterCount} / 5 times</p>
+          <p className="text-gray-600 mb-2">Watered {waterCount} / 7 times</p>
           {!bloomed ? (
-            <Button onClick={handleWater}>💧 Water this flower</Button>
+            <Button onClick={handleWater} disabled={!canWater}>
+              {canWater ? '💧 Water this flower' : '⏳ Come back tomorrow'}
+            </Button>
           ) : (
             <div>
               <p className="text-green-600 font-medium">This flower has bloomed! 🌟</p>
