@@ -8,6 +8,7 @@ export default function TimelinePage() {
   const [filter, setFilter] = useState('All');
   const [editingId, setEditingId] = useState(null);
   const [reflectionText, setReflectionText] = useState('');
+  const [photoData, setPhotoData] = useState(null);
 
   useEffect(() => {
     const cached = JSON.parse(localStorage.getItem('flowers') || '{}');
@@ -23,21 +24,37 @@ export default function TimelinePage() {
     alert('📋 Link copied to clipboard!');
   };
 
-  const startEditing = (id, currentText) => {
+  const startEditing = (id, currentText, currentPhoto) => {
     setEditingId(id);
     setReflectionText(currentText || '');
+    setPhotoData(currentPhoto || null);
   };
 
   const saveReflection = (id) => {
     const cached = JSON.parse(localStorage.getItem('flowers') || '{}');
     if (cached[id]) {
       cached[id].reflection = reflectionText;
+      if (photoData) {
+        cached[id].photo = photoData;
+      }
       localStorage.setItem('flowers', JSON.stringify(cached));
     }
-    const updated = blooms.map(f => f.id === id ? { ...f, reflection: reflectionText } : f);
+    const updated = blooms.map(f => f.id === id ? { ...f, reflection: reflectionText, photo: photoData } : f);
     setBlooms(updated);
     setEditingId(null);
     setReflectionText('');
+    setPhotoData(null);
+  };
+
+  const handlePhotoUpload = (e) => {
+    const file = e.target.files[0];
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setPhotoData(reader.result);
+    };
+    if (file) {
+      reader.readAsDataURL(file);
+    }
   };
 
   const flowerTypes = Array.from(new Set(blooms.map(f => f.type)));
@@ -66,6 +83,10 @@ export default function TimelinePage() {
               {bloom.note && <p className="text-sm text-gray-700 mt-1">“{bloom.note}”</p>}
               <p className="text-xs text-gray-500 mt-2">🌸 Bloomed on {new Date(bloom.bloomTime).toLocaleDateString()}</p>
 
+              {bloom.photo && (
+                <img src={bloom.photo} alt="Uploaded" className="mt-3 rounded shadow-md max-h-48 object-contain" />
+              )}
+
               <div className="mt-3">
                 {editingId === bloom.id ? (
                   <div>
@@ -75,6 +96,12 @@ export default function TimelinePage() {
                       className="w-full p-2 border rounded mb-2"
                       rows={3}
                       placeholder="Write your reflection..."
+                    />
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handlePhotoUpload}
+                      className="block w-full text-sm mb-2"
                     />
                     <Button onClick={() => saveReflection(bloom.id)} className="mr-2">💾 Save</Button>
                     <Button variant="outline" onClick={() => setEditingId(null)}>Cancel</Button>
@@ -86,8 +113,8 @@ export default function TimelinePage() {
                     ) : (
                       <p className="text-sm mt-2 text-gray-400 italic">No reflection yet</p>
                     )}
-                    <Button onClick={() => startEditing(bloom.id, bloom.reflection)} className="mt-2" variant="outline">
-                      ✏️ {bloom.reflection ? 'Edit' : 'Add'} Reflection
+                    <Button onClick={() => startEditing(bloom.id, bloom.reflection, bloom.photo)} className="mt-2" variant="outline">
+                      ✏️ {bloom.reflection ? 'Edit' : 'Add'} Reflection & Photo
                     </Button>
                   </>
                 )}
