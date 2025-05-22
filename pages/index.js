@@ -26,6 +26,7 @@ export default function SharonsGarden() {
   const [currentReward, setCurrentReward] = useState(null);
   const [shareId, setShareId] = useState(null);
   const audioRef = useRef(null);
+  const [showReward, setShowReward] = useState(false);
 
   useEffect(() => {
     const cached = JSON.parse(localStorage.getItem('flowers') || '{}');
@@ -86,6 +87,7 @@ export default function SharonsGarden() {
               link: 'https://example.com/sharon-reward'
             });
             setRewardOpen(true);
+            setShowReward(true);  // 🎁 Trigger surprise reward popup
           }
           return updatedSeed;
         }
