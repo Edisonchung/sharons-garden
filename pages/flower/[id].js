@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent } from '../../components/ui/card';
+import SurpriseReward from '../components/SurpriseReward';
 
 export default function FlowerDetail() {
   const router = useRouter();
