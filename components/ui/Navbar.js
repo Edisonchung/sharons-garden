@@ -8,7 +8,6 @@ export default function Navbar() {
   const sidebarRef = useRef(null);
   const toggleButtonRef = useRef(null);
 
-  // Simulate user authentication (replace with real auth later)
   const user = {
     name: 'Sharon Lim',
     email: 'sharon@example.com',
