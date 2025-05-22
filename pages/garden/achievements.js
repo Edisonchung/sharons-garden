@@ -1,19 +1,22 @@
 // pages/garden/achievements.js
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import Link from 'next/link';
+import confetti from 'canvas-confetti';
 
 const ALL_ACHIEVEMENTS = [
-  { name: 'First Bloom', icon: '🌸', desc: 'Bloomed your first flower!', condition: (b, t, w) => b >= 1 },
-  { name: 'Gardener', icon: '🌼', desc: 'Bloomed 3 flowers', condition: (b, t, w) => b >= 3 },
-  { name: 'Flower Fanatic', icon: '🌻', desc: 'Bloomed 7 flowers', condition: (b, t, w) => b >= 7 },
-  { name: 'Garden Master', icon: '👑', desc: 'Collected all flower types', condition: (b, t, w) => t >= 5 },
-  { name: 'Diligent Waterer', icon: '💧', desc: 'Watered 20 times', condition: (b, t, w) => w >= 20 }
+  { name: 'First Bloom', icon: '🌸', desc: 'Bloomed your first flower!', condition: (b, t, w) => b >= 1, image: '/badges/first-bloom.png' },
+  { name: 'Gardener', icon: '🌼', desc: 'Bloomed 3 flowers', condition: (b, t, w) => b >= 3, image: '/badges/gardener.png' },
+  { name: 'Flower Fanatic', icon: '🌻', desc: 'Bloomed 7 flowers', condition: (b, t, w) => b >= 7, image: '/badges/fanatic.png' },
+  { name: 'Garden Master', icon: '👑', desc: 'Collected all flower types', condition: (b, t, w) => t >= 5, image: '/badges/master.png' },
+  { name: 'Diligent Waterer', icon: '💧', desc: 'Watered 20 times', condition: (b, t, w) => w >= 20, image: '/badges/waterer.png' }
 ];
 
 export default function AchievementsPage() {
   const [achievements, setAchievements] = useState([]);
+  const [newlyUnlocked, setNewlyUnlocked] = useState([]);
+  const hasMounted = useRef(false);
 
   useEffect(() => {
     const cached = JSON.parse(localStorage.getItem('flowers') || '{}');
@@ -28,7 +31,13 @@ export default function AchievementsPage() {
       progress: a.name === 'Diligent Waterer' ? waterCounts : a.name === 'Flower Fanatic' ? bloomed.length : 0
     }));
 
+    const newUnlocks = unlocked.filter(u => u.unlocked && !localStorage.getItem(`badge_${u.name}`));
+    newUnlocks.forEach(u => localStorage.setItem(`badge_${u.name}`, 'true'));
+    if (hasMounted.current && newUnlocks.length > 0) confetti();
+
     setAchievements(unlocked);
+    setNewlyUnlocked(newUnlocks);
+    hasMounted.current = true;
   }, []);
 
   return (
@@ -59,6 +68,15 @@ export default function AchievementsPage() {
               )}
               {a.name === 'Flower Fanatic' && (
                 <div className="text-xs mt-1 text-gray-500">Progress: {a.progress}/7</div>
+              )}
+              {a.unlocked && (
+                <a
+                  href={a.image}
+                  download
+                  className="text-xs mt-3 inline-block text-blue-600 underline hover:text-blue-800"
+                >
+                  Download Badge
+                </a>
               )}
             </CardContent>
           </Card>
