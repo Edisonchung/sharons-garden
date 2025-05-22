@@ -108,7 +108,13 @@ export default function SharonsGarden() {
     <div className="min-h-screen bg-gradient-to-b from-pink-100 to-purple-200 p-6 relative">
       <audio ref={audioRef} loop hidden />
 
-      <h1 className="text-4xl font-bold text-center mb-2">🌱 Sharon's Garden of Seeds 🌱</h1>
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-4xl font-bold text-center w-full">🌱 Sharon's Garden of Seeds 🌱</h1>
+        <a href="/garden/my">
+          <Button className="absolute right-6 top-6">🌿 My Garden</Button>
+        </a>
+      </div>
+
       <p className="text-center text-md max-w-xl mx-auto mb-6">
         Plant your unique seed and let others water it. After 7 days, it will bloom into a special flower representing your feelings.
       </p>
