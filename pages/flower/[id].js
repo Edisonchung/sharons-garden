@@ -3,7 +3,7 @@ import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent } from '../../components/ui/card';
-import SurpriseReward from '../components/SurpriseReward';
+import SurpriseReward from '../../components/SurpriseReward'; // ✅ ensure correct relative path
 
 export default function FlowerDetail() {
   const router = useRouter();
@@ -14,7 +14,7 @@ export default function FlowerDetail() {
   const [rewardShown, setRewardShown] = useState(false);
   const [lastWatered, setLastWatered] = useState(null);
   const [canWater, setCanWater] = useState(true);
-  const [showReward, setShowReward] = useState(false);
+  const [showReward, setShowReward] = useState(false); // ✅ for surprise reward
 
   useEffect(() => {
     if (id) {
@@ -53,6 +53,11 @@ export default function FlowerDetail() {
     const now = new Date();
     localStorage.setItem(`lastWatered_${id}`, now.toISOString());
     setCanWater(false);
+
+    // ✅ Show surprise reward on exact bloom
+    if (newCount === 7) {
+      setShowReward(true);
+    }
   };
 
   if (!flower) return <p className="text-center mt-10">🌼 Loading flower...</p>;
@@ -93,6 +98,9 @@ export default function FlowerDetail() {
           )}
         </CardContent>
       </Card>
+
+      {/* ✅ Surprise reward popup modal */}
+      {showReward && <SurpriseReward onClose={() => setShowReward(false)} />}
     </div>
   );
 }
