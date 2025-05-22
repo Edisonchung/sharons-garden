@@ -1,10 +1,10 @@
+// full updated code with SurpriseReward integration
 import React, { useState, useEffect, useRef } from 'react';
 import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
 import { motion } from 'framer-motion';
 import SurpriseReward from '../components/SurpriseReward';
-
 
 const seedTypes = [
   { type: 'Hope', flower: '🌷' },
@@ -26,7 +26,7 @@ export default function SharonsGarden() {
   const [currentReward, setCurrentReward] = useState(null);
   const [shareId, setShareId] = useState(null);
   const audioRef = useRef(null);
-  const [showReward, setShowReward] = useState(false);
+  const [showReward, setShowReward] = useState(false); // ✅ SurpriseReward state
 
   useEffect(() => {
     const cached = JSON.parse(localStorage.getItem('flowers') || '{}');
@@ -87,7 +87,7 @@ export default function SharonsGarden() {
               link: 'https://example.com/sharon-reward'
             });
             setRewardOpen(true);
-            setShowReward(true);  // 🎁 Trigger surprise reward popup
+            setShowReward(true); // 🎁 Trigger surprise reward
           }
           return updatedSeed;
         }
@@ -213,6 +213,9 @@ export default function SharonsGarden() {
           </div>
         </div>
       )}
+
+      {/* 🎁 Surprise reward popup */}
+      {showReward && <SurpriseReward onClose={() => setShowReward(false)} />}
     </div>
   );
 }
