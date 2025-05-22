@@ -2,11 +2,14 @@
 import { useEffect, useState } from 'react';
 import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
+import { Input } from '../../components/ui/input';
 
 export default function MyGardenPage() {
   const [mySeeds, setMySeeds] = useState([]);
   const [filter, setFilter] = useState('all');
   const [summary, setSummary] = useState({ total: 0, bloomed: 0 });
+  const [editingDedication, setEditingDedication] = useState(null);
+  const [dedicationInput, setDedicationInput] = useState('');
 
   useEffect(() => {
     const cached = JSON.parse(localStorage.getItem('flowers') || '{}');
@@ -21,6 +24,22 @@ export default function MyGardenPage() {
     if (filter === 'growing') return !seed.bloomed;
     return true;
   });
+
+  const handleDedicationSave = (id) => {
+    const updatedSeeds = mySeeds.map(seed => {
+      if (seed.id === id) {
+        const updated = { ...seed, dedication: dedicationInput };
+        const cached = JSON.parse(localStorage.getItem('flowers') || '{}');
+        cached[seed.id] = updated;
+        localStorage.setItem('flowers', JSON.stringify(cached));
+        return updated;
+      }
+      return seed;
+    });
+    setMySeeds(updatedSeeds);
+    setEditingDedication(null);
+    setDedicationInput('');
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-yellow-100 to-green-100 p-6">
@@ -46,7 +65,31 @@ export default function MyGardenPage() {
               </h3>
               <p className="text-sm italic text-gray-500">{seed.color} • {seed.name || 'Anonymous'}</p>
               {seed.note && <p className="text-sm text-gray-600 mb-1">“{seed.note}”</p>}
-              {seed.bloomed && <p className="text-sm text-pink-600 mb-1">🌟 Dedication: {seed.dedication || 'Not added yet'}</p>}
+              {seed.bloomed && (
+                <div className="mb-2">
+                  {editingDedication === seed.id ? (
+                    <div className="flex gap-2 items-center">
+                      <Input
+                        value={dedicationInput}
+                        onChange={(e) => setDedicationInput(e.target.value)}
+                        placeholder="Enter dedication..."
+                        className="w-full"
+                      />
+                      <Button size="sm" onClick={() => handleDedicationSave(seed.id)}>Save</Button>
+                    </div>
+                  ) : (
+                    <div>
+                      <p className="text-sm text-pink-600">🌟 Dedication: {seed.dedication || 'Not added yet'}</p>
+                      <Button size="sm" variant="outline" onClick={() => {
+                        setEditingDedication(seed.id);
+                        setDedicationInput(seed.dedication || '');
+                      }} className="mt-1">
+                        {seed.dedication ? 'Edit' : 'Add'} Dedication
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
               <p className="text-sm text-gray-500 mb-2">Watered {seed.waterCount} / 7</p>
               <a
                 href={`/flower/${seed.id}`}
