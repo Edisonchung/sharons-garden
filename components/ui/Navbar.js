@@ -1,12 +1,14 @@
 // components/ui/Navbar.js
 import Link from 'next/link';
 import { useState, useRef, useEffect } from 'react';
+import { useRouter } from 'next/router';
 import { Button } from './button';
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
   const sidebarRef = useRef(null);
   const toggleButtonRef = useRef(null);
+  const router = useRouter();
 
   const user = {
     name: 'Sharon Lim',
@@ -34,6 +36,17 @@ export default function Navbar() {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [open]);
+
+  const navItem = (href, label, icon) => (
+    <Link href={href}>
+      <Button
+        variant="ghost"
+        className={`justify-start w-full text-left ${router.pathname === href ? 'bg-purple-100 font-semibold text-purple-800' : ''}`}
+      >
+        {icon} {label}
+      </Button>
+    </Link>
+  );
 
   return (
     <>
@@ -69,18 +82,12 @@ export default function Navbar() {
                 </div>
               </div>
               <div className="flex flex-col gap-2">
-                <Link href="/">
-                  <Button variant="ghost" className="justify-start w-full text-left">🏡 Home</Button>
-                </Link>
-                <Link href="/garden/my">
-                  <Button variant="ghost" className="justify-start w-full text-left">🌿 My Garden</Button>
-                </Link>
-                <Link href="/garden/dedications">
-                  <Button variant="ghost" className="justify-start w-full text-left">💬 Dedications</Button>
-                </Link>
-                <Link href="/garden/stats">
-                  <Button variant="ghost" className="justify-start w-full text-left">📊 Stats</Button>
-                </Link>
+                {navItem('/', 'Home', '🏡')}
+                {navItem('/garden/my', 'My Garden', '🌿')}
+                {navItem('/garden/dedications', 'Dedications', '💬')}
+                {navItem('/garden/stats', 'Stats', '📊')}
+                {navItem('/garden/profile', 'Profile', '🌼')}
+                {navItem('/garden/certificate', 'Certificate', '📜')}
               </div>
               <div className="mt-6">
                 <Button variant="outline" className="w-full justify-center">Logout</Button>
