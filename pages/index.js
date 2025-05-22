@@ -22,9 +22,8 @@ export default function SharonsGarden() {
   const [planted, setPlanted] = useState([]);
   const [rewardOpen, setRewardOpen] = useState(false);
   const [currentReward, setCurrentReward] = useState(null);
-  const audioRef = useRef(null);
-  const [copyMessage, setCopyMessage] = useState('');
   const [shareId, setShareId] = useState(null);
+  const audioRef = useRef(null);
 
   useEffect(() => {
     const cached = JSON.parse(localStorage.getItem('flowers') || '{}');
@@ -94,14 +93,12 @@ export default function SharonsGarden() {
     });
   };
 
-  const handleShareClick = (id) => {
+  const handleShare = (id) => {
     setShareId(id);
   };
 
-  const handleCopy = (url) => {
-    navigator.clipboard.writeText(url);
-    setCopyMessage('🌱 Link copied!');
-    setTimeout(() => setCopyMessage(''), 2000);
+  const closeShare = () => {
+    setShareId(null);
   };
 
   return (
@@ -125,53 +122,72 @@ export default function SharonsGarden() {
         <Button onClick={handlePlant}>Plant Seed</Button>
       </div>
 
-      {copyMessage && <div className="fixed top-4 right-4 bg-green-100 text-green-700 px-4 py-2 rounded shadow-md z-50">{copyMessage}</div>}
-
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-        {planted.map((seed) => {
-          const url = `${window.location.origin}/flower/${seed.id}`;
-          return (
-            <motion.div
-              key={seed.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-            >
-              <Card className="bg-white shadow-xl rounded-2xl p-4">
-                <CardContent>
-                  <h3 className="text-xl font-semibold text-purple-700">
-                    {seed.bloomed ? `${seed.bloomedFlower} ${seed.type}` : '🌱 Seedling'}
-                  </h3>
-                  <p className="text-sm italic text-gray-500 mb-1">— {seed.name || 'Anonymous'} | {seed.color}</p>
-                  {seed.note && (
-                    <p className="text-sm text-gray-600 mb-2">“{seed.note}”</p>
-                  )}
-                  <p className="text-sm text-gray-500 mt-2">
-                    Watered {seed.waterCount} / 7 times
-                  </p>
-                  {!seed.bloomed ? (
-                    <Button onClick={() => handleWater(seed.id)} className="mt-2">
-                      Water this seed 💧
-                    </Button>
-                  ) : (
-                    <p className="text-green-600 font-medium mt-2">This flower has bloomed! 🌟</p>
-                  )}
-                  <div className="mt-4 flex flex-col gap-2">
-                    <Button onClick={() => handleShareClick(seed.id)} variant="outline">🔗 Share</Button>
-                    {shareId === seed.id && (
-                      <div className="text-sm flex flex-col gap-2 mt-2">
-                        <Button onClick={() => handleCopy(url)} variant="ghost">📋 Copy Link</Button>
-                        <a href={`https://wa.me/?text=${encodeURIComponent(url)}`} target="_blank" rel="noopener noreferrer" className="text-green-600 underline">📲 WhatsApp</a>
-                        <a href={`https://twitter.com/intent/tweet?text=Check%20out%20my%20seed!%20${encodeURIComponent(url)}`} target="_blank" rel="noopener noreferrer" className="text-blue-500 underline">🐦 Twitter</a>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          );
-        })}
+        {planted.map((seed) => (
+          <motion.div
+            key={seed.id}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+          >
+            <Card className="bg-white shadow-xl rounded-2xl p-4">
+              <CardContent>
+                <h3 className="text-xl font-semibold text-purple-700">
+                  {seed.bloomed ? `${seed.bloomedFlower} ${seed.type}` : '🌱 Seedling'}
+                </h3>
+                <p className="text-sm italic text-gray-500 mb-1">— {seed.name || 'Anonymous'} | {seed.color}</p>
+                {seed.note && (
+                  <p className="text-sm text-gray-600 mb-2">“{seed.note}”</p>
+                )}
+                <p className="text-sm text-gray-500 mt-2">
+                  Watered {seed.waterCount} / 7 times
+                </p>
+                {!seed.bloomed ? (
+                  <Button onClick={() => handleWater(seed.id)} className="mt-2">
+                    Water this seed 💧
+                  </Button>
+                ) : (
+                  <p className="text-green-600 font-medium mt-2">This flower has bloomed! 🌟</p>
+                )}
+                <div className="mt-4 flex flex-col gap-2">
+                  <Button onClick={() => handleShare(seed.id)} variant="outline">🔗 Share</Button>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        ))}
       </div>
+
+      {shareId && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-6 shadow-2xl max-w-sm text-center">
+            <h2 className="text-xl font-bold text-purple-700 mb-2">📤 Share Seed</h2>
+            <p className="mb-4 text-sm">Choose a way to share your planted seed with others:</p>
+            <div className="flex flex-col gap-2 mb-4">
+              <Button
+                onClick={() => {
+                  const url = `${window.location.origin}/flower/${shareId}`;
+                  navigator.clipboard.writeText(url);
+                  alert("📋 Link copied!");
+                }}
+              >📋 Copy Link</Button>
+              <a
+                href={`https://wa.me/?text=${encodeURIComponent(window.location.origin + '/flower/' + shareId)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-center border border-green-500 text-green-600 px-4 py-2 rounded hover:bg-green-50"
+              >📲 Share on WhatsApp</a>
+              <a
+                href={`https://twitter.com/intent/tweet?text=Check%20out%20my%20seed!%20${encodeURIComponent(window.location.origin + '/flower/' + shareId)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-center border border-blue-500 text-blue-500 px-4 py-2 rounded hover:bg-blue-50"
+              >🐦 Share on Twitter</a>
+            </div>
+            <Button onClick={closeShare} variant="outline">Close</Button>
+          </div>
+        </div>
+      )}
 
       {rewardOpen && currentReward && (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
