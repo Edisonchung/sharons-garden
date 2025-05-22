@@ -24,6 +24,7 @@ export default function SharonsGarden() {
   const [currentReward, setCurrentReward] = useState(null);
   const audioRef = useRef(null);
   const [copyMessage, setCopyMessage] = useState('');
+  const [shareId, setShareId] = useState(null);
 
   useEffect(() => {
     const cached = JSON.parse(localStorage.getItem('flowers') || '{}');
@@ -93,7 +94,11 @@ export default function SharonsGarden() {
     });
   };
 
-  const handleCopyLink = (url) => {
+  const handleShareClick = (id) => {
+    setShareId(id);
+  };
+
+  const handleCopy = (url) => {
     navigator.clipboard.writeText(url);
     setCopyMessage('🌱 Link copied!');
     setTimeout(() => setCopyMessage(''), 2000);
@@ -152,25 +157,14 @@ export default function SharonsGarden() {
                     <p className="text-green-600 font-medium mt-2">This flower has bloomed! 🌟</p>
                   )}
                   <div className="mt-4 flex flex-col gap-2">
-                    <Button onClick={() => handleCopyLink(url)} variant="outline">
-                      📋 Copy Link to Seed
-                    </Button>
-                    <a
-                      href={`https://wa.me/?text=${encodeURIComponent(url)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-center border rounded px-4 py-2 text-sm text-green-600 border-green-600 hover:bg-green-50"
-                    >
-                      📲 Share on WhatsApp
-                    </a>
-                    <a
-                      href={`https://twitter.com/intent/tweet?text=Check%20out%20my%20seed%20in%20Sharon's%20Garden!%20${encodeURIComponent(url)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-center border rounded px-4 py-2 text-sm text-blue-500 border-blue-500 hover:bg-blue-50"
-                    >
-                      🐦 Share on Twitter
-                    </a>
+                    <Button onClick={() => handleShareClick(seed.id)} variant="outline">🔗 Share</Button>
+                    {shareId === seed.id && (
+                      <div className="text-sm flex flex-col gap-2 mt-2">
+                        <Button onClick={() => handleCopy(url)} variant="ghost">📋 Copy Link</Button>
+                        <a href={`https://wa.me/?text=${encodeURIComponent(url)}`} target="_blank" rel="noopener noreferrer" className="text-green-600 underline">📲 WhatsApp</a>
+                        <a href={`https://twitter.com/intent/tweet?text=Check%20out%20my%20seed!%20${encodeURIComponent(url)}`} target="_blank" rel="noopener noreferrer" className="text-blue-500 underline">🐦 Twitter</a>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
