@@ -28,6 +28,11 @@ export default function SharonsGarden() {
   const audioRef = useRef(null);
 
   useEffect(() => {
+    const cached = JSON.parse(localStorage.getItem('flowers') || '{}');
+    setPlanted(Object.values(cached));
+  }, []);
+
+  useEffect(() => {
     if (planted.length === 0) return;
     const counts = { positive: 0, neutral: 0, negative: 0 };
     planted.forEach((flower) => {
@@ -59,10 +64,10 @@ export default function SharonsGarden() {
         waterCount: 0,
         bloomed: false
       };
-      setPlanted([...planted, newFlower]);
       const cached = JSON.parse(localStorage.getItem('flowers') || '{}');
       cached[newFlower.id] = newFlower;
       localStorage.setItem('flowers', JSON.stringify(cached));
+      setPlanted(Object.values(cached));
       setEmotion('');
       setName('');
       setNote('');
@@ -70,11 +75,19 @@ export default function SharonsGarden() {
   };
 
   const handleWater = (id) => {
-    setPlanted((prev) =>
-      prev.map((flower) => {
+    const today = new Date().toDateString();
+    const lastKey = `lastWatered_${id}`;
+    const last = localStorage.getItem(lastKey);
+    if (last && new Date(last).toDateString() === today) {
+      alert("You've already watered this flower today. Try again tomorrow 🌙");
+      return;
+    }
+
+    setPlanted((prev) => {
+      const updated = prev.map((flower) => {
         if (flower.id === id) {
           const newCount = flower.waterCount + 1;
-          const bloomed = newCount >= 5;
+          const bloomed = newCount >= 7;
           if (bloomed && !flower.bloomed) {
             setCurrentReward({
               emotion: flower.emotion,
@@ -83,15 +96,17 @@ export default function SharonsGarden() {
             });
             setRewardOpen(true);
           }
-          const updated = { ...flower, waterCount: newCount, bloomed };
+          const updatedFlower = { ...flower, waterCount: newCount, bloomed };
           const cached = JSON.parse(localStorage.getItem('flowers') || '{}');
-          cached[flower.id] = updated;
+          cached[flower.id] = updatedFlower;
           localStorage.setItem('flowers', JSON.stringify(cached));
-          return updated;
+          localStorage.setItem(lastKey, new Date().toISOString());
+          return updatedFlower;
         }
         return flower;
-      })
-    );
+      });
+      return updated;
+    });
   };
 
   const handleShare = (id) => {
@@ -145,7 +160,7 @@ export default function SharonsGarden() {
                   <p className="text-sm text-gray-600 mb-2">“{flower.note}”</p>
                 )}
                 <p className="text-sm text-gray-500 mt-2">
-                  Watered {flower.waterCount} / 5 times
+                  Watered {flower.waterCount} / 7 times
                 </p>
                 {!flower.bloomed ? (
                   <Button onClick={() => handleWater(flower.id)} className="mt-2">
