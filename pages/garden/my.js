@@ -6,11 +6,14 @@ import { Button } from '../../components/ui/button';
 export default function MyGardenPage() {
   const [mySeeds, setMySeeds] = useState([]);
   const [filter, setFilter] = useState('all');
+  const [summary, setSummary] = useState({ total: 0, bloomed: 0 });
 
   useEffect(() => {
     const cached = JSON.parse(localStorage.getItem('flowers') || '{}');
     const all = Object.values(cached);
     setMySeeds(all);
+    const bloomCount = all.filter(seed => seed.bloomed).length;
+    setSummary({ total: all.length, bloomed: bloomCount });
   }, []);
 
   const filteredSeeds = mySeeds.filter((seed) => {
@@ -21,8 +24,12 @@ export default function MyGardenPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-yellow-100 to-green-100 p-6">
-      <h1 className="text-4xl font-bold text-center mb-4">🌱 My Garden</h1>
-      <p className="text-center text-md text-gray-700 mb-6">These are the seeds you've planted and their growth journey.</p>
+      <h1 className="text-4xl font-bold text-center mb-2">🌱 My Garden</h1>
+      <p className="text-center text-md text-gray-700 mb-4">These are the seeds you've planted and their growth journey.</p>
+
+      <div className="text-center text-sm text-gray-600 mb-6">
+        You’ve planted <strong>{summary.total}</strong> seeds — <strong>{summary.bloomed}</strong> have bloomed 🌸
+      </div>
 
       <div className="flex justify-center gap-4 mb-8">
         <Button onClick={() => setFilter('all')} variant={filter === 'all' ? 'default' : 'outline'}>All</Button>
@@ -32,13 +39,14 @@ export default function MyGardenPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
         {filteredSeeds.map((seed) => (
-          <Card key={seed.id} className="bg-white shadow-md rounded-xl p-4">
+          <Card key={seed.id} className="bg-white shadow-md rounded-xl p-4 border-4" style={{ borderColor: seed.bloomed ? '#f472b6' : '#cbd5e1' }}>
             <CardContent>
               <h3 className="text-lg font-semibold text-purple-700">
                 {seed.bloomed ? `${seed.bloomedFlower} ${seed.type}` : '🌱 Seedling'}
               </h3>
               <p className="text-sm italic text-gray-500">{seed.color} • {seed.name || 'Anonymous'}</p>
-              {seed.note && <p className="text-sm text-gray-600 mb-2">“{seed.note}”</p>}
+              {seed.note && <p className="text-sm text-gray-600 mb-1">“{seed.note}”</p>}
+              {seed.bloomed && <p className="text-sm text-pink-600 mb-1">🌟 Dedication: {seed.dedication || 'Not added yet'}</p>}
               <p className="text-sm text-gray-500 mb-2">Watered {seed.waterCount} / 7</p>
               <a
                 href={`/flower/${seed.id}`}
