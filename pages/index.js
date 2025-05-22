@@ -23,6 +23,7 @@ export default function SharonsGarden() {
   const [rewardOpen, setRewardOpen] = useState(false);
   const [currentReward, setCurrentReward] = useState(null);
   const audioRef = useRef(null);
+  const [copyMessage, setCopyMessage] = useState('');
 
   useEffect(() => {
     const cached = JSON.parse(localStorage.getItem('flowers') || '{}');
@@ -92,29 +93,17 @@ export default function SharonsGarden() {
     });
   };
 
-  const handleShare = (id) => {
-    const url = `${window.location.origin}/flower/${id}`;
-    navigator.clipboard.writeText(url)
-      .then(() => {
-        alert("Link copied to clipboard! 🌐\n" + url);
-      })
-      .catch(err => {
-        console.error("Clipboard error:", err);
-        alert("Sorry, your browser may block clipboard access.");
-      });
+  const handleCopyLink = (url) => {
+    navigator.clipboard.writeText(url);
+    setCopyMessage('🌱 Link copied!');
+    setTimeout(() => setCopyMessage(''), 2000);
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-pink-100 to-purple-200 p-6 relative">
       <audio ref={audioRef} loop hidden />
 
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-4xl font-bold text-center w-full">🌱 Sharon's Garden of Seeds 🌱</h1>
-        <a href="/garden/my">
-          <Button className="absolute right-6 top-6">🌿 My Garden</Button>
-        </a>
-      </div>
-
+      <h1 className="text-4xl font-bold text-center mb-2">🌱 Sharon's Garden of Seeds 🌱</h1>
       <p className="text-center text-md max-w-xl mx-auto mb-6">
         Plant your unique seed and let others water it. After 7 days, it will bloom into a special flower representing your feelings.
       </p>
@@ -131,40 +120,63 @@ export default function SharonsGarden() {
         <Button onClick={handlePlant}>Plant Seed</Button>
       </div>
 
+      {copyMessage && <div className="fixed top-4 right-4 bg-green-100 text-green-700 px-4 py-2 rounded shadow-md z-50">{copyMessage}</div>}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-        {planted.map((seed) => (
-          <motion.div
-            key={seed.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-          >
-            <Card className="bg-white shadow-xl rounded-2xl p-4">
-              <CardContent>
-                <h3 className="text-xl font-semibold text-purple-700">
-                  {seed.bloomed ? `${seed.bloomedFlower} ${seed.type}` : '🌱 Seedling'}
-                </h3>
-                <p className="text-sm italic text-gray-500 mb-1">— {seed.name || 'Anonymous'} | {seed.color}</p>
-                {seed.note && (
-                  <p className="text-sm text-gray-600 mb-2">“{seed.note}”</p>
-                )}
-                <p className="text-sm text-gray-500 mt-2">
-                  Watered {seed.waterCount} / 7 times
-                </p>
-                {!seed.bloomed ? (
-                  <Button onClick={() => handleWater(seed.id)} className="mt-2">
-                    Water this seed 💧
-                  </Button>
-                ) : (
-                  <p className="text-green-600 font-medium mt-2">This flower has bloomed! 🌟</p>
-                )}
-                <Button onClick={() => handleShare(seed.id)} className="mt-4 w-full bg-blue-500 hover:bg-blue-600 text-white">
-                  📤 Share Seed
-                </Button>
-              </CardContent>
-            </Card>
-          </motion.div>
-        ))}
+        {planted.map((seed) => {
+          const url = `${window.location.origin}/flower/${seed.id}`;
+          return (
+            <motion.div
+              key={seed.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+            >
+              <Card className="bg-white shadow-xl rounded-2xl p-4">
+                <CardContent>
+                  <h3 className="text-xl font-semibold text-purple-700">
+                    {seed.bloomed ? `${seed.bloomedFlower} ${seed.type}` : '🌱 Seedling'}
+                  </h3>
+                  <p className="text-sm italic text-gray-500 mb-1">— {seed.name || 'Anonymous'} | {seed.color}</p>
+                  {seed.note && (
+                    <p className="text-sm text-gray-600 mb-2">“{seed.note}”</p>
+                  )}
+                  <p className="text-sm text-gray-500 mt-2">
+                    Watered {seed.waterCount} / 7 times
+                  </p>
+                  {!seed.bloomed ? (
+                    <Button onClick={() => handleWater(seed.id)} className="mt-2">
+                      Water this seed 💧
+                    </Button>
+                  ) : (
+                    <p className="text-green-600 font-medium mt-2">This flower has bloomed! 🌟</p>
+                  )}
+                  <div className="mt-4 flex flex-col gap-2">
+                    <Button onClick={() => handleCopyLink(url)} variant="outline">
+                      📋 Copy Link to Seed
+                    </Button>
+                    <a
+                      href={`https://wa.me/?text=${encodeURIComponent(url)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-center border rounded px-4 py-2 text-sm text-green-600 border-green-600 hover:bg-green-50"
+                    >
+                      📲 Share on WhatsApp
+                    </a>
+                    <a
+                      href={`https://twitter.com/intent/tweet?text=Check%20out%20my%20seed%20in%20Sharon's%20Garden!%20${encodeURIComponent(url)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-center border rounded px-4 py-2 text-sm text-blue-500 border-blue-500 hover:bg-blue-50"
+                    >
+                      🐦 Share on Twitter
+                    </a>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          );
+        })}
       </div>
 
       {rewardOpen && currentReward && (
