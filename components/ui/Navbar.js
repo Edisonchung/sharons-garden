@@ -1,27 +1,33 @@
-  // components/ui/Navbar.js
+// components/ui/Navbar.js
 import Link from 'next/link';
+import { useState } from 'react';
 import { Button } from './button';
 
 export default function Navbar() {
+  const [open, setOpen] = useState(false);
+
   return (
-    <nav className="w-full bg-white shadow-md py-4 px-6 flex justify-between items-center">
-      <Link href="/">
-        <span className="text-xl font-bold text-purple-700">🌸 Sharon's Garden</span>
-      </Link>
-      <div className="flex gap-4">
-        <Link href="/">
-          <Button variant="outline">Home</Button>
-        </Link>
-        <Link href="/garden/my">
-          <Button variant="outline">My Garden</Button>
-        </Link>
-        <Link href="/garden/dedications">
-          <Button variant="outline">Dedications</Button>
-        </Link>
-        <Link href="/garden/stats">
-          <Button variant="outline">Stats</Button>
-        </Link>
+    <div className="fixed top-0 left-0 h-full z-50">
+      <div className="h-full flex">
+        <div className={`bg-white shadow-md w-60 transition-transform transform ${open ? 'translate-x-0' : '-translate-x-full'} duration-300 flex flex-col p-4`}>
+          <div className="mb-6 text-purple-700 font-bold text-xl">🌸 Sharon's Garden</div>
+          <Link href="/">
+            <Button variant="ghost" className="justify-start w-full">🏡 Home</Button>
+          </Link>
+          <Link href="/garden/my">
+            <Button variant="ghost" className="justify-start w-full">🌿 My Garden</Button>
+          </Link>
+          <Link href="/garden/dedications">
+            <Button variant="ghost" className="justify-start w-full">💬 Dedications</Button>
+          </Link>
+          <Link href="/garden/stats">
+            <Button variant="ghost" className="justify-start w-full">📊 Stats</Button>
+          </Link>
+        </div>
+        <button onClick={() => setOpen(!open)} className="p-2 bg-purple-600 text-white rounded-r focus:outline-none">
+          {open ? '❌' : '☰'}
+        </button>
       </div>
-    </nav>
+    </div>
   );
 }
