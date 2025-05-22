@@ -14,6 +14,7 @@ export default function FlowerDetail() {
   const [rewardShown, setRewardShown] = useState(false);
   const [lastWatered, setLastWatered] = useState(null);
   const [canWater, setCanWater] = useState(true);
+  const [showReward, setShowReward] = useState(false);
 
   useEffect(() => {
     if (id) {
