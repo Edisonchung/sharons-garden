@@ -6,10 +6,16 @@ import { Button } from './button';
 export default function Navbar() {
   const [open, setOpen] = useState(false);
   const sidebarRef = useRef(null);
+  const toggleButtonRef = useRef(null);
 
   useEffect(() => {
     function handleClickOutside(event) {
-      if (sidebarRef.current && !sidebarRef.current.contains(event.target)) {
+      if (
+        sidebarRef.current &&
+        !sidebarRef.current.contains(event.target) &&
+        toggleButtonRef.current &&
+        !toggleButtonRef.current.contains(event.target)
+      ) {
         setOpen(false);
       }
     }
@@ -24,33 +30,48 @@ export default function Navbar() {
   }, [open]);
 
   return (
-    <div className="fixed top-0 left-0 z-50 h-full">
-      <div
-        ref={sidebarRef}
-        className={`fixed top-0 left-0 h-full bg-white shadow-lg w-64 transform transition-transform duration-300 ease-in-out ${open ? 'translate-x-0' : '-translate-x-full'}`}
-      >
-        <div className="p-4">
-          <div className="mb-6 text-purple-700 font-bold text-xl">🌸 Sharon's Garden</div>
-          <Link href="/">
-            <Button variant="ghost" className="justify-start w-full">🏡 Home</Button>
-          </Link>
-          <Link href="/garden/my">
-            <Button variant="ghost" className="justify-start w-full">🌿 My Garden</Button>
-          </Link>
-          <Link href="/garden/dedications">
-            <Button variant="ghost" className="justify-start w-full">💬 Dedications</Button>
-          </Link>
-          <Link href="/garden/stats">
-            <Button variant="ghost" className="justify-start w-full">📊 Stats</Button>
-          </Link>
+    <>
+      {/* Overlay */}
+      {open && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 z-40 transition-opacity duration-300" />
+      )}
+
+      <div className="fixed top-0 left-0 z-50 h-full">
+        {/* Sidebar */}
+        <div
+          ref={sidebarRef}
+          className={`fixed top-0 left-0 h-full bg-white shadow-lg w-64 transform transition-transform duration-300 ease-in-out z-50 ${open ? 'translate-x-0' : '-translate-x-full'}`}
+        >
+          <div className="p-4">
+            <div className="mb-6 text-purple-700 font-bold text-xl">🌸 Sharon's Garden</div>
+            <div className="mb-4">
+              <p className="text-sm text-gray-600">Logged in as</p>
+              <p className="text-md font-semibold text-purple-800">guest@user.com</p>
+            </div>
+            <Link href="/">
+              <Button variant="ghost" className="justify-start w-full">🏡 Home</Button>
+            </Link>
+            <Link href="/garden/my">
+              <Button variant="ghost" className="justify-start w-full">🌿 My Garden</Button>
+            </Link>
+            <Link href="/garden/dedications">
+              <Button variant="ghost" className="justify-start w-full">💬 Dedications</Button>
+            </Link>
+            <Link href="/garden/stats">
+              <Button variant="ghost" className="justify-start w-full">📊 Stats</Button>
+            </Link>
+          </div>
         </div>
+
+        {/* Toggle Button */}
+        <button
+          ref={toggleButtonRef}
+          onClick={() => setOpen((prev) => !prev)}
+          className="fixed top-4 left-4 z-50 p-2 bg-purple-600 text-white rounded-md shadow-md transition-transform duration-300"
+        >
+          {open ? '❌' : '☰'}
+        </button>
       </div>
-      <button
-        onClick={() => setOpen(!open)}
-        className="fixed top-4 left-4 z-50 p-2 bg-purple-600 text-white rounded-md shadow-md"
-      >
-        {open ? '❌' : '☰'}
-      </button>
-    </div>
+    </>
   );
 }
