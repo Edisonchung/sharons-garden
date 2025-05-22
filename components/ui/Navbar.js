@@ -51,9 +51,16 @@ export default function Navbar() {
                   ❌
                 </button>
               </div>
-              <div className="mb-6">
-                <p className="text-xs text-gray-500">Logged in as</p>
-                <p className="text-sm font-medium text-purple-700">guest@user.com</p>
+              <div className="mb-6 flex items-center gap-3">
+                <img
+                  src="https://api.dicebear.com/6.x/thumbs/svg?seed=guest"
+                  alt="avatar"
+                  className="w-10 h-10 rounded-full border border-purple-300"
+                />
+                <div>
+                  <p className="text-xs text-gray-500">Logged in as</p>
+                  <p className="text-sm font-medium text-purple-700">guest@user.com</p>
+                </div>
               </div>
               <div className="flex flex-col gap-2">
                 <Link href="/">
