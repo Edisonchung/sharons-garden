@@ -6,6 +6,8 @@ import { Button } from '../../components/ui/button';
 export default function TimelinePage() {
   const [blooms, setBlooms] = useState([]);
   const [filter, setFilter] = useState('All');
+  const [editingId, setEditingId] = useState(null);
+  const [reflectionText, setReflectionText] = useState('');
 
   useEffect(() => {
     const cached = JSON.parse(localStorage.getItem('flowers') || '{}');
@@ -19,6 +21,23 @@ export default function TimelinePage() {
     const url = `${window.location.origin}/flower/${id}`;
     navigator.clipboard.writeText(url);
     alert('📋 Link copied to clipboard!');
+  };
+
+  const startEditing = (id, currentText) => {
+    setEditingId(id);
+    setReflectionText(currentText || '');
+  };
+
+  const saveReflection = (id) => {
+    const cached = JSON.parse(localStorage.getItem('flowers') || '{}');
+    if (cached[id]) {
+      cached[id].reflection = reflectionText;
+      localStorage.setItem('flowers', JSON.stringify(cached));
+    }
+    const updated = blooms.map(f => f.id === id ? { ...f, reflection: reflectionText } : f);
+    setBlooms(updated);
+    setEditingId(null);
+    setReflectionText('');
   };
 
   const flowerTypes = Array.from(new Set(blooms.map(f => f.type)));
@@ -46,7 +65,35 @@ export default function TimelinePage() {
               <p className="text-sm italic text-gray-600">by {bloom.name || 'Anonymous'}</p>
               {bloom.note && <p className="text-sm text-gray-700 mt-1">“{bloom.note}”</p>}
               <p className="text-xs text-gray-500 mt-2">🌸 Bloomed on {new Date(bloom.bloomTime).toLocaleDateString()}</p>
-              <Button onClick={() => handleShare(bloom.id)} className="mt-3" variant="outline">
+
+              <div className="mt-3">
+                {editingId === bloom.id ? (
+                  <div>
+                    <textarea
+                      value={reflectionText}
+                      onChange={(e) => setReflectionText(e.target.value)}
+                      className="w-full p-2 border rounded mb-2"
+                      rows={3}
+                      placeholder="Write your reflection..."
+                    />
+                    <Button onClick={() => saveReflection(bloom.id)} className="mr-2">💾 Save</Button>
+                    <Button variant="outline" onClick={() => setEditingId(null)}>Cancel</Button>
+                  </div>
+                ) : (
+                  <>
+                    {bloom.reflection ? (
+                      <p className="text-sm mt-2 text-gray-600">📝 {bloom.reflection}</p>
+                    ) : (
+                      <p className="text-sm mt-2 text-gray-400 italic">No reflection yet</p>
+                    )}
+                    <Button onClick={() => startEditing(bloom.id, bloom.reflection)} className="mt-2" variant="outline">
+                      ✏️ {bloom.reflection ? 'Edit' : 'Add'} Reflection
+                    </Button>
+                  </>
+                )}
+              </div>
+
+              <Button onClick={() => handleShare(bloom.id)} className="mt-4" variant="outline">
                 🔗 Share This Bloom
               </Button>
             </CardContent>
