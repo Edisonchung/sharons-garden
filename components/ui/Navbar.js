@@ -1,14 +1,34 @@
 // components/ui/Navbar.js
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Button } from './button';
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
+  const sidebarRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (sidebarRef.current && !sidebarRef.current.contains(event.target)) {
+        setOpen(false);
+      }
+    }
+    if (open) {
+      document.addEventListener('mousedown', handleClickOutside);
+    } else {
+      document.removeEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [open]);
 
   return (
     <div className="fixed top-0 left-0 z-50 h-full">
-      <div className={`fixed top-0 left-0 h-full bg-white shadow-lg w-64 transform transition-transform duration-300 ease-in-out ${open ? 'translate-x-0' : '-translate-x-full'}`}>
+      <div
+        ref={sidebarRef}
+        className={`fixed top-0 left-0 h-full bg-white shadow-lg w-64 transform transition-transform duration-300 ease-in-out ${open ? 'translate-x-0' : '-translate-x-full'}`}
+      >
         <div className="p-4">
           <div className="mb-6 text-purple-700 font-bold text-xl">🌸 Sharon's Garden</div>
           <Link href="/">
