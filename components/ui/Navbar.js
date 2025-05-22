@@ -8,6 +8,13 @@ export default function Navbar() {
   const sidebarRef = useRef(null);
   const toggleButtonRef = useRef(null);
 
+  // Simulate user authentication (replace with real auth later)
+  const user = {
+    name: 'Sharon Lim',
+    email: 'sharon@example.com',
+    avatar: 'https://api.dicebear.com/6.x/thumbs/svg?seed=sharon'
+  };
+
   useEffect(() => {
     function handleClickOutside(event) {
       if (
@@ -53,13 +60,13 @@ export default function Navbar() {
               </div>
               <div className="mb-6 flex items-center gap-3">
                 <img
-                  src="https://api.dicebear.com/6.x/thumbs/svg?seed=guest"
+                  src={user.avatar}
                   alt="avatar"
                   className="w-10 h-10 rounded-full border border-purple-300"
                 />
-                <div>
-                  <p className="text-xs text-gray-500">Logged in as</p>
-                  <p className="text-sm font-medium text-purple-700">guest@user.com</p>
+                <div className="flex flex-col">
+                  <span className="text-sm font-medium text-purple-700">{user.name}</span>
+                  <span className="text-xs text-gray-500">{user.email}</span>
                 </div>
               </div>
               <div className="flex flex-col gap-2">
@@ -75,6 +82,9 @@ export default function Navbar() {
                 <Link href="/garden/stats">
                   <Button variant="ghost" className="justify-start w-full text-left">📊 Stats</Button>
                 </Link>
+              </div>
+              <div className="mt-6">
+                <Button variant="outline" className="w-full justify-center">Logout</Button>
               </div>
             </div>
             <div className="text-xs text-gray-400 text-center mt-8">© 2025 Sharon's Garden</div>
