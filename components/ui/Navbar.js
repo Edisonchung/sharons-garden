@@ -86,6 +86,7 @@ export default function Navbar() {
                 {navItem('/garden/my', 'My Garden', '🌿')}
                 {navItem('/garden/dedications', 'Dedications', '💬')}
                 {navItem('/garden/stats', 'Stats', '📊')}
+                {navItem('/garden/timeline', 'Timeline', '🗓️')}
                 {navItem('/garden/profile', 'Profile', '🌼')}
                 {navItem('/garden/certificate', 'Certificate', '📜')}
               </div>
