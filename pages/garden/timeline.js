@@ -5,6 +5,7 @@ import { Button } from '../../components/ui/button';
 
 export default function TimelinePage() {
   const [blooms, setBlooms] = useState([]);
+  const [filter, setFilter] = useState('All');
 
   useEffect(() => {
     const cached = JSON.parse(localStorage.getItem('flowers') || '{}');
@@ -20,11 +21,25 @@ export default function TimelinePage() {
     alert('📋 Link copied to clipboard!');
   };
 
+  const flowerTypes = Array.from(new Set(blooms.map(f => f.type)));
+  const filtered = filter === 'All' ? blooms : blooms.filter(f => f.type === filter);
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-purple-50 p-6">
-      <h1 className="text-3xl font-bold text-center text-purple-800 mb-8">🗓️ Bloom Timeline</h1>
+      <h1 className="text-3xl font-bold text-center text-purple-800 mb-4">🗓️ Bloom Timeline</h1>
+
+      <div className="text-center mb-6">
+        <label className="mr-2 font-medium text-gray-700">Filter by type:</label>
+        <select value={filter} onChange={(e) => setFilter(e.target.value)} className="p-2 rounded border">
+          <option value="All">All</option>
+          {flowerTypes.map((type, i) => (
+            <option key={i} value={type}>{type}</option>
+          ))}
+        </select>
+      </div>
+
       <div className="max-w-3xl mx-auto flex flex-col gap-6">
-        {blooms.map((bloom, index) => (
+        {filtered.map((bloom, index) => (
           <Card key={index} className="p-4 shadow-md border-l-4 border-purple-300">
             <CardContent>
               <h2 className="text-lg font-bold text-purple-700">{bloom.bloomedFlower} {bloom.type}</h2>
@@ -37,8 +52,8 @@ export default function TimelinePage() {
             </CardContent>
           </Card>
         ))}
-        {blooms.length === 0 && (
-          <p className="text-center text-gray-500 italic">No blooms yet. Water your seeds to grow your story 🌱</p>
+        {filtered.length === 0 && (
+          <p className="text-center text-gray-500 italic">No blooms to show for this type 🌱</p>
         )}
       </div>
     </div>
