@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
+import Link from 'next/link';
 
 export default function MyGardenPage() {
   const [mySeeds, setMySeeds] = useState([]);
@@ -43,7 +44,13 @@ export default function MyGardenPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-yellow-100 to-green-100 p-6">
-      <h1 className="text-4xl font-bold text-center mb-2">🌱 My Garden</h1>
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-4xl font-bold">🌱 My Garden</h1>
+        <Link href="/">
+          <Button className="bg-purple-600 hover:bg-purple-700 text-white">🏡 Back to Garden</Button>
+        </Link>
+      </div>
+
       <p className="text-center text-md text-gray-700 mb-4">These are the seeds you've planted and their growth journey.</p>
 
       <div className="text-center text-sm text-gray-600 mb-6">
