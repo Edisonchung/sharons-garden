@@ -1,10 +1,11 @@
 // pages/garden/profile.js
-import { useState, useEffect } from 'react';
-import { getAuth, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore, doc, setDoc, getDoc } from 'firebase/firestore';
-
-const db = getFirestore();
-const auth = getAuth();
+import { useEffect, useState, useRef } from 'react';
+import { Card, CardContent } from '../../components/ui/card';
+import { Button } from '../../components/ui/button';
+import html2canvas from 'html2canvas';
+import { auth, db } from '../../lib/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
+import { getDoc, doc, setDoc } from 'firebase/firestore';
 
 export default function ProfilePage() {
   const [user, setUser] = useState(null);
@@ -12,18 +13,19 @@ export default function ProfilePage() {
   const [notify, setNotify] = useState(true);
   const [loading, setLoading] = useState(true);
 
+  const cardRef = useRef();
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      setUser(currentUser);
       if (currentUser) {
-        const userRef = doc(db, 'users', currentUser.uid);
-        const docSnap = await getDoc(userRef);
+        setUser(currentUser);
+        setEmail(currentUser.email);
+
+        const userDoc = doc(db, 'users', currentUser.uid);
+        const docSnap = await getDoc(userDoc);
+
         if (docSnap.exists()) {
-          const data = docSnap.data();
-          setEmail(data.email || currentUser.email);
-          setNotify(data.notify_opt_in ?? true);
-        } else {
-          setEmail(currentUser.email);
+          setNotify(docSnap.data().notify);
         }
       }
       setLoading(false);
@@ -31,44 +33,43 @@ export default function ProfilePage() {
     return () => unsubscribe();
   }, []);
 
-  const savePreferences = async () => {
+  const handleToggle = async () => {
     if (!user) return;
-    await setDoc(doc(db, 'users', user.uid), {
-      email,
-      displayName: user.displayName,
-      avatar: user.photoURL,
-      notify_opt_in: notify,
-    }, { merge: true });
-    alert('Preferences saved!');
+    const userDoc = doc(db, 'users', user.uid);
+    await setDoc(userDoc, { notify: !notify }, { merge: true });
+    setNotify(!notify);
   };
 
-  if (loading) return <p className="text-center mt-10">Loading profile...</p>;
+  const handleDownload = async () => {
+    if (!cardRef.current) return;
+    const canvas = await html2canvas(cardRef.current);
+    const link = document.createElement('a');
+    link.download = 'profile-card.png';
+    link.href = canvas.toDataURL();
+    link.click();
+  };
+
+  if (loading) return <p className="text-center mt-10">🔄 Loading profile…</p>;
 
   return (
-    <div className="p-6 max-w-md mx-auto bg-white shadow rounded">
-      <h2 className="text-2xl font-bold mb-4">👤 Profile & Email Preferences</h2>
-      <label className="block font-medium mb-1">Email:</label>
-      <input
-        className="border p-2 w-full mb-4"
-        type="email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-      />
-      <label className="block font-medium mb-2">
-        <input
-          type="checkbox"
-          checked={notify}
-          onChange={(e) => setNotify(e.target.checked)}
-          className="mr-2"
-        />
-        Receive daily watering reminders via email
-      </label>
-      <button
-        onClick={savePreferences}
-        className="mt-4 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded"
-      >
-        Save
-      </button>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-pink-100 to-purple-200 p-6">
+      <Card ref={cardRef} className="bg-white w-full max-w-md shadow-xl rounded-2xl p-6 text-center">
+        <CardContent>
+          <h1 className="text-2xl font-bold text-purple-700 mb-2">👤 Profile</h1>
+          <p className="text-gray-600 mb-4">Signed in as:<br /><span className="font-mono">{email}</span></p>
+
+          <div className="flex items-center justify-center gap-4">
+            <span className="text-sm">🔔 Daily Reminder:</span>
+            <Button onClick={handleToggle} variant={notify ? 'default' : 'outline'}>
+              {notify ? 'On' : 'Off'}
+            </Button>
+          </div>
+
+          <Button onClick={handleDownload} className="mt-6 w-full">
+            📥 Download Profile Card
+          </Button>
+        </CardContent>
+      </Card>
     </div>
   );
 }
