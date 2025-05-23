@@ -23,7 +23,7 @@ export default function MyGarden() {
   const [filter, setFilter] = useState('all');
 
   useEffect(() => {
-    if ('Notification' in window && Notification.permission !== 'granted') {
+    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission !== 'granted') {
       Notification.requestPermission();
     }
 
@@ -33,7 +33,7 @@ export default function MyGarden() {
     const oneDay = 24 * 60 * 60 * 1000;
 
     if (!last || now - new Date(last) > oneDay) {
-      if (Notification.permission === 'granted') {
+      if (typeof window !== 'undefined' && Notification.permission === 'granted') {
         new Notification('💧 Time to water your seeds in Sharon’s Garden!');
         localStorage.setItem(reminderKey, now.toISOString());
       }
@@ -50,19 +50,7 @@ export default function MyGarden() {
             where('userId', '==', currentUser.uid)
           );
           const snapshot = await getDocs(flowerQuery);
-          const userFlowers = snapshot.docs.map(doc => {
-            const data = doc.data();
-            return {
-              id: doc.id,
-              type: data?.type || 'Seed',
-              bloomed: data?.bloomed || false,
-              bloomedFlower: data?.bloomedFlower || '',
-              waterCount: data?.waterCount || 0,
-              note: data?.note || '',
-              name: data?.name || '',
-              color: data?.color || '',
-            };
-          });
+          const userFlowers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
           setFlowers(userFlowers);
         } catch (err) {
           console.error(err);
