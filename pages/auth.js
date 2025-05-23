@@ -1,8 +1,13 @@
 // pages/auth.js
 import { useState } from 'react';
 import { useRouter } from 'next/router';
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '../lib/firebase';
+import {
+  getAuth,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signInWithPopup,
+} from 'firebase/auth';
+import { auth, googleProvider } from '../lib/firebase';
 
 export default function AuthPage() {
   const router = useRouter();
@@ -13,6 +18,7 @@ export default function AuthPage() {
 
   const handleAuth = async (e) => {
     e.preventDefault();
+    setError(null);
     try {
       if (isLogin) {
         await signInWithEmailAndPassword(auth, email, password);
@@ -25,13 +31,25 @@ export default function AuthPage() {
     }
   };
 
+  const handleGoogleLogin = async () => {
+    setError(null);
+    try {
+      await signInWithPopup(auth, googleProvider);
+      router.push('/');
+    } catch (err) {
+      setError('Google login failed: ' + err.message);
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-100 to-pink-100">
       <div className="bg-white p-8 rounded-xl shadow-md w-full max-w-md">
         <h2 className="text-2xl font-bold text-center text-purple-700 mb-4">
           {isLogin ? 'Sign In' : 'Sign Up'} to Sharon's Garden
         </h2>
+
         {error && <p className="text-red-500 text-sm text-center mb-4">{error}</p>}
+
         <form onSubmit={handleAuth} className="flex flex-col gap-4">
           <input
             type="email"
@@ -56,6 +74,17 @@ export default function AuthPage() {
             {isLogin ? 'Sign In' : 'Sign Up'}
           </button>
         </form>
+
+        <div className="border-t my-4" />
+
+        <button
+          onClick={handleGoogleLogin}
+          className="w-full bg-red-500 hover:bg-red-600 text-white py-2 rounded flex items-center justify-center gap-2"
+        >
+          <img src="/google-icon.svg" alt="Google" className="w-5 h-5" />
+          Continue with Google
+        </button>
+
         <p className="text-center text-sm text-gray-500 mt-4">
           {isLogin ? "Don't have an account?" : 'Already have an account?'}{' '}
           <button
