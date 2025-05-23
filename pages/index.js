@@ -9,7 +9,16 @@ import { motion } from 'framer-motion';
 import SurpriseReward from '../components/SurpriseReward';
 import { auth, db } from '../lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
-import { addDoc, collection, doc, getDoc, updateDoc, query, where, getDocs } from 'firebase/firestore';
+import {
+  addDoc,
+  collection,
+  doc,
+  getDoc,
+  updateDoc,
+  onSnapshot,
+  query,
+  where
+} from 'firebase/firestore';
 
 const seedTypes = [
   { type: 'Hope', flower: '🌷' },
@@ -37,24 +46,22 @@ export default function SharonsGarden() {
   const audioRef = useRef(null);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
       if (!user) {
         router.push('/auth');
       } else {
         setUser(user);
-        await fetchUserFlowers(user.uid);
         setShowMain(true);
+        const q = query(collection(db, 'flowers'), where('userId', '==', user.uid));
+        const unsubscribeSnapshot = onSnapshot(q, (snapshot) => {
+          const flowers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          setPlanted(flowers);
+        });
+        return () => unsubscribeSnapshot();
       }
     });
-    return () => unsubscribe();
+    return () => unsubscribeAuth();
   }, [router]);
-
-  const fetchUserFlowers = async (uid) => {
-    const flowerQuery = query(collection(db, 'flowers'), where('userId', '==', uid));
-    const snapshot = await getDocs(flowerQuery);
-    const results = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    setPlanted(results);
-  };
 
   const handlePlant = async () => {
     if (!user) return;
@@ -72,8 +79,7 @@ export default function SharonsGarden() {
       createdAt: new Date().toISOString()
     };
 
-    const docRef = await addDoc(collection(db, 'flowers'), newSeed);
-    setPlanted(prev => [...prev, { ...newSeed, id: docRef.id }]);
+    await addDoc(collection(db, 'flowers'), newSeed);
     setName('');
     setNote('');
   };
@@ -107,14 +113,7 @@ export default function SharonsGarden() {
 
       localStorage.setItem(lastKey, new Date().toISOString());
 
-      const updated = planted.map(seed =>
-        seed.id === id
-          ? { ...seed, waterCount: newCount, bloomed, bloomedFlower: bloomed ? flowerIcon : null }
-          : seed
-      );
-      setPlanted(updated);
-
-      if (bloomed && !docSnap.data().bloomed) {
+      if (bloomed && !data.bloomed) {
         setCurrentReward({
           emotion: `${data.type} Seed`,
           reward: 'Access Sharon’s exclusive voice message 🌟',
@@ -129,13 +128,8 @@ export default function SharonsGarden() {
     }
   };
 
-  const handleShare = (id) => {
-    setShareId(id);
-  };
-
-  const closeShare = () => {
-    setShareId(null);
-  };
+  const handleShare = (id) => setShareId(id);
+  const closeShare = () => setShareId(null);
 
   if (!showMain) {
     return (
@@ -203,25 +197,13 @@ export default function SharonsGarden() {
             <h2 className="text-xl font-bold text-purple-700 mb-2">📤 Share Seed</h2>
             <p className="mb-4 text-sm">Choose a way to share your planted seed with others:</p>
             <div className="flex flex-col gap-2 mb-4">
-              <Button
-                onClick={() => {
-                  const url = `${window.location.origin}/flower/${shareId}`;
-                  navigator.clipboard.writeText(url);
-                  alert("📋 Link copied!");
-                }}
-              >📋 Copy Link</Button>
-              <a
-                href={`https://wa.me/?text=${encodeURIComponent(window.location.origin + '/flower/' + shareId)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-center border border-green-500 text-green-600 px-4 py-2 rounded hover:bg-green-50"
-              >📲 Share on WhatsApp</a>
-              <a
-                href={`https://twitter.com/intent/tweet?text=Check%20out%20my%20seed!%20${encodeURIComponent(window.location.origin + '/flower/' + shareId)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-center border border-blue-500 text-blue-500 px-4 py-2 rounded hover:bg-blue-50"
-              >🐦 Share on Twitter</a>
+              <Button onClick={() => {
+                const url = `${window.location.origin}/flower/${shareId}`;
+                navigator.clipboard.writeText(url);
+                alert("📋 Link copied!");
+              }}>📋 Copy Link</Button>
+              <a href={`https://wa.me/?text=${encodeURIComponent(window.location.origin + '/flower/' + shareId)}`} target="_blank" rel="noopener noreferrer" className="text-center border border-green-500 text-green-600 px-4 py-2 rounded hover:bg-green-50">📲 Share on WhatsApp</a>
+              <a href={`https://twitter.com/intent/tweet?text=Check%20out%20my%20seed!%20${encodeURIComponent(window.location.origin + '/flower/' + shareId)}`} target="_blank" rel="noopener noreferrer" className="text-center border border-blue-500 text-blue-500 px-4 py-2 rounded hover:bg-blue-50">🐦 Share on Twitter</a>
             </div>
             <Button onClick={closeShare} variant="outline">Close</Button>
           </div>
@@ -234,17 +216,8 @@ export default function SharonsGarden() {
             <h2 className="text-2xl font-bold text-purple-700 mb-2">🎁 Reward Unlocked!</h2>
             <p className="mb-2">Your seed "{currentReward.emotion}" has fully bloomed.</p>
             <p className="mb-4 text-green-600 font-medium">{currentReward.reward}</p>
-            <a
-              href={currentReward.link}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-600 underline mb-4 inline-block"
-            >
-              Claim Reward
-            </a>
-            <div>
-              <Button onClick={() => setRewardOpen(false)}>Close</Button>
-            </div>
+            <a href={currentReward.link} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline mb-4 inline-block">Claim Reward</a>
+            <div><Button onClick={() => setRewardOpen(false)}>Close</Button></div>
           </div>
         </div>
       )}
