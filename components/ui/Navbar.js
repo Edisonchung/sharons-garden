@@ -1,11 +1,11 @@
+// components/ui/Navbar.js
 import React, { useEffect, useState } from 'react';
+import { Button } from './button';
 import { auth, googleProvider } from '../../lib/firebase';
 import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
 import Link from 'next/link';
-import { useRouter } from 'next/router';
 
 export default function Navbar() {
-  const router = useRouter();
   const [user, setUser] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
@@ -14,6 +14,14 @@ export default function Navbar() {
     const unsubscribe = onAuthStateChanged(auth, setUser);
     return () => unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [darkMode]);
 
   const handleLogin = async () => {
     try {
@@ -27,37 +35,33 @@ export default function Navbar() {
   const handleLogout = async () => {
     try {
       await signOut(auth);
-      router.push('/auth');
     } catch (err) {
       console.error("Logout Error:", err.message);
     }
   };
 
-  const toggleDarkMode = () => {
-    setDarkMode(!darkMode);
-    document.documentElement.classList.toggle('dark');
+  const handleOverlayClick = () => {
+    setSidebarOpen(false);
   };
-
-  const isActive = (path) => router.pathname === path;
 
   return (
     <>
       {/* Hamburger Button */}
       <div className="fixed top-4 left-4 z-50">
         <button
-          onClick={() => setSidebarOpen(true)}
+          onClick={() => setSidebarOpen(!sidebarOpen)}
           className="bg-purple-500 text-white p-2 rounded-md shadow-md hover:bg-purple-600 transition"
         >
           ☰
         </button>
       </div>
 
-      {/* Backdrop Overlay */}
+      {/* Overlay */}
       {sidebarOpen && (
         <div
           className="fixed inset-0 bg-black bg-opacity-40 z-30"
-          onClick={() => setSidebarOpen(false)}
-        />
+          onClick={handleOverlayClick}
+        ></div>
       )}
 
       {/* Sidebar */}
@@ -66,61 +70,40 @@ export default function Navbar() {
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        {/* Header */}
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-xl font-bold text-purple-700 dark:text-purple-300">🌸 Sharon's Garden</h1>
-          <button onClick={() => setSidebarOpen(false)} className="text-xl font-bold text-purple-700 dark:text-purple-300">
+        <div className="flex justify-between items-center mb-4">
+          <h1 className="text-xl font-bold text-purple-700 dark:text-white">🌸 Sharon's Garden</h1>
+          <button onClick={() => setSidebarOpen(false)} className="text-xl font-bold text-purple-700 dark:text-white">
             ✕
           </button>
         </div>
 
-        {/* Navigation */}
         <nav className="flex flex-col gap-4">
-          <Link href="/" className={`${isActive('/') ? 'font-bold' : ''} hover:text-purple-800 text-purple-700 dark:text-purple-300`}>🏠 Home</Link>
-          <Link href="/garden" className={`${isActive('/garden') ? 'font-bold' : ''} hover:text-purple-800 text-purple-700 dark:text-purple-300`}>🌱 My Garden</Link>
-          <Link href="/garden/profile" className={`${isActive('/garden/profile') ? 'font-bold' : ''} hover:text-purple-800 text-purple-700 dark:text-purple-300`}>👤 Profile</Link>
-          <Link href="/garden/achievements" className={`${isActive('/garden/achievements') ? 'font-bold' : ''} hover:text-purple-800 text-purple-700 dark:text-purple-300`}>🏆 Achievements</Link>
-          <Link href="/garden/settings" className={`${isActive('/garden/settings') ? 'font-bold' : ''} hover:text-purple-800 text-purple-700 dark:text-purple-300`}>⚙️ Settings</Link>
-        </nav>
+          <Link href="/" className="text-purple-700 dark:text-white hover:underline">🏠 Home</Link>
+          <Link href="/garden" className="text-purple-700 dark:text-white hover:underline">🌱 My Garden</Link>
+          <Link href="/garden/profile" className="text-purple-700 dark:text-white hover:underline">👤 Profile</Link>
+          <Link href="/garden/achievements" className="text-purple-700 dark:text-white hover:underline">🏆 Achievements</Link>
+          <Link href="/garden/settings" className="text-purple-700 dark:text-white hover:underline">⚙️ Settings</Link>
 
-        <hr className="my-6 border-purple-300 dark:border-purple-600" />
+          <Button onClick={() => setDarkMode(!darkMode)} variant="outline" className="mt-2">
+            {darkMode ? '🌞 Light Mode' : '🌙 Dark Mode'}
+          </Button>
 
-        {/* Theme Toggle */}
-        <button
-          onClick={toggleDarkMode}
-          className="w-full mb-4 bg-yellow-400 text-black py-1 rounded hover:bg-yellow-500 text-sm"
-        >
-          {darkMode ? '☀️ Light Mode' : '🌙 Dark Mode'}
-        </button>
-
-        {/* User Info */}
-        {user ? (
-          <div className="flex flex-col items-center text-center">
-            <div className="w-14 h-14 rounded-full bg-purple-200 text-white font-bold text-lg flex items-center justify-center mb-2 overflow-hidden">
+          {user ? (
+            <div className="mt-4">
               {user.photoURL ? (
-                <img src={user.photoURL} alt="Profile" className="rounded-full w-full h-full object-cover" />
+                <img src={user.photoURL} alt="Profile" className="w-12 h-12 rounded-full mb-2" />
               ) : (
-                user.displayName?.charAt(0) || 'U'
+                <div className="w-12 h-12 rounded-full mb-2 bg-gray-500 text-white flex items-center justify-center text-xl">
+                  {user.displayName ? user.displayName.charAt(0) : 'U'}
+                </div>
               )}
+              <span className="text-sm text-gray-800 dark:text-gray-200 block mb-2">Hi, {user.displayName || user.email}</span>
+              <Button onClick={handleLogout} variant="outline">Logout</Button>
             </div>
-            <span className="text-sm font-medium text-purple-700 dark:text-purple-300 mb-1 text-ellipsis overflow-hidden w-full">
-              Hi, {user.displayName || user.email}
-            </span>
-            <button
-              onClick={handleLogout}
-              className="bg-purple-600 text-white px-4 py-1 rounded hover:bg-purple-700 mt-2 text-sm"
-            >
-              Logout
-            </button>
-          </div>
-        ) : (
-          <button
-            onClick={handleLogin}
-            className="w-full mt-4 bg-purple-600 text-white py-2 rounded hover:bg-purple-700"
-          >
-            Login with Google
-          </button>
-        )}
+          ) : (
+            <Button onClick={handleLogin} className="mt-4">Login with Google</Button>
+          )}
+        </nav>
       </div>
     </>
   );
