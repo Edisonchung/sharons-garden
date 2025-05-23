@@ -1,13 +1,12 @@
-// components/ui/Navbar.js
 import React, { useEffect, useState } from 'react';
-import Link from 'next/link';
+import { Button } from './button';
 import { auth, googleProvider } from '../../lib/firebase';
 import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
-import { Menu } from 'lucide-react'; // Or use any icon library
+import Link from 'next/link';
 
 export default function Navbar() {
   const [user, setUser] = useState(null);
-  const [open, setOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, setUser);
@@ -33,51 +32,50 @@ export default function Navbar() {
 
   return (
     <>
-      <nav className="bg-pink-100 p-4 flex justify-between items-center shadow">
-        <button onClick={() => setOpen(true)} className="md:hidden">
-          <Menu className="h-6 w-6 text-purple-700" />
+      {/* Hamburger Button */}
+      <div className="fixed top-4 left-4 z-50">
+        <button
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+          className="bg-purple-500 text-white p-2 rounded-md shadow-md hover:bg-purple-600 transition"
+        >
+          ☰
         </button>
-        <h1 className="text-xl font-bold text-purple-700">🌸 Sharon's Garden</h1>
-        <div className="hidden md:flex gap-4 items-center">
-          <Link href="/" className="text-purple-700 font-medium hover:underline">Home</Link>
-          <Link href="/garden/my" className="text-purple-700 font-medium hover:underline">My Garden</Link>
-          <Link href="/garden/profile" className="text-purple-700 font-medium hover:underline">Profile</Link>
-          {user ? (
-            <>
-              <span className="text-sm text-gray-700">Hi, {user.displayName || user.email}</span>
-              <button onClick={handleLogout} className="px-3 py-1 border border-purple-500 text-purple-700 rounded hover:bg-purple-50">
-                Logout
-              </button>
-            </>
-          ) : (
-            <button onClick={handleLogin} className="px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700">
-              Login with Google
-            </button>
-          )}
-        </div>
-      </nav>
+      </div>
 
-      {/* Mobile Sidebar */}
-      <div className={`fixed inset-0 bg-black bg-opacity-30 z-40 ${open ? 'block' : 'hidden'}`} onClick={() => setOpen(false)} />
-      <div className={`fixed top-0 left-0 h-full w-64 bg-white shadow-lg z-50 transform transition-transform duration-300 ${open ? 'translate-x-0' : '-translate-x-full'}`}>
-        <div className="p-4 flex flex-col gap-4">
-          <button onClick={() => setOpen(false)} className="self-end text-sm text-purple-600">Close ✖</button>
-          <Link href="/" onClick={() => setOpen(false)} className="text-purple-700 font-medium">🏠 Home</Link>
-          <Link href="/garden/my" onClick={() => setOpen(false)} className="text-purple-700 font-medium">🌿 My Garden</Link>
-          <Link href="/garden/profile" onClick={() => setOpen(false)} className="text-purple-700 font-medium">👤 Profile</Link>
-          {user ? (
-            <>
-              <span className="text-sm text-gray-700">Hi, {user.displayName || user.email}</span>
-              <button onClick={handleLogout} className="px-3 py-1 border border-purple-500 text-purple-700 rounded hover:bg-purple-50">
-                Logout
-              </button>
-            </>
-          ) : (
-            <button onClick={handleLogin} className="px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700">
-              Login with Google
-            </button>
-          )}
+      {/* Sidebar */}
+      <div
+        className={`fixed top-0 left-0 h-full w-64 bg-pink-100 shadow-xl p-6 z-40 transform transition-transform duration-300 ${
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
+        <div className="flex justify-between items-center mb-4">
+          <h1 className="text-xl font-bold text-purple-700">🌸 Sharon's Garden</h1>
+          <button onClick={() => setSidebarOpen(false)} className="text-xl font-bold text-purple-700">
+            ✕
+          </button>
         </div>
+
+        <nav className="flex flex-col gap-4">
+          <Link href="/" className="text-purple-700 hover:underline">🏠 Home</Link>
+          <Link href="/garden" className="text-purple-700 hover:underline">🌱 My Garden</Link>
+          <Link href="/garden/profile" className="text-purple-700 hover:underline">👤 Profile</Link>
+          <Link href="/garden/achievements" className="text-purple-700 hover:underline">🏆 Achievements</Link>
+          <Link href="/garden/settings" className="text-purple-700 hover:underline">⚙️ Settings</Link>
+
+          {user ? (
+            <div className="mt-4">
+              {user.photoURL && (
+                <img src={user.photoURL} alt="Profile" className="w-12 h-12 rounded-full mb-2" />
+              )}
+              <span className="text-sm">Hi, {user.displayName || user.email}</span>
+              <Button onClick={handleLogout} variant="outline" className="mt-2">
+                Logout
+              </Button>
+            </div>
+          ) : (
+            <Button onClick={handleLogin} className="mt-4">Login with Google</Button>
+          )}
+        </nav>
       </div>
     </>
   );
