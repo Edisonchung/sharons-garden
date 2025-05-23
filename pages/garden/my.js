@@ -50,7 +50,19 @@ export default function MyGarden() {
             where('userId', '==', currentUser.uid)
           );
           const snapshot = await getDocs(flowerQuery);
-          const userFlowers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          const userFlowers = snapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+              id: doc.id,
+              type: data?.type || 'Seed',
+              bloomed: data?.bloomed || false,
+              bloomedFlower: data?.bloomedFlower || '',
+              waterCount: data?.waterCount || 0,
+              note: data?.note || '',
+              name: data?.name || '',
+              color: data?.color || '',
+            };
+          });
           setFlowers(userFlowers);
         } catch (err) {
           console.error(err);
