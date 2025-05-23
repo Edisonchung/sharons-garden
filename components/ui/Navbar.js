@@ -79,7 +79,7 @@ export default function Navbar() {
 
         <nav className="flex flex-col gap-4">
           <Link href="/" className="text-purple-700 dark:text-white hover:underline">🏠 Home</Link>
-          <Link href="/garden" className="text-purple-700 dark:text-white hover:underline">🌱 My Garden</Link>
+          <Link href="/garden/my" className="text-purple-700 dark:text-white hover:underline">🌱 My Garden</Link>
           <Link href="/garden/profile" className="text-purple-700 dark:text-white hover:underline">👤 Profile</Link>
           <Link href="/garden/achievements" className="text-purple-700 dark:text-white hover:underline">🏆 Achievements</Link>
           <Link href="/garden/settings" className="text-purple-700 dark:text-white hover:underline">⚙️ Settings</Link>
