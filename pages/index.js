@@ -8,7 +8,9 @@ import { Card, CardContent } from '../components/ui/card';
 import { motion } from 'framer-motion';
 import SurpriseReward from '../components/SurpriseReward';
 import { onAuthStateChanged } from 'firebase/auth';
-import { auth } from '../lib/firebase';
+import { auth, db } from '../lib/firebase';
+import { addDoc, collection, query, where, onSnapshot } from 'firebase/firestore';
+import toast from 'react-hot-toast';
 
 const seedTypes = [
   { type: 'Hope', flower: '🌷' },
@@ -23,6 +25,7 @@ const seedColors = ['Pink', 'Blue', 'Yellow', 'Purple', 'White'];
 export default function SharonsGarden() {
   const router = useRouter();
   const [showMain, setShowMain] = useState(false);
+  const [user, setUser] = useState(null);
   const [name, setName] = useState('');
   const [note, setNote] = useState('');
   const [seedType, setSeedType] = useState('Hope');
@@ -35,80 +38,54 @@ export default function SharonsGarden() {
   const [showReward, setShowReward] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (!user) {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      if (!currentUser) {
         router.push('/auth');
       } else {
-        const cached = JSON.parse(localStorage.getItem('flowers') || '{}');
-        setPlanted(Object.values(cached));
+        setUser(currentUser);
         setShowMain(true);
       }
     });
     return () => unsubscribe();
   }, [router]);
 
-  const handlePlant = () => {
-    if (seedType.trim()) {
+  useEffect(() => {
+    if (user) {
+      const flowerQuery = query(collection(db, 'flowers'), where('userId', '==', user.uid));
+      const unsubscribe = onSnapshot(flowerQuery, (snapshot) => {
+        const liveSeeds = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setPlanted(liveSeeds);
+      });
+      return () => unsubscribe();
+    }
+  }, [user]);
+
+  const handlePlant = async () => {
+    if (!user) return;
+    try {
       const newSeed = {
-        id: Date.now(),
         type: seedType,
         color: seedColor,
         name,
         note,
         waterCount: 0,
         bloomed: false,
-        bloomedFlower: null
+        bloomedFlower: null,
+        userId: user.uid,
+        createdAt: new Date().toISOString()
       };
-      const cached = JSON.parse(localStorage.getItem('flowers') || '{}');
-      cached[newSeed.id] = newSeed;
-      localStorage.setItem('flowers', JSON.stringify(cached));
-      setPlanted(Object.values(cached));
+      await addDoc(collection(db, 'flowers'), newSeed);
+      toast.success('Seed planted! 🌱');
       setName('');
       setNote('');
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to plant seed.');
     }
   };
 
   const handleWater = (id) => {
-    const today = new Date().toDateString();
-    const lastKey = `lastWatered_${id}`;
-    const last = localStorage.getItem(lastKey);
-    if (last && new Date(last).toDateString() === today) {
-      alert("You've already watered this seed today. Try again tomorrow 🌙");
-      return;
-    }
-
-    setPlanted((prev) => {
-      const updated = prev.map((seed) => {
-        if (seed.id === id) {
-          const newCount = seed.waterCount + 1;
-          const bloomed = newCount >= 7;
-          const flowerIcon = seedTypes.find(s => s.type === seed.type)?.flower || '🌸';
-          const updatedSeed = {
-            ...seed,
-            waterCount: newCount,
-            bloomed,
-            bloomedFlower: bloomed ? flowerIcon : null
-          };
-          const cached = JSON.parse(localStorage.getItem('flowers') || '{}');
-          cached[seed.id] = updatedSeed;
-          localStorage.setItem('flowers', JSON.stringify(cached));
-          localStorage.setItem(lastKey, new Date().toISOString());
-
-          if (bloomed && !seed.bloomed) {
-            setCurrentReward({
-              emotion: `${seed.type} Seed`,
-              reward: 'Access Sharon’s exclusive voice message 🌟',
-              link: 'https://example.com/sharon-reward'
-            });
-            setRewardOpen(true);
-            setShowReward(true);
-          }
-          return updatedSeed;
-        }
-        return seed;
-      });
-      return updated;
-    });
+    toast('Watering not implemented for Firestore version yet.');
   };
 
   const handleShare = (id) => {
@@ -165,7 +142,7 @@ export default function SharonsGarden() {
             <Card className="bg-white shadow-xl rounded-2xl p-4">
               <CardContent>
                 <h3 className="text-xl font-semibold text-purple-700">
-                  {seed.bloomed ? `${seed.bloomedFlower} ${seed.type}` : '🌱 Seedling'}
+                  {seed.bloomed ? `${seed.bloomedFlower || '🌸'} ${seed.type}` : '🌱 Seedling'}
                 </h3>
                 <p className="text-sm italic text-gray-500 mb-1">— {seed.name || 'Anonymous'} | {seed.color}</p>
                 {seed.note && (
