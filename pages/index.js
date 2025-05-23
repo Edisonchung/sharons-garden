@@ -120,7 +120,7 @@ export default function SharonsGarden() {
         onClick={handleInitialClick}
       >
         <Image
-          src="/welcome-screen.png"
+          src="/welcome.png"
           alt="Welcome"
           width={600}
           height={600}
