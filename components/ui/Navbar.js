@@ -1,58 +1,53 @@
-// components/ui/Navbar.js
+// Enhanced badge styles & tooltip
 import React, { useEffect, useState } from 'react';
 import { Button } from './button';
 import { auth, googleProvider, db } from '../../lib/firebase';
-import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import {
+  signInWithPopup,
+  signOut,
+  onAuthStateChanged,
+} from 'firebase/auth';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 import Link from 'next/link';
 
 export default function Navbar() {
   const [user, setUser] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
-  const [unwateredCount, setUnwateredCount] = useState(0);
+  const [hasUnwatered, setHasUnwatered] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
+      if (currentUser) {
+        const flowerQuery = query(
+          collection(db, 'flowers'),
+          where('userId', '==', currentUser.uid),
+          where('bloomed', '==', false)
+        );
+        const snapshot = await getDocs(flowerQuery);
+        const today = new Date().toDateString();
+        const needsWater = snapshot.docs.some((doc) => {
+          const lastKey = `lastWatered_${doc.id}`;
+          const last = localStorage.getItem(lastKey);
+          return !last || new Date(last).toDateString() !== today;
+        });
+        setHasUnwatered(needsWater);
+      } else {
+        setHasUnwatered(false);
+      }
     });
     return () => unsubscribe();
   }, []);
 
   useEffect(() => {
-    if (darkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
+    document.documentElement.classList.toggle('dark', darkMode);
   }, [darkMode]);
-
-  useEffect(() => {
-    const fetchUnwatered = async () => {
-      if (user) {
-        const q = query(collection(db, 'flowers'), where('userId', '==', user.uid));
-        const snapshot = await getDocs(q);
-        const today = new Date().toDateString();
-        let count = 0;
-        snapshot.forEach((doc) => {
-          const flower = doc.data();
-          const lastWateredKey = `lastWatered_${doc.id}`;
-          const lastWatered = localStorage.getItem(lastWateredKey);
-          if (!lastWatered || new Date(lastWatered).toDateString() !== today) {
-            count++;
-          }
-        });
-        setUnwateredCount(count);
-      }
-    };
-    fetchUnwatered();
-  }, [user]);
 
   const handleLogin = async () => {
     try {
       await signInWithPopup(auth, googleProvider);
     } catch (err) {
-      console.error("Google Login Error:", err.message);
       alert("Login failed.");
     }
   };
@@ -65,13 +60,8 @@ export default function Navbar() {
     }
   };
 
-  const handleOverlayClick = () => {
-    setSidebarOpen(false);
-  };
-
   return (
     <>
-      {/* Hamburger Button */}
       <div className="fixed top-4 left-4 z-50">
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -81,37 +71,38 @@ export default function Navbar() {
         </button>
       </div>
 
-      {/* Overlay */}
       {sidebarOpen && (
         <div
           className="fixed inset-0 bg-black bg-opacity-40 z-30"
-          onClick={handleOverlayClick}
+          onClick={() => setSidebarOpen(false)}
         ></div>
       )}
 
-      {/* Sidebar */}
       <div
-        className={`fixed top-0 left-0 h-full w-64 bg-pink-100 dark:bg-gray-900 shadow-xl p-6 z-40 transform transition-transform duration-300 ${
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
+        className={`fixed top-0 left-0 h-full w-64 bg-pink-100 dark:bg-gray-900 shadow-xl p-6 z-40 transform transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
       >
         <div className="flex justify-between items-center mb-4">
           <h1 className="text-xl font-bold text-purple-700 dark:text-white">🌸 Sharon's Garden</h1>
-          <button onClick={() => setSidebarOpen(false)} className="text-xl font-bold text-purple-700 dark:text-white">
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="text-xl font-bold text-purple-700 dark:text-white"
+          >
             ✕
           </button>
         </div>
 
-        <nav className="flex flex-col gap-4">
+        <nav className="flex flex-col gap-4 relative">
           <Link href="/" className="text-purple-700 dark:text-white hover:underline">🏠 Home</Link>
-          <Link href="/garden/my" className="text-purple-700 dark:text-white hover:underline relative">
-            🌱 My Garden
-            {unwateredCount > 0 && (
-              <span className="absolute -top-1 -right-2 text-xs bg-red-500 text-white rounded-full px-1.5 py-0.5">
+          <div className="relative">
+            <Link href="/garden/my" className="text-purple-700 dark:text-white hover:underline">
+              🌱 My Garden
+            </Link>
+            {hasUnwatered && (
+              <span className="absolute -top-1 -right-3 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center animate-ping-short" title="Some seeds need watering">
                 !
               </span>
             )}
-          </Link>
+          </div>
           <Link href="/garden/profile" className="text-purple-700 dark:text-white hover:underline">👤 Profile</Link>
           <Link href="/garden/achievements" className="text-purple-700 dark:text-white hover:underline">🏆 Achievements</Link>
           <Link href="/garden/settings" className="text-purple-700 dark:text-white hover:underline">⚙️ Settings</Link>
