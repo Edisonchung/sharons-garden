@@ -1,7 +1,4 @@
-// pages/garden/my.js
 import { useEffect, useState } from 'react';
-import { Input } from '../../components/ui/input';
-import { Button } from '../../components/ui/button';
 import { Card, CardContent } from '../../components/ui/card';
 import { auth, db } from '../../lib/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
@@ -13,6 +10,7 @@ export default function MyGarden() {
   const [flowers, setFlowers] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // 🌿 Water reminder
   useEffect(() => {
     if ('Notification' in window && Notification.permission !== 'granted') {
       Notification.requestPermission();
@@ -31,6 +29,7 @@ export default function MyGarden() {
     }
   }, []);
 
+  // 🧑‍🌾 Load flowers from Firestore
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
@@ -60,16 +59,48 @@ export default function MyGarden() {
   }, []);
 
   return (
-  <div className="min-h-screen bg-gradient-to-b from-pink-50 to-purple-100 dark:from-gray-900 dark:to-black p-6 text-center">
-    <h1 className="text-3xl font-bold text-purple-700 dark:text-purple-300 mb-6">🌿 My Garden</h1>
-    <p className="text-gray-600 dark:text-gray-400">Your planted seeds will appear here soon. Keep nurturing them!</p>
-    <div className="mt-10">
-      <Card className="p-6 max-w-lg mx-auto bg-white dark:bg-gray-800">
-        <CardContent>
-          <h2 className="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-100">Coming soon: Your personalized garden view 🌱</h2>
-          <p className="text-sm text-gray-500 dark:text-gray-300">This page will show all the seeds and flowers you’ve planted and watered.</p>
-        </CardContent>
-      </Card>
+    <div className="min-h-screen bg-gradient-to-b from-pink-50 to-purple-100 dark:from-gray-900 dark:to-black p-6">
+      <h1 className="text-3xl font-bold text-center text-purple-700 dark:text-purple-300 mb-6">
+        🌿 My Garden
+      </h1>
+
+      {loading ? (
+        <p className="text-center text-gray-500 dark:text-gray-400">Loading your flowers...</p>
+      ) : flowers.length === 0 ? (
+        <div className="max-w-lg mx-auto">
+          <Card className="bg-white dark:bg-gray-800 p-6 text-center">
+            <CardContent>
+              <h2 className="text-xl font-semibold mb-2 text-gray-800 dark:text-white">
+                Nothing here yet 🌱
+              </h2>
+              <p className="text-sm text-gray-600 dark:text-gray-300">
+                Plant your first seed to see it grow here!
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+          {flowers.map(flower => (
+            <Card key={flower.id} className="bg-white dark:bg-gray-800 p-4">
+              <CardContent>
+                <h3 className="text-lg font-bold text-purple-600 dark:text-purple-300">
+                  {flower.bloomed ? `${flower.bloomedFlower} ${flower.type}` : '🌱 Seedling'}
+                </h3>
+                <p className="text-sm text-gray-500 dark:text-gray-300">
+                  Color: {flower.color}
+                </p>
+                <p className="text-sm italic text-gray-400">
+                  {flower.note || 'No note'}
+                </p>
+                <p className="text-sm mt-2 text-gray-600 dark:text-gray-300">
+                  Watered {flower.waterCount || 0} / 7 times
+                </p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
-  </div>
-);
+  );
+}
