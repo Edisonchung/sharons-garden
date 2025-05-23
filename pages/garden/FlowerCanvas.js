@@ -1,51 +1,60 @@
 // components/FlowerCanvas.js
-import React, { useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
+import { useTheme } from 'next-themes';
 
-export default function FlowerCanvas({ spriteSrc = "/flower-sprite.png", frameSize = 32, rows = 3, cols = 3, frameCount = 4 }) {
-  const canvasRef = useRef(null);
-  const imageRef = useRef(null);
+const flowerSprite = new Image();
+flowerSprite.src = '/sprites/flowers.png'; // Assume a sprite sheet with frames
+
+const spriteSize = 32; // size per sprite
+const flowersPerRow = 5; // sprite sheet layout
+
+export default function FlowerCanvas({ flowers }) {
+  const canvasRef = useRef();
+  const { theme } = useTheme();
 
   useEffect(() => {
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
-    const flowerImage = new Image();
-    flowerImage.src = spriteSrc;
-    imageRef.current = flowerImage;
+    const pixelRatio = window.devicePixelRatio || 1;
+    const width = canvas.clientWidth * pixelRatio;
+    const height = canvas.clientHeight * pixelRatio;
+    canvas.width = width;
+    canvas.height = height;
+    ctx.scale(pixelRatio, pixelRatio);
 
-    let frame = 0;
-    let animationFrame;
+    ctx.fillStyle = theme === 'dark' ? '#0f172a' : '#fef2f2';
+    ctx.fillRect(0, 0, canvas.clientWidth, canvas.clientHeight);
 
-    flowerImage.onload = () => {
-      const draw = () => {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    flowers.forEach((flower, index) => {
+      const x = (index % 10) * (spriteSize + 16) + 20;
+      const y = Math.floor(index / 10) * (spriteSize + 24) + 20;
 
-        for (let row = 0; row < rows; row++) {
-          for (let col = 0; col < cols; col++) {
-            ctx.drawImage(
-              flowerImage,
-              frame * frameSize, 0,
-              frameSize, frameSize,
-              col * frameSize, row * frameSize,
-              frameSize, frameSize
-            );
-          }
-        }
+      const spriteIndex = getSpriteIndex(flower);
+      const sx = (spriteIndex % flowersPerRow) * spriteSize;
+      const sy = Math.floor(spriteIndex / flowersPerRow) * spriteSize;
 
-        frame = (frame + 1) % frameCount;
-        animationFrame = requestAnimationFrame(draw);
-      };
-      draw();
-    };
-
-    return () => cancelAnimationFrame(animationFrame);
-  }, [spriteSrc, frameSize, rows, cols, frameCount]);
+      ctx.drawImage(flowerSprite, sx, sy, spriteSize, spriteSize, x, y, spriteSize, spriteSize);
+    });
+  }, [flowers, theme]);
 
   return (
-    <canvas
-      ref={canvasRef}
-      width={cols * frameSize}
-      height={rows * frameSize}
-      className="mx-auto block rounded shadow-lg border border-purple-300"
-    />
+    <div className="overflow-auto border rounded-xl bg-white dark:bg-gray-900">
+      <canvas
+        ref={canvasRef}
+        className="w-full h-[500px]"
+        style={{ width: '100%', height: '500px' }}
+      />
+    </div>
   );
+}
+
+function getSpriteIndex(flower) {
+  const typeMap = {
+    Hope: 0,
+    Joy: 1,
+    Memory: 2,
+    Love: 3,
+    Strength: 4
+  };
+  return typeMap[flower.type] || 0;
 }
