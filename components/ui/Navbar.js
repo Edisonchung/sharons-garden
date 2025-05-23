@@ -1,17 +1,21 @@
 // components/ui/Navbar.js
 import React, { useEffect, useState } from 'react';
 import { Button } from './button';
-import { auth, googleProvider } from '../../lib/firebase';
+import { auth, googleProvider, db } from '../../lib/firebase';
 import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 import Link from 'next/link';
 
 export default function Navbar() {
   const [user, setUser] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
+  const [unwateredCount, setUnwateredCount] = useState(0);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, setUser);
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+    });
     return () => unsubscribe();
   }, []);
 
@@ -22,6 +26,27 @@ export default function Navbar() {
       document.documentElement.classList.remove('dark');
     }
   }, [darkMode]);
+
+  useEffect(() => {
+    const fetchUnwatered = async () => {
+      if (user) {
+        const q = query(collection(db, 'flowers'), where('userId', '==', user.uid));
+        const snapshot = await getDocs(q);
+        const today = new Date().toDateString();
+        let count = 0;
+        snapshot.forEach((doc) => {
+          const flower = doc.data();
+          const lastWateredKey = `lastWatered_${doc.id}`;
+          const lastWatered = localStorage.getItem(lastWateredKey);
+          if (!lastWatered || new Date(lastWatered).toDateString() !== today) {
+            count++;
+          }
+        });
+        setUnwateredCount(count);
+      }
+    };
+    fetchUnwatered();
+  }, [user]);
 
   const handleLogin = async () => {
     try {
@@ -79,7 +104,14 @@ export default function Navbar() {
 
         <nav className="flex flex-col gap-4">
           <Link href="/" className="text-purple-700 dark:text-white hover:underline">🏠 Home</Link>
-          <Link href="/garden/my" className="text-purple-700 dark:text-white hover:underline">🌱 My Garden</Link>
+          <Link href="/garden/my" className="text-purple-700 dark:text-white hover:underline relative">
+            🌱 My Garden
+            {unwateredCount > 0 && (
+              <span className="absolute -top-1 -right-2 text-xs bg-red-500 text-white rounded-full px-1.5 py-0.5">
+                !
+              </span>
+            )}
+          </Link>
           <Link href="/garden/profile" className="text-purple-700 dark:text-white hover:underline">👤 Profile</Link>
           <Link href="/garden/achievements" className="text-purple-700 dark:text-white hover:underline">🏆 Achievements</Link>
           <Link href="/garden/settings" className="text-purple-700 dark:text-white hover:underline">⚙️ Settings</Link>
