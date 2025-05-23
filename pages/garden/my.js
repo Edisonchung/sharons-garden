@@ -1,16 +1,26 @@
+// pages/garden/my.js
 import { useEffect, useState } from 'react';
-import { Card, CardContent } from '../../components/ui/card';
 import { auth, db } from '../../lib/firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  deleteDoc,
+  doc,
+  updateDoc
+} from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import toast from 'react-hot-toast';
+import { Button } from '../../components/ui/button';
+import { Card, CardContent } from '../../components/ui/card';
 
 export default function MyGarden() {
   const [user, setUser] = useState(null);
   const [flowers, setFlowers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState('all');
 
-  // 🌿 Water reminder
   useEffect(() => {
     if ('Notification' in window && Notification.permission !== 'granted') {
       Notification.requestPermission();
@@ -29,7 +39,6 @@ export default function MyGarden() {
     }
   }, []);
 
-  // 🧑‍🌾 Load flowers from Firestore
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
@@ -58,48 +67,69 @@ export default function MyGarden() {
     return () => unsubscribe();
   }, []);
 
-  return (
-    <div className="min-h-screen bg-gradient-to-b from-pink-50 to-purple-100 dark:from-gray-900 dark:to-black p-6">
-      <h1 className="text-3xl font-bold text-center text-purple-700 dark:text-purple-300 mb-6">
-        🌿 My Garden
-      </h1>
+  const handleDelete = async (id) => {
+    try {
+      await deleteDoc(doc(db, 'flowers', id));
+      setFlowers(prev => prev.filter(f => f.id !== id));
+      toast.success('Flower deleted');
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to delete flower.');
+    }
+  };
 
+  const handleUpdate = async (id, newNote) => {
+    try {
+      const flowerRef = doc(db, 'flowers', id);
+      await updateDoc(flowerRef, { note: newNote });
+      setFlowers(prev => prev.map(f => f.id === id ? { ...f, note: newNote } : f));
+      toast.success('Note updated');
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to update note.');
+    }
+  };
+
+  const filteredFlowers = flowers.filter(f => {
+    if (filter === 'bloomed') return f.bloomed;
+    if (filter === 'notBloomed') return !f.bloomed;
+    return true;
+  });
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-pink-50 to-purple-100 dark:from-gray-900 dark:to-black p-6 text-center">
+      <h1 className="text-3xl font-bold text-purple-700 dark:text-purple-300 mb-6">🌿 My Garden</h1>
       {loading ? (
-        <p className="text-center text-gray-500 dark:text-gray-400">Loading your flowers...</p>
-      ) : flowers.length === 0 ? (
-        <div className="max-w-lg mx-auto">
-          <Card className="bg-white dark:bg-gray-800 p-6 text-center">
-            <CardContent>
-              <h2 className="text-xl font-semibold mb-2 text-gray-800 dark:text-white">
-                Nothing here yet 🌱
-              </h2>
-              <p className="text-sm text-gray-600 dark:text-gray-300">
-                Plant your first seed to see it grow here!
-              </p>
-            </CardContent>
-          </Card>
-        </div>
+        <p className="text-gray-600 dark:text-gray-400">Loading your flowers...</p>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-          {flowers.map(flower => (
-            <Card key={flower.id} className="bg-white dark:bg-gray-800 p-4">
-              <CardContent>
-                <h3 className="text-lg font-bold text-purple-600 dark:text-purple-300">
-                  {flower.bloomed ? `${flower.bloomedFlower} ${flower.type}` : '🌱 Seedling'}
-                </h3>
-                <p className="text-sm text-gray-500 dark:text-gray-300">
-                  Color: {flower.color}
-                </p>
-                <p className="text-sm italic text-gray-400">
-                  {flower.note || 'No note'}
-                </p>
-                <p className="text-sm mt-2 text-gray-600 dark:text-gray-300">
-                  Watered {flower.waterCount || 0} / 7 times
-                </p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        <>
+          <div className="flex justify-center gap-4 mb-6">
+            <Button variant={filter === 'all' ? 'default' : 'outline'} onClick={() => setFilter('all')}>All</Button>
+            <Button variant={filter === 'bloomed' ? 'default' : 'outline'} onClick={() => setFilter('bloomed')}>Bloomed</Button>
+            <Button variant={filter === 'notBloomed' ? 'default' : 'outline'} onClick={() => setFilter('notBloomed')}>Not Bloomed</Button>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+            {filteredFlowers.map(flower => (
+              <Card key={flower.id} className="p-4 bg-white dark:bg-gray-800 shadow-md relative">
+                <CardContent>
+                  <h3 className="text-lg font-semibold text-purple-700 dark:text-purple-200">
+                    {flower.bloomed ? `${flower.bloomedFlower || '🌸'} ${flower.type}` : '🌱 Seedling'}
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-300 italic">— {flower.name || 'Anonymous'} | {flower.color}</p>
+                  <p className="text-sm mt-2 text-gray-500 dark:text-gray-400">{flower.note || 'No note'}</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">Watered {flower.waterCount} / 7 times</p>
+                  {flower.bloomed ? (
+                    <p className="text-green-500 font-medium mt-2 animate-pulse">This flower has bloomed! 🌟</p>
+                  ) : null}
+                  <div className="flex gap-2 mt-4">
+                    <Button onClick={() => handleDelete(flower.id)} variant="destructive">Delete</Button>
+                    <Button onClick={() => handleUpdate(flower.id, prompt('Edit note:', flower.note) || flower.note)} variant="outline">Edit</Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </>
       )}
     </div>
   );
