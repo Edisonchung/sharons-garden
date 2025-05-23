@@ -7,6 +7,8 @@ import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
 import { motion } from 'framer-motion';
 import SurpriseReward from '../components/SurpriseReward';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from '../lib/firebase';
 
 const seedTypes = [
   { type: 'Hope', flower: '🌷' },
@@ -33,13 +35,17 @@ export default function SharonsGarden() {
   const [showReward, setShowReward] = useState(false);
 
   useEffect(() => {
-    const cached = JSON.parse(localStorage.getItem('flowers') || '{}');
-    setPlanted(Object.values(cached));
-  }, []);
-
-  const handleInitialClick = () => {
-    router.push('/auth');
-  };
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (!user) {
+        router.push('/auth');
+      } else {
+        const cached = JSON.parse(localStorage.getItem('flowers') || '{}');
+        setPlanted(Object.values(cached));
+        setShowMain(true);
+      }
+    });
+    return () => unsubscribe();
+  }, [router]);
 
   const handlePlant = () => {
     if (seedType.trim()) {
@@ -115,10 +121,7 @@ export default function SharonsGarden() {
 
   if (!showMain) {
     return (
-      <div
-        className="min-h-screen flex items-center justify-center bg-black cursor-pointer"
-        onClick={handleInitialClick}
-      >
+      <div className="min-h-screen flex items-center justify-center bg-black cursor-pointer">
         <Image
           src="/welcome.png"
           alt="Welcome"
