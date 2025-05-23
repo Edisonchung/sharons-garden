@@ -1,44 +1,54 @@
 // pages/login.js
-import { useEffect } from 'react';
+import { useState } from 'react';
+import { signInWithPopup } from 'firebase/auth';
+import { auth, googleProvider } from '../lib/firebase';
 import { useRouter } from 'next/router';
-import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
-import { auth } from '../lib/firebase';
 
-export default function Login() {
+export default function LoginPage() {
   const router = useRouter();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
 
   const handleGoogleLogin = async () => {
-    const provider = new GoogleAuthProvider();
     try {
-      const result = await signInWithPopup(auth, provider);
-      console.log('✅ User signed in:', result.user);
-      router.push('/garden/my'); // Redirect to user profile
-    } catch (error) {
-      console.error('❌ Google login failed:', error.message);
+      await signInWithPopup(auth, googleProvider);
+      router.push('/'); // redirect after login
+    } catch (err) {
+      alert('Google login failed: ' + err.message);
     }
   };
 
   return (
-    <div className="flex flex-col justify-center items-center min-h-screen bg-gradient-to-b from-yellow-50 to-pink-100 text-center p-4">
-      <img src="/welcome.png" alt="Welcome" className="w-96 mb-6 rounded-2xl shadow-xl" />
-      <h1 className="text-3xl font-bold mb-4">欢迎来到Sharon的心愿花园 🌸</h1>
-      <p className="text-md mb-6">一起种下你想被顾顾的情绪吧</p>
+    <div className="flex items-center justify-center min-h-screen bg-gradient-to-b from-pink-100 to-purple-200">
+      <div className="bg-white p-8 rounded-lg shadow-lg w-96">
+        <h2 className="text-2xl font-bold mb-4 text-center text-purple-700">Sign In to Sharon's Garden</h2>
+        <input
+          type="email"
+          placeholder="Email"
+          className="w-full border rounded px-3 py-2 mb-3"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
+        <input
+          type="password"
+          placeholder="Password"
+          className="w-full border rounded px-3 py-2 mb-4"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+        <button className="w-full bg-purple-600 text-white py-2 rounded hover:bg-purple-700">
+          Sign In
+        </button>
+        <p className="text-sm text-center mt-4">Don't have an account? <a href="#" className="text-purple-600 underline">Sign Up</a></p>
 
-      <button
-        onClick={handleGoogleLogin}
-        className="bg-white text-black px-6 py-3 rounded-full shadow-md hover:bg-gray-100 flex items-center gap-2"
-      >
-        <img src="/google.svg" alt="Google" className="w-5 h-5" />
-        Sign in with Google
-      </button>
-
-      {/* Instagram login button (for later) */}
-      {/* <button
-        onClick={handleInstagramLogin}
-        className="mt-4 bg-pink-500 text-white px-6 py-3 rounded-full hover:bg-pink-600"
-      >
-        Sign in with Instagram
-      </button> */}
+        <div className="border-t my-4" />
+        <button
+          onClick={handleGoogleLogin}
+          className="w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600"
+        >
+          Login with Google
+        </button>
+      </div>
     </div>
   );
 }
