@@ -60,5 +60,16 @@ export default function MyGarden() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-pink-50 to-purple-100 dark:from-gray-900 dark:to-black p-6 text-center">
-      <h1 className="text-3xl font-bold text-purple-700 dark:text-purple-300 mb-6">
+  <div className="min-h-screen bg-gradient-to-b from-pink-50 to-purple-100 dark:from-gray-900 dark:to-black p-6 text-center">
+    <h1 className="text-3xl font-bold text-purple-700 dark:text-purple-300 mb-6">🌿 My Garden</h1>
+    <p className="text-gray-600 dark:text-gray-400">Your planted seeds will appear here soon. Keep nurturing them!</p>
+    <div className="mt-10">
+      <Card className="p-6 max-w-lg mx-auto bg-white dark:bg-gray-800">
+        <CardContent>
+          <h2 className="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-100">Coming soon: Your personalized garden view 🌱</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-300">This page will show all the seeds and flowers you’ve planted and watered.</p>
+        </CardContent>
+      </Card>
+    </div>
+  </div>
+);
