@@ -1,8 +1,9 @@
+// components/FlowerCanvas.js
 import React, { useState } from 'react';
 import { toast } from 'react-hot-toast';
 import { updateDoc, doc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import './FlowerCanvas.css';
+import '../styles/FlowerCanvas.css';
 
 export default function FlowerCanvas({ flowers = [] }) {
   const [selected, setSelected] = useState(null);
