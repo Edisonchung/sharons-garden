@@ -14,6 +14,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 import toast from 'react-hot-toast';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent } from '../../components/ui/card';
+import FlowerCanvas from '../../components/FlowerCanvas';
 
 export default function MyGarden() {
   const [user, setUser] = useState(null);
@@ -108,7 +109,10 @@ export default function MyGarden() {
             <Button variant={filter === 'bloomed' ? 'default' : 'outline'} onClick={() => setFilter('bloomed')}>Bloomed</Button>
             <Button variant={filter === 'notBloomed' ? 'default' : 'outline'} onClick={() => setFilter('notBloomed')}>Not Bloomed</Button>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+
+          <FlowerCanvas flowers={filteredFlowers} />
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 mt-10">
             {filteredFlowers.map(flower => (
               <Card key={flower.id} className="p-4 bg-white dark:bg-gray-800 shadow-md relative">
                 <CardContent>
