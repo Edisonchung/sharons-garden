@@ -3,7 +3,6 @@ import React, { useState } from 'react';
 import toast from 'react-hot-toast';
 import { db } from '../lib/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
-import '../styles/FlowerCanvas.css';
 
 export default function FlowerCanvas({ flowers = [] }) {
   const [selected, setSelected] = useState(null);
