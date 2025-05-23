@@ -1,10 +1,18 @@
 // pages/garden/my.js
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Input } from '../../components/ui/input';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent } from '../../components/ui/card';
+import { auth, db } from '../../lib/firebase';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { onAuthStateChanged } from 'firebase/auth';
+import toast from 'react-hot-toast';
 
 export default function MyGarden() {
+  const [user, setUser] = useState(null);
+  const [flowers, setFlowers] = useState([]);
+  const [loading, setLoading] = useState(true);
+
   useEffect(() => {
     if ('Notification' in window && Notification.permission !== 'granted') {
       Notification.requestPermission();
@@ -23,18 +31,34 @@ export default function MyGarden() {
     }
   }, []);
 
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      if (currentUser) {
+        setUser(currentUser);
+        try {
+          const flowerQuery = query(
+            collection(db, 'flowers'),
+            where('userId', '==', currentUser.uid)
+          );
+          const snapshot = await getDocs(flowerQuery);
+          const userFlowers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          setFlowers(userFlowers);
+        } catch (err) {
+          console.error(err);
+          toast.error('Failed to load your garden.');
+        } finally {
+          setLoading(false);
+        }
+      } else {
+        setUser(null);
+        setFlowers([]);
+        setLoading(false);
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-pink-50 to-purple-100 p-6 text-center">
-      <h1 className="text-3xl font-bold text-purple-700 mb-6">🌿 My Garden</h1>
-      <p className="text-gray-600">Your planted seeds will appear here soon. Keep nurturing them!</p>
-      <div className="mt-10">
-        <Card className="p-6 max-w-lg mx-auto">
-          <CardContent>
-            <h2 className="text-xl font-semibold mb-4">Coming soon: Your personalized garden view 🌱</h2>
-            <p className="text-sm text-gray-500">This page will show all the seeds and flowers you’ve planted and watered.</p>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
-  );
-}
+    <div className="min-h-screen bg-gradient-to-b from-pink-50 to-purple-100 dark:from-gray-900 dark:to-black p-6 text-center">
+      <h1 className="text-3xl font-bold text-purple-700 dark:text-purple-300 mb-6">
