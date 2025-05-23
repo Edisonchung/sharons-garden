@@ -11,7 +11,6 @@ import {
   doc
 } from 'firebase/firestore';
 import toast from 'react-hot-toast';
-import '../../styles/canvas.css';
 
 export default function CanvasGarden() {
   const [user, setUser] = useState(null);
