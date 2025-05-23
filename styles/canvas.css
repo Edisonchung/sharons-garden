@@ -1,0 +1,17 @@
+/* styles/canvas.css */
+.canvas-container {
+  width: 100%;
+  height: 500px;
+  background-color: #f9f9f9;
+  position: relative;
+  border: 2px dashed #ddd;
+}
+
+.flower-pixel {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  font-size: 20px;
+  text-align: center;
+  line-height: 24px;
+}
