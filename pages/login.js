@@ -1,4 +1,3 @@
-// pages/login.js
 import { useState } from 'react';
 import { useRouter } from 'next/router';
 import {
@@ -18,7 +17,7 @@ export default function LoginPage() {
       await signInWithEmailAndPassword(auth, email, password);
       router.push('/');
     } catch (err) {
-      setError('Login failed: ' + err.message);
+      setError('Email login failed: ' + err.message);
     }
   };
 
@@ -31,7 +30,7 @@ export default function LoginPage() {
     }
   };
 
-  const goToSignup = () => router.push('/auth'); // change this if your signup page is different
+  const goToSignup = () => router.push('/auth');
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gradient-to-b from-pink-100 to-purple-200">
@@ -58,6 +57,7 @@ export default function LoginPage() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
+
         <button
           onClick={handleEmailLogin}
           className="w-full bg-purple-600 text-white py-2 rounded hover:bg-purple-700"
@@ -66,7 +66,7 @@ export default function LoginPage() {
         </button>
 
         <p className="text-sm text-center mt-4">
-          Don't have an account?{' '}
+          Don&apos;t have an account?{' '}
           <button
             onClick={goToSignup}
             className="text-purple-600 underline"
@@ -79,8 +79,13 @@ export default function LoginPage() {
 
         <button
           onClick={handleGoogleLogin}
-          className="w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600"
+          className="w-full bg-red-500 text-white py-2 rounded hover:bg-red-600 flex items-center justify-center gap-2"
         >
+          <img
+            src="/google-icon.svg"
+            alt="Google"
+            className="w-5 h-5"
+          />
           Sign in with Google
         </button>
       </div>
