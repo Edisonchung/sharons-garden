@@ -1,4 +1,4 @@
-// ✅ Improved /index.js for Sharon's Garden with cleanup and SSR-safe hydration
+// pages/index.js
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import Image from 'next/image';
@@ -43,12 +43,12 @@ export default function SharonsGarden() {
   const [currentReward, setCurrentReward] = useState(null);
   const [shareId, setShareId] = useState(null);
   const [showReward, setShowReward] = useState(false);
+  const [isClient, setIsClient] = useState(false);
   const audioRef = useRef(null);
 
-  // Hydration safety
-  const [isMounted, setIsMounted] = useState(false);
-  useEffect(() => setIsMounted(true), []);
-  if (!isMounted) return null;
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
@@ -70,6 +70,7 @@ export default function SharonsGarden() {
 
   const handlePlant = async () => {
     if (!user) return;
+
     const newSeed = {
       userId: user.uid,
       type: seedType,
@@ -81,23 +82,29 @@ export default function SharonsGarden() {
       bloomedFlower: null,
       createdAt: new Date().toISOString()
     };
+
     await addDoc(collection(db, 'flowers'), newSeed);
     setName('');
     setNote('');
   };
 
   const handleWater = async (id) => {
+    if (typeof window === 'undefined') return;
+
     const today = new Date().toDateString();
     const lastKey = `lastWatered_${id}`;
     const last = localStorage.getItem(lastKey);
+
     if (last && new Date(last).toDateString() === today) {
       alert("You've already watered this seed today. Try again tomorrow 🌙");
       return;
     }
+
     try {
       const docRef = doc(db, 'flowers', id);
       const docSnap = await getDoc(docRef);
       if (!docSnap.exists()) return;
+
       const data = docSnap.data();
       const newCount = (data.waterCount || 0) + 1;
       const bloomed = newCount >= 7;
@@ -129,6 +136,14 @@ export default function SharonsGarden() {
 
   const handleShare = (id) => setShareId(id);
   const closeShare = () => setShareId(null);
+
+  if (!isClient || !showMain) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-black cursor-pointer">
+        <Image src="/welcome.png" alt="Welcome" width={600} height={600} className="rounded-lg shadow-xl" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-pink-100 to-purple-200 p-6 relative">
@@ -175,7 +190,7 @@ export default function SharonsGarden() {
         ))}
       </div>
 
-      {shareId && (
+      {shareId && typeof window !== 'undefined' && (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl p-6 shadow-2xl max-w-sm text-center">
             <h2 className="text-xl font-bold text-purple-700 mb-2">📤 Share Seed</h2>
@@ -186,8 +201,8 @@ export default function SharonsGarden() {
                 navigator.clipboard.writeText(url);
                 alert("📋 Link copied!");
               }}>📋 Copy Link</Button>
-              <a href={`https://wa.me/?text=${encodeURIComponent(window.location.origin + '/flower/' + shareId)}`} target="_blank" rel="noopener noreferrer" className="text-center border border-green-500 text-green-600 px-4 py-2 rounded hover:bg-green-50">📲 WhatsApp</a>
-              <a href={`https://twitter.com/intent/tweet?text=Check%20out%20my%20seed!%20${encodeURIComponent(window.location.origin + '/flower/' + shareId)}`} target="_blank" rel="noopener noreferrer" className="text-center border border-blue-500 text-blue-500 px-4 py-2 rounded hover:bg-blue-50">🐦 Twitter</a>
+              <a href={`https://wa.me/?text=${encodeURIComponent(window.location.origin + '/flower/' + shareId)}`} target="_blank" rel="noopener noreferrer" className="text-center border border-green-500 text-green-600 px-4 py-2 rounded hover:bg-green-50">📲 Share on WhatsApp</a>
+              <a href={`https://twitter.com/intent/tweet?text=Check%20out%20my%20seed!%20${encodeURIComponent(window.location.origin + '/flower/' + shareId)}`} target="_blank" rel="noopener noreferrer" className="text-center border border-blue-500 text-blue-500 px-4 py-2 rounded hover:bg-blue-50">🐦 Share on Twitter</a>
             </div>
             <Button onClick={closeShare} variant="outline">Close</Button>
           </div>
