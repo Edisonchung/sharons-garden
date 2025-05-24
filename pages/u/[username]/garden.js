@@ -10,8 +10,9 @@ import {
   updateDoc,
   getDoc
 } from 'firebase/firestore';
-import { Card, CardContent } from '../../components/ui/card';
-import { Button } from '../../components/ui/button';
+import { auth, db } from '../../../lib/firebase';
+import { Card, CardContent } from '../../../components/ui/card';
+import { Button } from '../../../components/ui/button';
 import toast from 'react-hot-toast';
 
 export default function FriendGardenPage() {
