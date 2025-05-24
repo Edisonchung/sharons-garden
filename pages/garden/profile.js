@@ -13,8 +13,7 @@ import {
   where,
   collection,
   getDocs,
-  orderBy,
-  updateDoc
+  orderBy
 } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 import debounce from 'lodash.debounce';
@@ -33,6 +32,7 @@ export default function ProfilePage() {
   const [savingUsername, setSavingUsername] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [rewards, setRewards] = useState([]);
+  const [helpedBloomCount, setHelpedBloomCount] = useState(0);
 
   const { badges, getBadgeDetails, getAllBadges } = useAchievements();
   const cardRef = useRef();
@@ -63,6 +63,38 @@ export default function ProfilePage() {
           );
           const rewardSnap = await getDocs(rewardQuery);
           setRewards(rewardSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+
+          // Count how many flowers this user helped bloom
+          const wateringQuery = query(
+            collection(db, 'waterings'),
+            where('fromUserId', '==', currentUser.uid)
+          );
+          const wateringSnap = await getDocs(wateringQuery);
+          const uniqueSeedIds = new Set(wateringSnap.docs.map(doc => doc.data().seedId));
+
+          let bloomCount = 0;
+          for (const seedId of uniqueSeedIds) {
+            const flowerDoc = await getDoc(doc(db, 'flowers', seedId));
+            if (flowerDoc.exists() && flowerDoc.data().bloomed) {
+              bloomCount++;
+            }
+          }
+          setHelpedBloomCount(bloomCount);
+
+          // Award badge if threshold met
+          if (bloomCount >= 5) {
+            await setDoc(
+              doc(db, 'rewards', `${currentUser.uid}_kindgardener`),
+              {
+                userId: currentUser.uid,
+                rewardType: 'Badge',
+                seedType: 'Support',
+                description: 'You helped 5 flowers bloom 🌼',
+                timestamp: new Date()
+              },
+              { merge: true }
+            );
+          }
         } catch (err) {
           console.error(err);
           toast.error('Failed to load profile data.');
@@ -148,27 +180,6 @@ export default function ProfilePage() {
     }
   };
 
-  const handleRedeemReward = async (rewardId) => {
-    try {
-      const rewardRef = doc(db, 'rewards', rewardId);
-      await updateDoc(rewardRef, {
-        redeemed: true,
-        redeemedAt: new Date(),
-      });
-
-      setRewards(prev =>
-        prev.map(r =>
-          r.id === rewardId ? { ...r, redeemed: true, redeemedAt: new Date() } : r
-        )
-      );
-
-      toast.success("🎁 Reward claimed successfully!");
-    } catch (err) {
-      console.error("Reward claim error:", err);
-      toast.error("Failed to claim reward.");
-    }
-  };
-
   if (!isClient || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-pink-100 to-purple-200 text-center">
@@ -199,6 +210,8 @@ export default function ProfilePage() {
               {notify ? 'On' : 'Off'}
             </Button>
           </div>
+
+          <p className="text-sm text-green-600">🌱 You helped {helpedBloomCount} flower{helpedBloomCount !== 1 && 's'} bloom</p>
 
           {username ? (
             <p className="mb-4 text-sm text-gray-500 italic">
@@ -287,21 +300,9 @@ export default function ProfilePage() {
         ) : (
           <ul className="space-y-3 text-left">
             {rewards.map((r) => (
-              <li
-                key={r.id}
-                className={`p-4 rounded-xl border shadow ${
-                  r.redeemed ? 'bg-green-50 border-green-200' : 'bg-white'
-                }`}
-              >
-                <div className="font-medium text-purple-700">
-                  {r.rewardType} • {r.seedType}
-                </div>
+              <li key={r.id} className="p-3 bg-white rounded-xl shadow border border-purple-200">
+                <div className="font-medium text-purple-700">{r.rewardType} • {r.seedType}</div>
                 <div className="text-sm text-gray-600">{r.description}</div>
-                {r.redeemed ? (
-                  <p className="text-green-600 text-sm font-semibold mt-2">✅ Redeemed</p>
-                ) : (
-                  <Button onClick={() => handleRedeemReward(r.id)} className="mt-2">🎉 Claim</Button>
-                )}
               </li>
             ))}
           </ul>
