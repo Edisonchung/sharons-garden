@@ -7,6 +7,7 @@ import {
 } from 'firebase/auth';
 import { auth, googleProvider } from '../lib/firebase';
 import { FirebaseError } from 'firebase/app';
+import { ensureUserDocument } from '../lib/ensureUserDocument'; // ✅
 
 export default function AuthPage() {
   const router = useRouter();
@@ -26,11 +27,16 @@ export default function AuthPage() {
     setError(null);
     setLoading(true);
     try {
+      let userCredential;
       if (isLogin) {
-        await signInWithEmailAndPassword(auth, email, password);
+        userCredential = await signInWithEmailAndPassword(auth, email, password);
       } else {
-        await createUserWithEmailAndPassword(auth, email, password);
+        userCredential = await createUserWithEmailAndPassword(auth, email, password);
       }
+
+      // ✅ Ensure user doc in Firestore
+      await ensureUserDocument(userCredential.user);
+
       router.push('/');
     } catch (err) {
       if (err instanceof FirebaseError) {
@@ -62,9 +68,14 @@ export default function AuthPage() {
     setError(null);
     setLoading(true);
     try {
-      await signInWithPopup(auth, googleProvider);
+      const result = await signInWithPopup(auth, googleProvider);
+
+      // ✅ Ensure user doc in Firestore
+      await ensureUserDocument(result.user);
+
       router.push('/');
     } catch (err) {
+      console.error(err);
       setError('Google login failed. Please try again later.');
     } finally {
       setLoading(false);
