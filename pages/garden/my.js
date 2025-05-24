@@ -14,24 +14,19 @@ import toast from 'react-hot-toast';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent } from '../../components/ui/card';
 import FlowerCanvas from '../../components/FlowerCanvas';
-import BadgePopup from '../../components/BadgePopup';
-import useIsClient from '../../hooks/useIsClient';
+import dynamic from 'next/dynamic';
+
+const BadgeManager = dynamic(() => import('../../components/BadgeManager'), { ssr: false });
 
 export default function MyGarden() {
-  const isClient = useIsClient();
   const [user, setUser] = useState(null);
   const [flowers, setFlowers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
-
-  let achievements = null;
-  if (isClient) {
-    const { default: useAchievements } = require('../../hooks/useAchievements');
-    achievements = useAchievements();
-  }
+  const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
-    if (!isClient) return;
+    setIsClient(true);
 
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
@@ -58,40 +53,31 @@ export default function MyGarden() {
     });
 
     return () => unsubscribe();
-  }, [isClient]);
+  }, []);
 
   useEffect(() => {
-    if (!isClient) return;
+    if (typeof window !== 'undefined') {
+      try {
+        const reminderKey = 'lastWaterReminder';
+        const last = window.localStorage.getItem(reminderKey);
+        const now = new Date();
+        const oneDay = 24 * 60 * 60 * 1000;
 
-    try {
-      const reminderKey = 'lastWaterReminder';
-      const last = localStorage.getItem(reminderKey);
-      const now = new Date();
-      const oneDay = 24 * 60 * 60 * 1000;
-
-      if (!last || now - new Date(last) > oneDay) {
-        if ('Notification' in window && Notification.permission !== 'granted') {
-          Notification.requestPermission().then(permission => {
-            if (permission === 'granted') {
-              new Notification('💧 Time to water your seeds in Sharon’s Garden!');
-              localStorage.setItem(reminderKey, now.toISOString());
-            }
-          });
+        if (!last || now - new Date(last) > oneDay) {
+          if ('Notification' in window && Notification.permission !== 'granted') {
+            Notification.requestPermission().then(permission => {
+              if (permission === 'granted') {
+                new Notification('💧 Time to water your seeds in Sharon’s Garden!');
+                window.localStorage.setItem(reminderKey, now.toISOString());
+              }
+            });
+          }
         }
+      } catch (err) {
+        console.warn('Notification/localStorage error:', err);
       }
-    } catch (err) {
-      console.warn('Notification/localStorage error:', err);
     }
-  }, [isClient]);
-
-  useEffect(() => {
-    if (!isClient || !achievements?.unlockBadge) return;
-
-    const bloomCount = flowers.filter(f => f.bloomed).length;
-    if (bloomCount >= 5) {
-      achievements.unlockBadge('🌿 Green Thumb');
-    }
-  }, [flowers, isClient, achievements]);
+  }, []);
 
   const handleDelete = async (id) => {
     try {
@@ -126,7 +112,7 @@ export default function MyGarden() {
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-gradient-to-b from-pink-50 to-purple-100 dark:from-gray-900 dark:to-black p-4 sm:p-6 text-center">
-      {achievements?.newBadge && <BadgePopup badgeName={achievements.newBadge} />}
+      <BadgeManager flowers={flowers} />
 
       <h1 className="text-3xl font-bold text-purple-700 dark:text-purple-300 mb-6">🌿 My Garden</h1>
 
