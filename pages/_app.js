@@ -6,12 +6,13 @@ import '../styles/globals.css';
 import '../styles/canvas.css';
 import '../styles/FlowerCanvas.css';
 import { Toaster } from 'react-hot-toast';
+import { ThemeProvider } from 'next-themes';
 
 export default function MyApp({ Component, pageProps }) {
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
-    setIsMounted(true); // Prevent SSR hydration mismatch
+    setIsMounted(true); // Fix hydration mismatch on iOS/Safari
   }, []);
 
   if (!isMounted) {
@@ -23,17 +24,20 @@ export default function MyApp({ Component, pageProps }) {
   }
 
   return (
-    <>
+    <ThemeProvider attribute="class" enableSystem={true} defaultTheme="light">
       <Head>
         <title>Sharon's Garden</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="description" content="Grow and nurture your emotional garden." />
+        <meta name="theme-color" content="#9333ea" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
 
       <Navbar />
-      <Component {...pageProps} />
-      <Toaster position="bottom-center" />
-    </>
+      <main className="min-h-screen">
+        <Component {...pageProps} />
+      </main>
+      <Toaster position="bottom-center" toastOptions={{ duration: 3000 }} />
+    </ThemeProvider>
   );
 }
