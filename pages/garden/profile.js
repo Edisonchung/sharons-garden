@@ -17,6 +17,7 @@ import {
 } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 import debounce from 'lodash.debounce';
+import useAchievements from '../../hooks/useAchievements';
 
 export default function ProfilePage() {
   const [user, setUser] = useState(null);
@@ -29,6 +30,8 @@ export default function ProfilePage() {
   const [isClient, setIsClient] = useState(false);
   const [savingUsername, setSavingUsername] = useState(false);
   const [downloading, setDownloading] = useState(false);
+
+  const { badges, getBadgeDetails } = useAchievements();
 
   const cardRef = useRef();
   const router = useRouter();
@@ -211,6 +214,25 @@ export default function ProfilePage() {
           </Button>
         </CardContent>
       </Card>
+
+      <div className="mt-6 max-w-md w-full text-center">
+        <h2 className="text-xl font-bold text-purple-700 mb-2">🏅 Your Badges</h2>
+        {badges.length === 0 ? (
+          <p className="text-gray-500 italic">No badges yet. Keep growing!</p>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {badges.map((emoji) => {
+              const badge = getBadgeDetails(emoji);
+              return (
+                <div key={badge.id} className="p-3 bg-white rounded-xl shadow border border-purple-200 text-left">
+                  <div className="text-xl">{badge.emoji} <strong>{badge.name}</strong></div>
+                  <div className="text-sm text-gray-600">{badge.description}</div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
       <Button
         onClick={() => {
