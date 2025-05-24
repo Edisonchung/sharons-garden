@@ -68,14 +68,14 @@ export default function SharonsGarden() {
   }, [router]);
 
   const handlePlant = async () => {
-    if (!user) return;
+    if (!user || !name.trim()) return;
 
     const newSeed = {
       userId: user.uid,
       type: seedType,
       color: seedColor,
-      name,
-      note,
+      name: name.trim(),
+      note: note.trim(),
       waterCount: 0,
       bloomed: false,
       bloomedFlower: null,
@@ -161,7 +161,7 @@ export default function SharonsGarden() {
           {seedColors.map((c) => <option key={c} value={c}>{c}</option>)}
         </select>
         <Input placeholder="Add a short note (optional)..." value={note} onChange={(e) => setNote(e.target.value)} className="w-full sm:w-1/5" />
-        <Button onClick={handlePlant}>Plant Seed</Button>
+        <Button onClick={handlePlant} disabled={!name.trim()}>Plant Seed</Button>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
