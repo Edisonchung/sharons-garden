@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import useAchievements from '../hooks/useAchievements';
 import BadgePopup from './BadgePopup';
@@ -16,6 +17,11 @@ export default function BadgeManager({ flowers }) {
     const bloomCount = flowers.filter(f => f.bloomed).length;
     if (bloomCount >= 5) {
       unlockBadge('🌿 Green Thumb');
+    }
+
+    const hasTouched = flowers.some(f => f.touchedBySharon);
+    if (hasTouched) {
+      unlockBadge('💜 Touched by Sharon');
     }
   }, [flowers, isClient]);
 
