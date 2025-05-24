@@ -1,0 +1,26 @@
+
+import { useEffect, useState } from 'react';
+import useAchievements from '../hooks/useAchievements';
+import BadgePopup from './BadgePopup';
+
+export default function BadgeManager({ flowers }) {
+  const { newBadge, unlockBadge } = useAchievements();
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isClient || !flowers?.length) return;
+
+    const bloomCount = flowers.filter(f => f.bloomed).length;
+    if (bloomCount >= 5) {
+      unlockBadge('🌿 Green Thumb');
+    }
+  }, [flowers, isClient]);
+
+  if (!isClient) return null;
+
+  return <>{newBadge && <BadgePopup badgeName={newBadge} />}</>;
+}
