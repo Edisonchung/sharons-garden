@@ -8,11 +8,16 @@ import {
   where,
   doc,
   updateDoc,
-  getDoc
+  getDoc,
+  addDoc,
+  orderBy,
+  Timestamp,
 } from 'firebase/firestore';
 import { Card, CardContent } from '../../../components/ui/card';
 import { Button } from '../../../components/ui/button';
 import toast from 'react-hot-toast';
+import WateringHistoryModal from '../../../components/WateringHistoryModal';
+import { onAuthStateChanged } from 'firebase/auth';
 
 export default function FriendGardenPage() {
   const router = useRouter();
@@ -21,9 +26,15 @@ export default function FriendGardenPage() {
   const [seeds, setSeeds] = useState([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
-  const [helperCount, setHelperCount] = useState({});
+  const [user, setUser] = useState(null);
   const [selectedSeedId, setSelectedSeedId] = useState(null);
-  const [helpers, setHelpers] = useState([]);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) setUser(user);
+    });
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     if (!username) return;
@@ -63,15 +74,6 @@ export default function FriendGardenPage() {
         const flowerSnap = await getDocs(flowerQuery);
         const flowerData = flowerSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         setSeeds(flowerData);
-
-        const wateringSnap = await getDocs(query(collection(db, 'waterings'), where('seedId', 'in', flowerData.map(f => f.id))));
-        const counts = {};
-        wateringSnap.forEach(doc => {
-          const { seedId } = doc.data();
-          if (!counts[seedId]) counts[seedId] = 0;
-          counts[seedId]++;
-        });
-        setHelperCount(counts);
       } catch (err) {
         console.error('Failed to fetch friend garden:', err);
         setNotFound(true);
@@ -111,8 +113,10 @@ export default function FriendGardenPage() {
 
       await addDoc(collection(db, 'waterings'), {
         seedId: seed.id,
-        userId: auth.currentUser?.uid || 'anon',
-        timestamp: new Date().toISOString()
+        userId: user?.uid,
+        displayName: user?.displayName || '',
+        photoURL: user?.photoURL || '',
+        wateredAt: Timestamp.now()
       });
 
       localStorage.setItem(lastKey, new Date().toISOString());
@@ -121,22 +125,6 @@ export default function FriendGardenPage() {
       console.error('Watering failed:', err);
       toast.error('Failed to water');
     }
-  };
-
-  const openHelpers = async (seedId) => {
-    try {
-      const snap = await getDocs(query(collection(db, 'waterings'), where('seedId', '==', seedId)));
-      const helperList = snap.docs.map(doc => doc.data());
-      setHelpers(helperList);
-      setSelectedSeedId(seedId);
-    } catch (err) {
-      console.error('Failed to fetch helpers', err);
-    }
-  };
-
-  const closeHelpers = () => {
-    setSelectedSeedId(null);
-    setHelpers([]);
   };
 
   if (loading) {
@@ -177,34 +165,14 @@ export default function FriendGardenPage() {
                 <Button onClick={() => handleWater(seed)} className="mt-2">💧 Water</Button>
               )}
               {seed.bloomed && <p className="text-green-600 font-medium mt-2">Bloomed! 🌟</p>}
-              <p className="text-sm text-blue-500 cursor-pointer hover:underline mt-3" onClick={() => openHelpers(seed.id)}>
-                👥 {helperCount[seed.id] || 0} watered this
-              </p>
+              <Button onClick={() => setSelectedSeedId(seed.id)} variant="outline" className="mt-2">View History</Button>
             </CardContent>
           </Card>
         ))}
       </div>
 
       {selectedSeedId && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-xl p-6 max-w-md w-full">
-            <h2 className="text-xl font-bold text-purple-700 mb-4">👥 Helpers</h2>
-            {helpers.length === 0 ? (
-              <p className="text-sm text-gray-600 italic">No one has helped yet.</p>
-            ) : (
-              <ul className="divide-y divide-gray-200 max-h-64 overflow-y-auto">
-                {helpers.map((h, idx) => (
-                  <li key={idx} className="py-2">
-                    <p className="text-sm">{h.userId || 'Anonymous'} – <span className="text-gray-500 text-xs">{new Date(h.timestamp).toLocaleString()}</span></p>
-                  </li>
-                ))}
-              </ul>
-            )}
-            <div className="text-right mt-4">
-              <Button variant="outline" onClick={closeHelpers}>Close</Button>
-            </div>
-          </div>
-        </div>
+        <WateringHistoryModal seedId={selectedSeedId} onClose={() => setSelectedSeedId(null)} />
       )}
     </div>
   );
