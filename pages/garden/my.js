@@ -20,32 +20,11 @@ export default function MyGarden() {
   const [flowers, setFlowers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
+  const [isClient, setIsClient] = useState(false); // ✅
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      if ('Notification' in window && Notification.permission !== 'granted') {
-        Notification.requestPermission();
-      }
+    setIsClient(true); // ✅ prevent SSR mismatch
 
-      try {
-        const reminderKey = 'lastWaterReminder';
-        const last = window.localStorage.getItem(reminderKey);
-        const now = new Date();
-        const oneDay = 24 * 60 * 60 * 1000;
-
-        if (!last || now - new Date(last) > oneDay) {
-          if (Notification.permission === 'granted') {
-            new Notification('💧 Time to water your seeds in Sharon’s Garden!');
-            window.localStorage.setItem(reminderKey, now.toISOString());
-          }
-        }
-      } catch (err) {
-        console.warn('LocalStorage/Notification issue:', err);
-      }
-    }
-  }, []);
-
-  useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
         setUser(currentUser);
@@ -71,6 +50,30 @@ export default function MyGarden() {
     });
 
     return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const reminderKey = 'lastWaterReminder';
+        const last = window.localStorage.getItem(reminderKey);
+        const now = new Date();
+        const oneDay = 24 * 60 * 60 * 1000;
+
+        if (!last || now - new Date(last) > oneDay) {
+          if ('Notification' in window && Notification.permission !== 'granted') {
+            Notification.requestPermission().then(permission => {
+              if (permission === 'granted') {
+                new Notification('💧 Time to water your seeds in Sharon’s Garden!');
+                window.localStorage.setItem(reminderKey, now.toISOString());
+              }
+            });
+          }
+        }
+      } catch (err) {
+        console.warn('Notification/localStorage error:', err);
+      }
+    }
   }, []);
 
   const handleDelete = async (id) => {
@@ -101,6 +104,8 @@ export default function MyGarden() {
     if (filter === 'notBloomed') return !f.bloomed;
     return true;
   });
+
+  if (!isClient) return null; // ✅ prevent hydration mismatch
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-gradient-to-b from-pink-50 to-purple-100 dark:from-gray-900 dark:to-black p-4 sm:p-6 text-center">
