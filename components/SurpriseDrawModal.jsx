@@ -1,64 +1,69 @@
 import { useEffect, useState } from 'react';
 import { Dialog } from '@headlessui/react';
-import { motion } from 'framer-motion';
+import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { db, auth } from '../lib/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
 import { Button } from './ui/button';
 
-const surpriseRewards = [
-  {
-    title: '🌟 You got a Hug Token!',
-    description: 'Redeemable for a virtual hug from Sharon anytime 💗'
-  },
-  {
-    title: '🎶 Secret Song Link!',
-    description: 'Listen to Sharon’s favorite uplifting melody 🎧'
-  },
-  {
-    title: '📖 Inspiring Quote',
-    description: '“Even the smallest seed can bloom the brightest.” ✨'
-  },
-  {
-    title: '🧁 Digital Treat!',
-    description: 'You’ve earned a delicious digital cupcake. Enjoy it guilt-free!'
-  },
-  {
-    title: '💌 Surprise Letter',
-    description: 'A surprise note from Sharon to lift your spirit 💌'
-  }
-];
-
-export default function SurpriseDrawModal({ isOpen, onClose }) {
-  const [reward, setReward] = useState(null);
+export default function SurpriseDrawModal({ reward, isOpen, onClose }) {
+  const [user, setUser] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    if (isOpen) {
-      const random = surpriseRewards[Math.floor(Math.random() * surpriseRewards.length)];
-      setReward(random);
+    const unsubscribe = onAuthStateChanged(auth, setUser);
+    return () => unsubscribe();
+  }, []);
+
+  const handleSaveReward = async () => {
+    if (!user || !reward) return;
+
+    try {
+      setSaving(true);
+      await addDoc(collection(db, 'rewards'), {
+        userId: user.uid,
+        seedType: reward.seedType || 'Unknown',
+        rewardType: reward.type || 'mystery',
+        description: reward.description || '',
+        timestamp: serverTimestamp()
+      });
+      setSaved(true);
+    } catch (err) {
+      console.error('Failed to save reward:', err);
+      alert('Something went wrong while saving your reward.');
+    } finally {
+      setSaving(false);
     }
-  }, [isOpen]);
+  };
+
+  const handleConfirm = async () => {
+    await handleSaveReward();
+    onClose();
+  };
 
   return (
     <Dialog open={isOpen} onClose={onClose} className="fixed z-50 inset-0 overflow-y-auto">
       <div className="flex items-center justify-center min-h-screen p-4">
-        <Dialog.Panel className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-sm w-full p-6 text-center">
+        <Dialog.Panel className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6 text-center">
           <Dialog.Title className="text-2xl font-bold text-purple-700 dark:text-white mb-4">
-            🎁 Surprise Draw
+            🎁 Surprise Reward!
           </Dialog.Title>
+          <p className="text-lg mb-4 text-gray-700 dark:text-gray-300">
+            {reward?.description || 'You’ve unlocked a special gift!'}
+          </p>
 
-          {reward && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.4 }}
-              className="mb-6"
+          <div className="mt-4 space-y-2">
+            <Button
+              onClick={handleConfirm}
+              disabled={saving}
+              className="w-full"
             >
-              <h2 className="text-xl font-semibold text-green-600 dark:text-green-300">{reward.title}</h2>
-              <p className="text-sm text-gray-600 dark:text-gray-300 mt-2">{reward.description}</p>
-            </motion.div>
-          )}
-
-          <Button onClick={onClose} className="w-full mt-4">
-            🎉 Got it!
-          </Button>
+              {saving ? 'Saving...' : '🎉 Claim Reward'}
+            </Button>
+            <Button onClick={onClose} variant="outline" className="w-full">
+              Maybe Later
+            </Button>
+          </div>
         </Dialog.Panel>
       </div>
     </Dialog>
