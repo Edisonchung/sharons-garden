@@ -98,13 +98,16 @@ export default function MyGarden() {
   });
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-pink-50 to-purple-100 dark:from-gray-900 dark:to-black p-6 text-center">
-      <h1 className="text-3xl font-bold text-purple-700 dark:text-purple-300 mb-6">🌿 My Garden</h1>
+    <div className="min-h-screen overflow-x-hidden bg-gradient-to-b from-pink-50 to-purple-100 dark:from-gray-900 dark:to-black p-4 sm:p-6 text-center">
+      <h1 className="text-3xl font-bold text-purple-700 dark:text-purple-300 mb-6">
+        🌿 My Garden
+      </h1>
+
       {loading ? (
         <p className="text-gray-600 dark:text-gray-400">Loading your flowers...</p>
       ) : (
         <>
-          <div className="flex justify-center gap-4 mb-6">
+          <div className="flex flex-wrap justify-center gap-4 mb-6">
             <Button variant={filter === 'all' ? 'default' : 'outline'} onClick={() => setFilter('all')}>All</Button>
             <Button variant={filter === 'bloomed' ? 'default' : 'outline'} onClick={() => setFilter('bloomed')}>Bloomed</Button>
             <Button variant={filter === 'notBloomed' ? 'default' : 'outline'} onClick={() => setFilter('notBloomed')}>Not Bloomed</Button>
@@ -112,22 +115,38 @@ export default function MyGarden() {
 
           <FlowerCanvas flowers={filteredFlowers} />
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 mt-10">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 mt-10 max-w-6xl mx-auto">
             {filteredFlowers.map(flower => (
-              <Card key={flower.id} className="p-4 bg-white dark:bg-gray-800 shadow-md relative">
+              <Card
+                key={flower.id || Math.random()}
+                className="p-4 bg-white dark:bg-gray-800 shadow-md relative"
+              >
                 <CardContent>
                   <h3 className="text-lg font-semibold text-purple-700 dark:text-purple-200">
                     {flower.bloomed ? `${flower.bloomedFlower || '🌸'} ${flower.type}` : '🌱 Seedling'}
                   </h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-300 italic">— {flower.name || 'Anonymous'} | {flower.color}</p>
-                  <p className="text-sm mt-2 text-gray-500 dark:text-gray-400">{flower.note || 'No note'}</p>
-                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">Watered {flower.waterCount} / 7 times</p>
-                  {flower.bloomed ? (
-                    <p className="text-green-500 font-medium mt-2 animate-pulse">This flower has bloomed! 🌟</p>
-                  ) : null}
-                  <div className="flex gap-2 mt-4">
+                  <p className="text-sm text-gray-600 dark:text-gray-300 italic truncate">
+                    — {flower.name || 'Anonymous'} | {flower.color}
+                  </p>
+                  <p className="text-sm mt-2 text-gray-500 dark:text-gray-400 break-words">
+                    {flower.note || 'No note'}
+                  </p>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">
+                    Watered {flower.waterCount} / 7 times
+                  </p>
+                  {flower.bloomed && (
+                    <p className="text-green-500 font-medium mt-2 animate-pulse">
+                      This flower has bloomed! 🌟
+                    </p>
+                  )}
+                  <div className="flex gap-2 mt-4 justify-center">
                     <Button onClick={() => handleDelete(flower.id)} variant="destructive">Delete</Button>
-                    <Button onClick={() => handleUpdate(flower.id, prompt('Edit note:', flower.note) || flower.note)} variant="outline">Edit</Button>
+                    <Button
+                      onClick={() => handleUpdate(flower.id, prompt('Edit note:', flower.note) || flower.note)}
+                      variant="outline"
+                    >
+                      Edit
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
