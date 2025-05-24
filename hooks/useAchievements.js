@@ -6,7 +6,9 @@ import {
   updateDoc,
   setDoc,
   collection,
-  getDocs
+  getDocs,
+  query,
+  where
 } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
 
@@ -15,7 +17,8 @@ const BADGE_CATALOG = {
     id: 'green-thumb',
     emoji: '🌿',
     name: 'Green Thumb',
-    description: 'You’ve bloomed at least 5 flowers!'
+    description: 'You’ve bloomed at least 5 flowers!',
+    progress: { type: 'blooms', target: 5 }
   },
   '🌱 First Seed': {
     id: 'first-seed',
@@ -27,19 +30,22 @@ const BADGE_CATALOG = {
     id: 'bloom-master',
     emoji: '🌸',
     name: 'Bloom Master',
-    description: 'You’ve bloomed 10 flowers!'
+    description: 'You’ve bloomed 10 flowers!',
+    progress: { type: 'blooms', target: 10 }
   },
   '⭐ Streak Star': {
     id: 'streak-star',
     emoji: '⭐',
     name: 'Streak Star',
-    description: 'You watered 7 days in a row!'
+    description: 'You watered 7 days in a row!',
+    progress: { type: 'streak', target: 7 }
   },
   '📝 Reflective Gardener': {
     id: 'reflective-gardener',
     emoji: '📝',
     name: 'Reflective Gardener',
-    description: 'You wrote 3 reflections.'
+    description: 'You wrote 3 reflections.',
+    progress: { type: 'reflections', target: 3 }
   },
   '💜 Touched by Sharon': {
     id: 'touched-by-sharon',
@@ -51,7 +57,8 @@ const BADGE_CATALOG = {
     id: 'social-butterfly',
     emoji: '🦋',
     name: 'Social Butterfly',
-    description: 'You’ve shared 3 blooms with the world!'
+    description: 'You’ve shared 3 blooms with the world!',
+    progress: { type: 'shares', target: 3 }
   }
 };
 
@@ -108,7 +115,6 @@ export default function useAchievements() {
     }
   };
 
-  // 🔍 Used in logShareEvent to evaluate share count
   const checkShareBadge = async (userId) => {
     try {
       const sharesRef = collection(db, 'users', userId, 'bloomShares');
@@ -127,6 +133,44 @@ export default function useAchievements() {
 
   const getAllBadges = () => Object.values(BADGE_CATALOG);
 
+  const getBadgeProgress = async (badge) => {
+    const user = auth.currentUser;
+    if (!user || !badge.progress) return null;
+
+    const { type, target } = badge.progress;
+
+    try {
+      if (type === 'blooms') {
+        const q = query(collection(db, 'flowers'), where('userId', '==', user.uid), where('bloomed', '==', true));
+        const snap = await getDocs(q);
+        return { current: snap.size, target };
+      }
+
+      if (type === 'reflections') {
+        const q = query(collection(db, 'flowers'), where('userId', '==', user.uid), where('reflection', '!=', ''));
+        const snap = await getDocs(q);
+        return { current: snap.size, target };
+      }
+
+      if (type === 'shares') {
+        const q = collection(db, 'users', user.uid, 'bloomShares');
+        const snap = await getDocs(q);
+        return { current: snap.size, target };
+      }
+
+      if (type === 'streak') {
+        const userRef = doc(db, 'users', user.uid);
+        const userSnap = await getDoc(userRef);
+        const streak = userSnap.exists() ? (userSnap.data().wateringStreak || 0) : 0;
+        return { current: streak, target };
+      }
+    } catch (err) {
+      console.error('Failed to fetch badge progress:', err);
+    }
+
+    return null;
+  };
+
   return {
     badges,
     newBadge,
@@ -134,6 +178,7 @@ export default function useAchievements() {
     unlockBadge,
     getBadgeDetails,
     getAllBadges,
-    checkShareBadge // exported to use in logShareEvent.js
+    getBadgeProgress,
+    checkShareBadge
   };
 }
