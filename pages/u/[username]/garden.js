@@ -8,7 +8,9 @@ import {
   where,
   doc,
   updateDoc,
-  getDoc
+  getDoc,
+  addDoc,
+  arrayUnion
 } from 'firebase/firestore';
 import { Card, CardContent } from '../../../components/ui/card';
 import { Button } from '../../../components/ui/button';
@@ -49,6 +51,7 @@ export default function FriendGardenPage() {
         }
 
         setProfile({
+          id: userId,
           name: userData.displayName || username,
           avatar: userData.photoURL || '',
           joined: userData.joinedAt?.toDate?.().toLocaleDateString() || 'N/A'
@@ -62,7 +65,7 @@ export default function FriendGardenPage() {
         const flowerData = flowerSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         setSeeds(flowerData);
 
-        // Fetch helpers for each seed
+        // Fetch watering contributors
         const allHelpers = {};
         for (const seed of flowerData) {
           const wq = query(collection(db, 'waterings'), where('seedId', '==', seed.id));
@@ -70,7 +73,6 @@ export default function FriendGardenPage() {
           allHelpers[seed.id] = wsnap.docs.map(doc => doc.data().userName || 'Anonymous');
         }
         setHelpers(allHelpers);
-
       } catch (err) {
         console.error('Failed to fetch friend garden:', err);
         setNotFound(true);
@@ -111,25 +113,27 @@ export default function FriendGardenPage() {
       localStorage.setItem(lastKey, new Date().toISOString());
       toast.success('💧 Watered successfully');
 
-      // Record helper
+      // Record in waterings collection
       const currentUser = auth.currentUser;
       await addDoc(collection(db, 'waterings'), {
         seedId: seed.id,
         userId: currentUser?.uid || 'anon',
-        userName: currentUser?.displayName || 'Someone',
+        userName: currentUser?.displayName || currentUser?.email || 'Anonymous',
         wateredAt: new Date().toISOString()
       });
 
-      // Notify owner
-      const ownerRef = doc(db, 'users', seed.userId);
-      await updateDoc(ownerRef, {
-        notifications: arrayUnion({
-          type: 'watered',
-          seedName: seed.name || 'Unnamed',
-          from: currentUser?.displayName || 'Someone',
-          timestamp: new Date().toISOString()
-        })
-      });
+      // Notify the seed owner
+      if (seed.userId) {
+        const ownerRef = doc(db, 'users', seed.userId);
+        await updateDoc(ownerRef, {
+          notifications: arrayUnion({
+            type: 'watered',
+            seedName: seed.name || 'Unnamed',
+            from: currentUser?.displayName || 'Someone',
+            timestamp: new Date().toISOString()
+          })
+        });
+      }
 
     } catch (err) {
       console.error('Watering failed:', err);
@@ -145,6 +149,10 @@ export default function FriendGardenPage() {
     return <p className="text-center mt-10 text-red-500">User not found or profile is private.</p>;
   }
 
+  const bloomCount = seeds.filter(seed => seed.bloomed).length;
+  const allHelpers = Object.values(helpers).flat();
+  const uniqueHelpers = [...new Set(allHelpers)].length;
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-green-50 to-teal-100 dark:from-gray-900 dark:to-black p-6">
       <div className="mb-6 text-center">
@@ -159,6 +167,13 @@ export default function FriendGardenPage() {
           🌼 {profile.name}’s Garden
         </h1>
         <p className="text-sm text-gray-600 dark:text-gray-400">Joined: {profile.joined}</p>
+      </div>
+
+      {/* Garden stats block */}
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 max-w-2xl mx-auto mb-6 flex justify-around text-sm text-gray-700 dark:text-gray-200">
+        <div>🌱 Seeds: <strong>{seeds.length}</strong></div>
+        <div>🌸 Bloomed: <strong>{bloomCount}</strong></div>
+        <div>👥 Helpers: <strong>{uniqueHelpers}</strong></div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
