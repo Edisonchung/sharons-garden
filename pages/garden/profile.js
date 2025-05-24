@@ -17,6 +17,7 @@ import {
 import toast from 'react-hot-toast';
 import debounce from 'lodash.debounce';
 import useAchievements from '../../hooks/useAchievements';
+import ProgressBadge from '../../components/ProgressBadge';
 
 export default function ProfilePage() {
   const [user, setUser] = useState(null);
@@ -30,7 +31,7 @@ export default function ProfilePage() {
   const [savingUsername, setSavingUsername] = useState(false);
   const [downloading, setDownloading] = useState(false);
 
-  const { badges, getBadgeDetails } = useAchievements();
+  const { badges, getBadgeDetails, getAllBadges } = useAchievements();
 
   const cardRef = useRef();
   const router = useRouter();
@@ -117,7 +118,6 @@ export default function ProfilePage() {
 
   const handleUsernameUpdate = async () => {
     if (!user || !newUsername || usernameStatus !== 'available') return;
-
     const trimmed = newUsername.toLowerCase().replace(/[^a-z0-9]/g, '');
 
     setSavingUsername(true);
@@ -143,13 +143,16 @@ export default function ProfilePage() {
     );
   }
 
+  const earned = badges;
+  const all = getAllBadges();
+  const unearned = all.filter(b => b.progress && !earned.includes(b.emoji));
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-pink-100 to-purple-200 p-6">
       <Card ref={cardRef} className="bg-white w-full max-w-md shadow-xl rounded-2xl p-6 text-center">
         <CardContent>
           <h1 className="text-2xl font-bold text-purple-700 mb-2">👤 Profile</h1>
-          <p className="text-gray-600 mb-1">
-            Signed in as:<br />
+          <p className="text-gray-600 mb-1">Signed in as:<br />
             <span className="font-mono">{email}</span>
           </p>
           <p className="text-sm text-gray-500 mb-4">
@@ -214,6 +217,19 @@ export default function ProfilePage() {
                 </div>
               );
             })}
+          </div>
+        )}
+      </div>
+
+      <div className="mt-6 max-w-md w-full text-center">
+        <h2 className="text-xl font-bold text-purple-700 mb-2">🔓 Badges in Progress</h2>
+        {unearned.length === 0 ? (
+          <p className="text-gray-500 italic">No badge progress yet.</p>
+        ) : (
+          <div className="flex flex-col gap-4">
+            {unearned.map(badge => (
+              <ProgressBadge key={badge.emoji} badge={badge} />
+            ))}
           </div>
         )}
       </div>
