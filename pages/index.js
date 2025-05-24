@@ -4,7 +4,7 @@ import Image from 'next/image';
 import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import SurpriseReward from '../components/SurpriseReward';
 import { auth, db } from '../lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -43,31 +43,29 @@ export default function SharonsGarden() {
   const [currentReward, setCurrentReward] = useState(null);
   const [shareId, setShareId] = useState(null);
   const [showReward, setShowReward] = useState(false);
-  const [showOnboarding, setShowOnboarding] = useState(false);
   const audioRef = useRef(null);
 
   useEffect(() => {
     setIsClient(true);
-    if (typeof window !== 'undefined' && !localStorage.getItem('hasSeenOnboarding')) {
-      setShowOnboarding(true);
-    }
-  }, []);
 
-  useEffect(() => {
-    const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
-      if (!user) {
+    const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
+      if (!currentUser) {
         router.push('/auth');
-      } else {
-        setUser(user);
-        setShowMain(true);
-        const q = query(collection(db, 'flowers'), where('userId', '==', user.uid));
-        const unsubscribeSnapshot = onSnapshot(q, (snapshot) => {
-          const flowers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-          setPlanted(flowers);
-        });
-        return () => unsubscribeSnapshot();
+        return;
       }
+
+      setUser(currentUser);
+      setShowMain(true);
+
+      const q = query(collection(db, 'flowers'), where('userId', '==', currentUser.uid));
+      const unsubscribeSnapshot = onSnapshot(q, (snapshot) => {
+        const flowers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setPlanted(flowers);
+      });
+
+      return () => unsubscribeSnapshot();
     });
+
     return () => unsubscribeAuth();
   }, [router]);
 
@@ -140,40 +138,23 @@ export default function SharonsGarden() {
   const handleShare = (id) => setShareId(id);
   const closeShare = () => setShareId(null);
 
-  const dismissOnboarding = () => {
-    localStorage.setItem('hasSeenOnboarding', 'true');
-    setShowOnboarding(false);
-  };
-
   if (!isClient || !showMain) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-black">
-        <Image src="/welcome.png" alt="Welcome" width={600} height={600} className="rounded-lg shadow-xl" />
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-pink-100 to-purple-200 text-purple-700 text-xl">
+        <p>🌸 Loading your garden...</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-pink-100 to-purple-200 p-6 relative overflow-x-hidden">
+    <div className="min-h-screen bg-gradient-to-b from-pink-100 to-purple-200 p-6 relative">
       <audio ref={audioRef} loop hidden />
-      <Image src="/garden-illustration.svg" alt="Garden Illustration" width={200} height={200} className="absolute top-0 right-0 opacity-10 pointer-events-none hidden md:block" />
-
-      <motion.h1 initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="text-4xl font-bold text-center mb-2">
-        🌱 Sharon's Garden of Seeds 🌱
-      </motion.h1>
-      <motion.p initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="text-center text-md max-w-xl mx-auto mb-6">
+      <h1 className="text-4xl font-bold text-center mb-2">🌱 Sharon's Garden of Seeds 🌱</h1>
+      <p className="text-center text-md max-w-xl mx-auto mb-6">
         Plant your unique seed and let others water it. After 7 days, it will bloom into a special flower representing your feelings.
-      </motion.p>
+      </p>
 
-      {showOnboarding && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-yellow-100 border border-yellow-300 text-yellow-800 rounded p-4 max-w-xl mx-auto mb-6 shadow">
-          <p className="mb-2">💡 <strong>Welcome!</strong> Start by planting a seed with your name, feeling, and optional message.</p>
-          <Button onClick={dismissOnboarding} variant="outline">Got it</Button>
-        </motion.div>
-      )}
-
-      ... // [rest of the unchanged code continues here, kept intact for brevity]
-
+      // ... [rest of the unchanged code continues here, kept intact for brevity]
     </div>
   );
 }
