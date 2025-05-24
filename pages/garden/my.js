@@ -8,9 +8,11 @@ import {
   getDocs,
   doc,
   getDoc,
+  updateDoc,
 } from 'firebase/firestore';
 import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
+import toast from 'react-hot-toast';
 
 export default function MyGardenPage() {
   const [user, setUser] = useState(null);
@@ -41,6 +43,54 @@ export default function MyGardenPage() {
 
     return () => unsubscribe();
   }, []);
+
+  const handleWater = async (seed) => {
+    const today = new Date().toDateString();
+    const lastKey = `lastWatered_${seed.id}`;
+    const last = localStorage.getItem(lastKey);
+
+    if (last && new Date(last).toDateString() === today) {
+      toast('💧 Already watered today');
+      return;
+    }
+
+    try {
+      const ref = doc(db, 'flowers', seed.id);
+      const snap = await getDoc(ref);
+      if (!snap.exists()) return;
+
+      const data = snap.data();
+      const count = (data.waterCount || 0) + 1;
+      const bloomed = count >= 7;
+      const flowerIcon = seed.bloomedFlower || '🌸';
+
+      await updateDoc(ref, {
+        waterCount: count,
+        bloomed,
+        bloomedFlower: bloomed ? flowerIcon : null,
+        lastWatered: new Date().toISOString()
+      });
+
+      localStorage.setItem(lastKey, new Date().toISOString());
+      toast.success('💧 Watered successfully');
+
+      // Refresh the seed list
+      const q = query(collection(db, 'flowers'), where('userId', '==', user.uid));
+      const snapRefresh = await getDocs(q);
+      const dataRefresh = snapRefresh.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setSeeds(dataRefresh);
+
+    } catch (err) {
+      console.error('Watering failed:', err);
+      toast.error('Failed to water this seed.');
+    }
+  };
+
+  const handleShare = (seedId) => {
+    const url = `${window.location.origin}/flower/${seedId}`;
+    navigator.clipboard.writeText(url);
+    toast.success('📋 Shareable link copied!');
+  };
 
   if (loading) {
     return <p className="text-center mt-10">Loading your garden...</p>;
@@ -73,7 +123,20 @@ export default function MyGardenPage() {
               <p className="text-sm italic text-gray-500 mb-1">— {seed.name || 'Anonymous'} | {seed.color}</p>
               {seed.note && <p className="text-sm text-gray-600 mb-2">“{seed.note}”</p>}
               <p className="text-sm text-gray-500">Watered {seed.waterCount} / 7 times</p>
-              {seed.bloomed && <p className="text-green-600 font-medium mt-2">Bloomed! 🌟</p>}
+
+              {!seed.bloomed ? (
+                <Button onClick={() => handleWater(seed)} className="mt-2">💧 Water</Button>
+              ) : (
+                <p className="text-green-600 font-medium mt-2">Bloomed! 🌟</p>
+              )}
+
+              <Button
+                onClick={() => handleShare(seed.id)}
+                variant="outline"
+                className="mt-2 w-full"
+              >
+                🔗 Share
+              </Button>
             </CardContent>
           </Card>
         ))}
