@@ -1,6 +1,6 @@
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
-import { auth, db } from '../../../lib/firebase';
+import { db } from '../../../lib/firebase';
 import {
   collection,
   getDocs,
@@ -71,40 +71,6 @@ export default function FriendGardenPage() {
     fetchGarden();
   }, [username]);
 
-  const handleWater = async (seed) => {
-    const today = new Date().toDateString();
-    const lastKey = `lastWatered_${seed.id}`;
-    const last = localStorage.getItem(lastKey);
-
-    if (last && new Date(last).toDateString() === today) {
-      toast('💧 Already watered today');
-      return;
-    }
-
-    try {
-      const ref = doc(db, 'flowers', seed.id);
-      const snap = await getDoc(ref);
-      if (!snap.exists()) return;
-
-      const data = snap.data();
-      const count = (data.waterCount || 0) + 1;
-      const bloomed = count >= 7;
-
-      await updateDoc(ref, {
-        waterCount: count,
-        bloomed,
-        bloomedFlower: bloomed ? seed.bloomedFlower || '🌸' : null,
-        lastWatered: new Date().toISOString()
-      });
-
-      localStorage.setItem(lastKey, new Date().toISOString());
-      toast.success('💧 Watered successfully');
-    } catch (err) {
-      console.error('Watering failed:', err);
-      toast.error('Failed to water');
-    }
-  };
-
   if (loading) {
     return <p className="text-center mt-10">Loading garden...</p>;
   }
@@ -112,6 +78,10 @@ export default function FriendGardenPage() {
   if (notFound) {
     return <p className="text-center mt-10 text-red-500">User not found or profile is private.</p>;
   }
+
+  const totalSeeds = seeds.length;
+  const bloomed = seeds.filter(s => s.bloomed).length;
+  const growing = totalSeeds - bloomed;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-green-50 to-teal-100 dark:from-gray-900 dark:to-black p-6">
@@ -127,6 +97,11 @@ export default function FriendGardenPage() {
           🌼 {profile.name}’s Garden
         </h1>
         <p className="text-sm text-gray-600 dark:text-gray-400">Joined: {profile.joined}</p>
+        <div className="mt-4 flex justify-center gap-4 text-sm">
+          <span className="text-green-700 dark:text-green-300">🌱 Planted: {totalSeeds}</span>
+          <span className="text-yellow-600 dark:text-yellow-400">🌻 Bloomed: {bloomed}</span>
+          <span className="text-blue-600 dark:text-blue-400">💧 Growing: {growing}</span>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
@@ -139,10 +114,11 @@ export default function FriendGardenPage() {
               <p className="text-sm italic text-gray-500 mb-1">— {seed.name || 'Anonymous'} | {seed.color}</p>
               {seed.note && <p className="text-sm text-gray-600 mb-2">“{seed.note}”</p>}
               <p className="text-sm text-gray-500">Watered {seed.waterCount} / 7 times</p>
-              {!seed.bloomed && (
-                <Button onClick={() => handleWater(seed)} className="mt-2">💧 Water</Button>
+              {seed.bloomed ? (
+                <p className="text-green-600 font-medium mt-2">Bloomed! 🌟</p>
+              ) : (
+                <p className="text-gray-400 mt-2 italic">Still growing...</p>
               )}
-              {seed.bloomed && <p className="text-green-600 font-medium mt-2">Bloomed! 🌟</p>}
             </CardContent>
           </Card>
         ))}
