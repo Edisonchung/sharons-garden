@@ -23,7 +23,7 @@ export default function ProfilePage() {
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
   const [newUsername, setNewUsername] = useState('');
-  const [usernameStatus, setUsernameStatus] = useState(null); // null | 'available' | 'taken'
+  const [usernameStatus, setUsernameStatus] = useState(null);
   const [notify, setNotify] = useState(true);
   const [loading, setLoading] = useState(true);
   const [isClient, setIsClient] = useState(false);
@@ -171,42 +171,36 @@ export default function ProfilePage() {
             <Button onClick={handleToggle} variant={notify ? 'default' : 'outline'}>
               {notify ? 'On' : 'Off'}
             </Button>
-  </div>
-)}
+          </div>
 
           {username ? (
-  <div className="mb-4 text-sm text-gray-500 italic">
-    Username is permanent and already set to: <span className="font-semibold text-purple-700">{username}</span>
-  </div>
-) : (
-  {username ? (
-  <div className="mb-4 text-sm text-gray-500 italic">
-    Username is permanent and already set to: <span className="font-semibold text-purple-700">{username}</span>
-  </div>
-) : (
-  <div className="flex flex-col gap-2 mb-4">
-            <input
-              type="text"
-              value={newUsername}
-              onChange={(e) => setNewUsername(e.target.value)}
-              placeholder="New username"
-              className="border border-gray-300 rounded px-3 py-2"
-              disabled={savingUsername}
-            />
-            {newUsername && (
-              <p className={`text-sm ${usernameStatus === 'available' ? 'text-green-600' : 'text-red-500'}`}>
-                {usernameStatus === 'available' && '✅ Username available'}
-                {usernameStatus === 'taken' && '❌ Username already taken'}
-              </p>
-            )}
-            <Button
-              onClick={handleUsernameUpdate}
-              disabled={savingUsername || usernameStatus !== 'available'}
-            >
-              {savingUsername ? 'Saving...' : 'Update Username'}
-            </Button>
-  </div>
-)}
+            <div className="mb-4 text-sm text-gray-500 italic">
+              Username is permanent and already set to: <span className="font-semibold text-purple-700">{username}</span>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2 mb-4">
+              <input
+                type="text"
+                value={newUsername}
+                onChange={(e) => setNewUsername(e.target.value)}
+                placeholder="Choose your username"
+                className="border border-gray-300 rounded px-3 py-2"
+                disabled={savingUsername}
+              />
+              {newUsername && (
+                <p className={`text-sm ${usernameStatus === 'available' ? 'text-green-600' : 'text-red-500'}`}>
+                  {usernameStatus === 'available' && '✅ Username available'}
+                  {usernameStatus === 'taken' && '❌ Username already taken'}
+                </p>
+              )}
+              <Button
+                onClick={handleUsernameUpdate}
+                disabled={savingUsername || usernameStatus !== 'available'}
+              >
+                {savingUsername ? 'Saving...' : 'Set Username'}
+              </Button>
+            </div>
+          )}
 
           <Button
             onClick={handleDownload}
