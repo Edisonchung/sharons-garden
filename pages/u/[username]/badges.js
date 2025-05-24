@@ -1,16 +1,19 @@
+
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../../../lib/firebase';
+import useAchievements from '../../../hooks/useAchievements';
 
 export default function PublicBadgesPage() {
   const router = useRouter();
   const { username } = router.query;
 
   const [profile, setProfile] = useState(null);
-  const [badges, setBadges] = useState([]);
+  const [userBadges, setUserBadges] = useState([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const { getBadgeDetails, getAllBadges } = useAchievements();
 
   useEffect(() => {
     if (!username) return;
@@ -29,7 +32,7 @@ export default function PublicBadgesPage() {
         const userDoc = snapshot.docs[0];
         const data = userDoc.data();
 
-        if (!data.public) {
+        if (data.public === false) {
           setNotFound(true);
           return;
         }
@@ -40,7 +43,7 @@ export default function PublicBadgesPage() {
           joined: data.joinedAt?.toDate?.().toLocaleDateString() || 'N/A'
         });
 
-        setBadges(data.badges || []);
+        setUserBadges(data.badges || []);
       } catch (err) {
         console.error('Failed to load user badges:', err);
         setNotFound(true);
@@ -60,6 +63,8 @@ export default function PublicBadgesPage() {
     return <p className="text-center mt-10 text-red-500">User not found or profile is private.</p>;
   }
 
+  const allBadges = getAllBadges();
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-black p-6 text-center">
       <div className="mb-6">
@@ -77,19 +82,21 @@ export default function PublicBadgesPage() {
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6 max-w-5xl mx-auto">
-        {badges.length > 0 ? (
-          badges.map((badge, i) => (
+        {allBadges.map((badge) => {
+          const earned = userBadges.includes(badge.emoji);
+          return (
             <div
-              key={i}
-              className="p-4 rounded-xl border shadow bg-white dark:bg-gray-800 text-green-700 dark:text-green-300 border-green-300"
+              key={badge.emoji}
+              className={`p-4 rounded-xl border shadow bg-white dark:bg-gray-800 border-green-300 ${
+                earned ? 'text-green-700 dark:text-green-300' : 'text-gray-400 opacity-50 grayscale'
+              }`}
             >
-              <div className="text-4xl mb-2">🏅</div>
-              <h3 className="font-semibold">{badge}</h3>
+              <div className="text-4xl mb-2">{badge.emoji}</div>
+              <h3 className="font-semibold">{badge.name}</h3>
+              <p className="text-xs">{earned ? badge.description : 'Keep growing to unlock!'}</p>
             </div>
-          ))
-        ) : (
-          <p className="col-span-full text-gray-400 italic">No badges yet!</p>
-        )}
+          );
+        })}
       </div>
     </div>
   );
