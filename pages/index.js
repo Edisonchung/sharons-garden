@@ -1,4 +1,3 @@
-// pages/index.js
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import Image from 'next/image';
@@ -7,8 +6,8 @@ import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
 import { motion } from 'framer-motion';
 import SurpriseReward from '../components/SurpriseReward';
-import { db } from '../lib/firebase';
-import useUser from '../hooks/useUser';
+import { auth, db } from '../lib/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
 import {
   addDoc,
   collection,
@@ -17,7 +16,7 @@ import {
   updateDoc,
   onSnapshot,
   query,
-  where
+  where,
 } from 'firebase/firestore';
 
 const seedTypes = [
@@ -32,7 +31,8 @@ const seedColors = ['Pink', 'Blue', 'Yellow', 'Purple', 'White'];
 
 export default function SharonsGarden() {
   const router = useRouter();
-  const { user, loadingUser } = useUser();
+  const [user, setUser] = useState(null);
+  const [isClient, setIsClient] = useState(false);
   const [showMain, setShowMain] = useState(false);
   const [name, setName] = useState('');
   const [note, setNote] = useState('');
@@ -43,7 +43,6 @@ export default function SharonsGarden() {
   const [currentReward, setCurrentReward] = useState(null);
   const [shareId, setShareId] = useState(null);
   const [showReward, setShowReward] = useState(false);
-  const [isClient, setIsClient] = useState(false);
   const audioRef = useRef(null);
 
   useEffect(() => {
@@ -51,18 +50,22 @@ export default function SharonsGarden() {
   }, []);
 
   useEffect(() => {
-    if (!loadingUser && !user) {
-      router.push('/auth');
-    } else if (user) {
-      const q = query(collection(db, 'flowers'), where('userId', '==', user.uid));
-      const unsubscribeSnapshot = onSnapshot(q, (snapshot) => {
-        const flowers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        setPlanted(flowers);
-      });
-      setShowMain(true);
-      return () => unsubscribeSnapshot();
-    }
-  }, [user, loadingUser, router]);
+    const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        router.push('/auth');
+      } else {
+        setUser(user);
+        setShowMain(true);
+        const q = query(collection(db, 'flowers'), where('userId', '==', user.uid));
+        const unsubscribeSnapshot = onSnapshot(q, (snapshot) => {
+          const flowers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          setPlanted(flowers);
+        });
+        return () => unsubscribeSnapshot();
+      }
+    });
+    return () => unsubscribeAuth();
+  }, [router]);
 
   const handlePlant = async () => {
     if (!user) return;
@@ -76,7 +79,7 @@ export default function SharonsGarden() {
       waterCount: 0,
       bloomed: false,
       bloomedFlower: null,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
     };
 
     await addDoc(collection(db, 'flowers'), newSeed);
@@ -119,7 +122,7 @@ export default function SharonsGarden() {
         setCurrentReward({
           emotion: `${data.type} Seed`,
           reward: 'Access Sharon’s exclusive voice message 🌟',
-          link: 'https://example.com/sharon-reward'
+          link: 'https://example.com/sharon-reward',
         });
         setRewardOpen(true);
         setShowReward(true);
@@ -133,9 +136,9 @@ export default function SharonsGarden() {
   const handleShare = (id) => setShareId(id);
   const closeShare = () => setShareId(null);
 
-  if (!isClient || loadingUser || !showMain) {
+  if (!isClient || !showMain) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-black cursor-pointer">
+      <div className="min-h-screen flex items-center justify-center bg-black">
         <Image src="/welcome.png" alt="Welcome" width={600} height={600} className="rounded-lg shadow-xl" />
       </div>
     );
