@@ -29,10 +29,10 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var next_dist_build_webpack_loaders_next_route_loader_helpers__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(7182);
 /* harmony import */ var next_dist_pages_document__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(2940);
 /* harmony import */ var next_dist_pages_document__WEBPACK_IMPORTED_MODULE_2___default = /*#__PURE__*/__webpack_require__.n(next_dist_pages_document__WEBPACK_IMPORTED_MODULE_2__);
-/* harmony import */ var private_next_pages_app_js__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(1845);
+/* harmony import */ var private_next_pages_app_js__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(6004);
 /* harmony import */ var private_next_pages_index_js__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(6616);
-var __webpack_async_dependencies__ = __webpack_handle_async_dependencies__([private_next_pages_index_js__WEBPACK_IMPORTED_MODULE_4__]);
-private_next_pages_index_js__WEBPACK_IMPORTED_MODULE_4__ = (__webpack_async_dependencies__.then ? (await __webpack_async_dependencies__)() : __webpack_async_dependencies__)[0];
+var __webpack_async_dependencies__ = __webpack_handle_async_dependencies__([private_next_pages_app_js__WEBPACK_IMPORTED_MODULE_3__, private_next_pages_index_js__WEBPACK_IMPORTED_MODULE_4__]);
+([private_next_pages_app_js__WEBPACK_IMPORTED_MODULE_3__, private_next_pages_index_js__WEBPACK_IMPORTED_MODULE_4__] = __webpack_async_dependencies__.then ? (await __webpack_async_dependencies__)() : __webpack_async_dependencies__);
 
         // Next.js Route Loader
         
@@ -84,14 +84,14 @@ __webpack_async_result__();
 /***/ 842:
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
-/* harmony export */ __webpack_require__.d(__webpack_exports__, {
-/* harmony export */   I: () => (/* binding */ Input)
-/* harmony export */ });
+/* unused harmony export Input */
 /* harmony import */ var react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(5893);
+// components/ui/input.js
 
-function Input({ className = "", ...props }) {
-    return /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx("input", {
-        className: `border p-2 rounded w-full ${className}`,
+function Input({ type = "text", ...props }) {
+    return /*#__PURE__*/ _jsx("input", {
+        type: type,
+        className: "p-2 border border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600 w-full",
         ...props
     });
 }
@@ -110,14 +110,25 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(5893);
 /* harmony import */ var react__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(6689);
 /* harmony import */ var react__WEBPACK_IMPORTED_MODULE_1___default = /*#__PURE__*/__webpack_require__.n(react__WEBPACK_IMPORTED_MODULE_1__);
-/* harmony import */ var _components_ui_input__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(842);
-/* harmony import */ var _components_ui_button__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(6052);
-/* harmony import */ var _components_ui_card__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(9821);
-/* harmony import */ var framer_motion__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(6197);
-/* harmony import */ var _components_SurpriseReward__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(28);
-var __webpack_async_dependencies__ = __webpack_handle_async_dependencies__([framer_motion__WEBPACK_IMPORTED_MODULE_5__]);
-framer_motion__WEBPACK_IMPORTED_MODULE_5__ = (__webpack_async_dependencies__.then ? (await __webpack_async_dependencies__)() : __webpack_async_dependencies__)[0];
-// full updated code with SurpriseReward integration
+/* harmony import */ var next_router__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(1853);
+/* harmony import */ var next_router__WEBPACK_IMPORTED_MODULE_2___default = /*#__PURE__*/__webpack_require__.n(next_router__WEBPACK_IMPORTED_MODULE_2__);
+/* harmony import */ var next_image__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(5675);
+/* harmony import */ var next_image__WEBPACK_IMPORTED_MODULE_3___default = /*#__PURE__*/__webpack_require__.n(next_image__WEBPACK_IMPORTED_MODULE_3__);
+/* harmony import */ var _components_ui_input__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(842);
+/* harmony import */ var _components_ui_button__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(6052);
+/* harmony import */ var _components_ui_card__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(9821);
+/* harmony import */ var framer_motion__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(6197);
+/* harmony import */ var _components_SurpriseReward__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(28);
+/* harmony import */ var _lib_firebase__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(8017);
+/* harmony import */ var firebase_auth__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(401);
+/* harmony import */ var firebase_firestore__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(1492);
+var __webpack_async_dependencies__ = __webpack_handle_async_dependencies__([framer_motion__WEBPACK_IMPORTED_MODULE_7__, _lib_firebase__WEBPACK_IMPORTED_MODULE_9__, firebase_auth__WEBPACK_IMPORTED_MODULE_10__, firebase_firestore__WEBPACK_IMPORTED_MODULE_11__]);
+([framer_motion__WEBPACK_IMPORTED_MODULE_7__, _lib_firebase__WEBPACK_IMPORTED_MODULE_9__, firebase_auth__WEBPACK_IMPORTED_MODULE_10__, firebase_firestore__WEBPACK_IMPORTED_MODULE_11__] = __webpack_async_dependencies__.then ? (await __webpack_async_dependencies__)() : __webpack_async_dependencies__);
+
+
+
+
+
 
 
 
@@ -147,14 +158,18 @@ const seedTypes = [
         flower: "\uD83C\uDF3C"
     }
 ];
-const seedColors = [
+const seedColors = (/* unused pure expression or super */ null && ([
     "Pink",
     "Blue",
     "Yellow",
     "Purple",
     "White"
-];
+]));
 function SharonsGarden() {
+    const router = (0,next_router__WEBPACK_IMPORTED_MODULE_2__.useRouter)();
+    const [user, setUser] = (0,react__WEBPACK_IMPORTED_MODULE_1__.useState)(null);
+    const [isClient, setIsClient] = (0,react__WEBPACK_IMPORTED_MODULE_1__.useState)(false);
+    const [showMain, setShowMain] = (0,react__WEBPACK_IMPORTED_MODULE_1__.useState)(false);
     const [name, setName] = (0,react__WEBPACK_IMPORTED_MODULE_1__.useState)("");
     const [note, setNote] = (0,react__WEBPACK_IMPORTED_MODULE_1__.useState)("");
     const [seedType, setSeedType] = (0,react__WEBPACK_IMPORTED_MODULE_1__.useState)("Hope");
@@ -163,33 +178,61 @@ function SharonsGarden() {
     const [rewardOpen, setRewardOpen] = (0,react__WEBPACK_IMPORTED_MODULE_1__.useState)(false);
     const [currentReward, setCurrentReward] = (0,react__WEBPACK_IMPORTED_MODULE_1__.useState)(null);
     const [shareId, setShareId] = (0,react__WEBPACK_IMPORTED_MODULE_1__.useState)(null);
+    const [showReward, setShowReward] = (0,react__WEBPACK_IMPORTED_MODULE_1__.useState)(false);
+    const [unlockedSlots, setUnlockedSlots] = (0,react__WEBPACK_IMPORTED_MODULE_1__.useState)(1);
     const audioRef = (0,react__WEBPACK_IMPORTED_MODULE_1__.useRef)(null);
-    const [showReward, setShowReward] = (0,react__WEBPACK_IMPORTED_MODULE_1__.useState)(false); // ✅ SurpriseReward state
     (0,react__WEBPACK_IMPORTED_MODULE_1__.useEffect)(()=>{
-        const cached = JSON.parse(localStorage.getItem("flowers") || "{}");
-        setPlanted(Object.values(cached));
+        setIsClient(true);
     }, []);
-    const handlePlant = ()=>{
-        if (seedType.trim()) {
-            const newSeed = {
-                id: Date.now(),
-                type: seedType,
-                color: seedColor,
-                name,
-                note,
-                waterCount: 0,
-                bloomed: false,
-                bloomedFlower: null
-            };
-            const cached = JSON.parse(localStorage.getItem("flowers") || "{}");
-            cached[newSeed.id] = newSeed;
-            localStorage.setItem("flowers", JSON.stringify(cached));
-            setPlanted(Object.values(cached));
-            setName("");
-            setNote("");
-        }
+    (0,react__WEBPACK_IMPORTED_MODULE_1__.useEffect)(()=>{
+        let unsubscribeSnapshot = null;
+        const unsubscribeAuth = (0,firebase_auth__WEBPACK_IMPORTED_MODULE_10__.onAuthStateChanged)(_lib_firebase__WEBPACK_IMPORTED_MODULE_9__/* .auth */ .I, async (currentUser)=>{
+            if (!currentUser) {
+                router.push("/auth");
+            } else {
+                setUser(currentUser);
+                setShowMain(true);
+                const userRef = (0,firebase_firestore__WEBPACK_IMPORTED_MODULE_11__.doc)(_lib_firebase__WEBPACK_IMPORTED_MODULE_9__.db, "users", currentUser.uid);
+                const userSnap = await (0,firebase_firestore__WEBPACK_IMPORTED_MODULE_11__.getDoc)(userRef);
+                if (userSnap.exists()) {
+                    setUnlockedSlots(userSnap.data().unlockedSlots || 1);
+                }
+                const q = (0,firebase_firestore__WEBPACK_IMPORTED_MODULE_11__.query)((0,firebase_firestore__WEBPACK_IMPORTED_MODULE_11__.collection)(_lib_firebase__WEBPACK_IMPORTED_MODULE_9__.db, "flowers"), (0,firebase_firestore__WEBPACK_IMPORTED_MODULE_11__.where)("userId", "==", currentUser.uid));
+                unsubscribeSnapshot = (0,firebase_firestore__WEBPACK_IMPORTED_MODULE_11__.onSnapshot)(q, (snapshot)=>{
+                    const flowers = snapshot.docs.map((doc)=>({
+                            id: doc.id,
+                            ...doc.data()
+                        }));
+                    setPlanted(flowers);
+                });
+            }
+        });
+        return ()=>{
+            unsubscribeAuth();
+            if (unsubscribeSnapshot) unsubscribeSnapshot();
+        };
+    }, [
+        router
+    ]);
+    const handlePlant = async ()=>{
+        if (!user) return;
+        const newSeed = {
+            userId: user.uid,
+            type: seedType,
+            color: seedColor,
+            name,
+            note,
+            waterCount: 0,
+            bloomed: false,
+            bloomedFlower: null,
+            createdAt: new Date().toISOString()
+        };
+        await (0,firebase_firestore__WEBPACK_IMPORTED_MODULE_11__.addDoc)((0,firebase_firestore__WEBPACK_IMPORTED_MODULE_11__.collection)(_lib_firebase__WEBPACK_IMPORTED_MODULE_9__.db, "flowers"), newSeed);
+        setName("");
+        setNote("");
     };
-    const handleWater = (id)=>{
+    const handleWater = async (id)=>{
+        if (true) return;
         const today = new Date().toDateString();
         const lastKey = `lastWatered_${id}`;
         const last = localStorage.getItem(lastKey);
@@ -197,44 +240,49 @@ function SharonsGarden() {
             alert("You've already watered this seed today. Try again tomorrow \uD83C\uDF19");
             return;
         }
-        setPlanted((prev)=>{
-            const updated = prev.map((seed)=>{
-                if (seed.id === id) {
-                    const newCount = seed.waterCount + 1;
-                    const bloomed = newCount >= 7;
-                    const flowerIcon = seedTypes.find((s)=>s.type === seed.type)?.flower || "\uD83C\uDF38";
-                    const updatedSeed = {
-                        ...seed,
-                        waterCount: newCount,
-                        bloomed,
-                        bloomedFlower: bloomed ? flowerIcon : null
-                    };
-                    const cached = JSON.parse(localStorage.getItem("flowers") || "{}");
-                    cached[seed.id] = updatedSeed;
-                    localStorage.setItem("flowers", JSON.stringify(cached));
-                    localStorage.setItem(lastKey, new Date().toISOString());
-                    if (bloomed && !seed.bloomed) {
-                        setCurrentReward({
-                            emotion: `${seed.type} Seed`,
-                            reward: "Access Sharon’s exclusive voice message \uD83C\uDF1F",
-                            link: "https://example.com/sharon-reward"
-                        });
-                        setRewardOpen(true);
-                        setShowReward(true); // 🎁 Trigger surprise reward
-                    }
-                    return updatedSeed;
-                }
-                return seed;
+        try {
+            const docRef = (0,firebase_firestore__WEBPACK_IMPORTED_MODULE_11__.doc)(_lib_firebase__WEBPACK_IMPORTED_MODULE_9__.db, "flowers", id);
+            const docSnap = await (0,firebase_firestore__WEBPACK_IMPORTED_MODULE_11__.getDoc)(docRef);
+            if (!docSnap.exists()) return;
+            const data = docSnap.data();
+            const newCount = (data.waterCount || 0) + 1;
+            const bloomed = newCount >= 7;
+            const flowerIcon = seedTypes.find((s)=>s.type === data.type)?.flower || "\uD83C\uDF38";
+            await (0,firebase_firestore__WEBPACK_IMPORTED_MODULE_11__.updateDoc)(docRef, {
+                waterCount: newCount,
+                bloomed,
+                bloomedFlower: bloomed ? flowerIcon : null,
+                lastWatered: new Date().toISOString()
             });
-            return updated;
+            localStorage.setItem(lastKey, new Date().toISOString());
+            if (bloomed && !data.bloomed) {
+                setCurrentReward({
+                    emotion: `${data.type} Seed`,
+                    reward: "Access Sharon’s exclusive voice message \uD83C\uDF1F",
+                    link: "https://example.com/sharon-reward"
+                });
+                setRewardOpen(true);
+                setShowReward(true);
+            }
+        } catch (err) {
+            console.error("Watering failed:", err);
+            alert("Failed to water this seed.");
+        }
+    };
+    const handleShare = (id)=>setShareId(id);
+    const closeShare = ()=>setShareId(null);
+    if (!isClient || !showMain) {
+        return /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx("div", {
+            className: "min-h-screen flex items-center justify-center bg-gradient-to-b from-pink-100 to-purple-200 text-purple-700 text-xl",
+            children: /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx("p", {
+                children: "\uD83C\uDF38 Loading your garden..."
+            })
         });
-    };
-    const handleShare = (id)=>{
-        setShareId(id);
-    };
-    const closeShare = ()=>{
-        setShareId(null);
-    };
+    }
+    const totalSlots = 6;
+    const padded = Array.from({
+        length: totalSlots
+    }, (_, i)=>planted[i] || null);
     return /*#__PURE__*/ (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", {
         className: "min-h-screen bg-gradient-to-b from-pink-100 to-purple-200 p-6 relative",
         children: [
@@ -251,48 +299,44 @@ function SharonsGarden() {
                 className: "text-center text-md max-w-xl mx-auto mb-6",
                 children: "Plant your unique seed and let others water it. After 7 days, it will bloom into a special flower representing your feelings."
             }),
-            /*#__PURE__*/ (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", {
-                className: "flex flex-col sm:flex-row justify-center items-center gap-4 mb-6",
-                children: [
-                    /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx(_components_ui_input__WEBPACK_IMPORTED_MODULE_2__/* .Input */ .I, {
-                        placeholder: "Your name...",
-                        value: name,
-                        onChange: (e)=>setName(e.target.value),
-                        className: "w-full sm:w-1/5"
-                    }),
-                    /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx("select", {
-                        value: seedType,
-                        onChange: (e)=>setSeedType(e.target.value),
-                        className: "p-2 rounded w-full sm:w-1/5",
-                        children: seedTypes.map((s)=>/*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx("option", {
-                                value: s.type,
-                                children: s.type
-                            }, s.type))
-                    }),
-                    /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx("select", {
-                        value: seedColor,
-                        onChange: (e)=>setSeedColor(e.target.value),
-                        className: "p-2 rounded w-full sm:w-1/5",
-                        children: seedColors.map((c)=>/*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx("option", {
-                                value: c,
-                                children: c
-                            }, c))
-                    }),
-                    /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx(_components_ui_input__WEBPACK_IMPORTED_MODULE_2__/* .Input */ .I, {
-                        placeholder: "Add a short note (optional)...",
-                        value: note,
-                        onChange: (e)=>setNote(e.target.value),
-                        className: "w-full sm:w-1/5"
-                    }),
-                    /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx(_components_ui_button__WEBPACK_IMPORTED_MODULE_3__/* .Button */ .z, {
-                        onClick: handlePlant,
-                        children: "Plant Seed"
-                    })
-                ]
-            }),
             /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx("div", {
                 className: "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6",
-                children: planted.map((seed)=>/*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx(framer_motion__WEBPACK_IMPORTED_MODULE_5__.motion.div, {
+                children: padded.map((seed, index)=>{
+                    if (index >= unlockedSlots) {
+                        return /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx(_components_ui_card__WEBPACK_IMPORTED_MODULE_6__/* .Card */ .Z, {
+                            className: "bg-gray-100 dark:bg-gray-800 text-gray-400 flex items-center justify-center h-48",
+                            children: /*#__PURE__*/ (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)(_components_ui_card__WEBPACK_IMPORTED_MODULE_6__/* .CardContent */ .a, {
+                                className: "text-center",
+                                children: [
+                                    /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx("p", {
+                                        children: "\uD83D\uDD12 Locked"
+                                    }),
+                                    /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx("p", {
+                                        className: "text-xs",
+                                        children: "Bloom 3 flowers to unlock"
+                                    })
+                                ]
+                            })
+                        }, `locked-${index}`);
+                    }
+                    if (!seed) {
+                        return /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx(_components_ui_card__WEBPACK_IMPORTED_MODULE_6__/* .Card */ .Z, {
+                            className: "bg-white dark:bg-gray-800 flex items-center justify-center h-48",
+                            children: /*#__PURE__*/ (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)(_components_ui_card__WEBPACK_IMPORTED_MODULE_6__/* .CardContent */ .a, {
+                                className: "text-center",
+                                children: [
+                                    /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx("p", {
+                                        children: "➕ Empty Slot"
+                                    }),
+                                    /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx(_components_ui_button__WEBPACK_IMPORTED_MODULE_5__/* .Button */ .z, {
+                                        onClick: handlePlant,
+                                        children: "Plant Seed"
+                                    })
+                                ]
+                            })
+                        }, `empty-${index}`);
+                    }
+                    return /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx(framer_motion__WEBPACK_IMPORTED_MODULE_7__.motion.div, {
                         initial: {
                             opacity: 0,
                             y: 20
@@ -304,9 +348,9 @@ function SharonsGarden() {
                         transition: {
                             duration: 0.5
                         },
-                        children: /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx(_components_ui_card__WEBPACK_IMPORTED_MODULE_4__/* .Card */ .Z, {
+                        children: /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx(_components_ui_card__WEBPACK_IMPORTED_MODULE_6__/* .Card */ .Z, {
                             className: "bg-white shadow-xl rounded-2xl p-4",
-                            children: /*#__PURE__*/ (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)(_components_ui_card__WEBPACK_IMPORTED_MODULE_4__/* .CardContent */ .a, {
+                            children: /*#__PURE__*/ (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)(_components_ui_card__WEBPACK_IMPORTED_MODULE_6__/* .CardContent */ .a, {
                                 children: [
                                     /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx("h3", {
                                         className: "text-xl font-semibold text-purple-700",
@@ -337,7 +381,7 @@ function SharonsGarden() {
                                             " / 7 times"
                                         ]
                                     }),
-                                    !seed.bloomed ? /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx(_components_ui_button__WEBPACK_IMPORTED_MODULE_3__/* .Button */ .z, {
+                                    !seed.bloomed ? /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx(_components_ui_button__WEBPACK_IMPORTED_MODULE_5__/* .Button */ .z, {
                                         onClick: ()=>handleWater(seed.id),
                                         className: "mt-2",
                                         children: "Water this seed \uD83D\uDCA7"
@@ -347,7 +391,7 @@ function SharonsGarden() {
                                     }),
                                     /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx("div", {
                                         className: "mt-4 flex flex-col gap-2",
-                                        children: /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx(_components_ui_button__WEBPACK_IMPORTED_MODULE_3__/* .Button */ .z, {
+                                        children: /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx(_components_ui_button__WEBPACK_IMPORTED_MODULE_5__/* .Button */ .z, {
                                             onClick: ()=>handleShare(seed.id),
                                             variant: "outline",
                                             children: "\uD83D\uDD17 Share"
@@ -356,56 +400,10 @@ function SharonsGarden() {
                                 ]
                             })
                         })
-                    }, seed.id))
-            }),
-            shareId && /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx("div", {
-                className: "fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50",
-                children: /*#__PURE__*/ (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", {
-                    className: "bg-white rounded-2xl p-6 shadow-2xl max-w-sm text-center",
-                    children: [
-                        /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx("h2", {
-                            className: "text-xl font-bold text-purple-700 mb-2",
-                            children: "\uD83D\uDCE4 Share Seed"
-                        }),
-                        /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx("p", {
-                            className: "mb-4 text-sm",
-                            children: "Choose a way to share your planted seed with others:"
-                        }),
-                        /*#__PURE__*/ (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", {
-                            className: "flex flex-col gap-2 mb-4",
-                            children: [
-                                /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx(_components_ui_button__WEBPACK_IMPORTED_MODULE_3__/* .Button */ .z, {
-                                    onClick: ()=>{
-                                        const url = `${window.location.origin}/flower/${shareId}`;
-                                        navigator.clipboard.writeText(url);
-                                        alert("\uD83D\uDCCB Link copied!");
-                                    },
-                                    children: "\uD83D\uDCCB Copy Link"
-                                }),
-                                /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx("a", {
-                                    href: `https://wa.me/?text=${encodeURIComponent(window.location.origin + "/flower/" + shareId)}`,
-                                    target: "_blank",
-                                    rel: "noopener noreferrer",
-                                    className: "text-center border border-green-500 text-green-600 px-4 py-2 rounded hover:bg-green-50",
-                                    children: "\uD83D\uDCF2 Share on WhatsApp"
-                                }),
-                                /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx("a", {
-                                    href: `https://twitter.com/intent/tweet?text=Check%20out%20my%20seed!%20${encodeURIComponent(window.location.origin + "/flower/" + shareId)}`,
-                                    target: "_blank",
-                                    rel: "noopener noreferrer",
-                                    className: "text-center border border-blue-500 text-blue-500 px-4 py-2 rounded hover:bg-blue-50",
-                                    children: "\uD83D\uDC26 Share on Twitter"
-                                })
-                            ]
-                        }),
-                        /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx(_components_ui_button__WEBPACK_IMPORTED_MODULE_3__/* .Button */ .z, {
-                            onClick: closeShare,
-                            variant: "outline",
-                            children: "Close"
-                        })
-                    ]
+                    }, seed.id);
                 })
             }),
+            shareId && "undefined" !== "undefined" && /*#__PURE__*/ 0,
             rewardOpen && currentReward && /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx("div", {
                 className: "fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50",
                 children: /*#__PURE__*/ (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", {
@@ -435,7 +433,7 @@ function SharonsGarden() {
                             children: "Claim Reward"
                         }),
                         /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx("div", {
-                            children: /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx(_components_ui_button__WEBPACK_IMPORTED_MODULE_3__/* .Button */ .z, {
+                            children: /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx(_components_ui_button__WEBPACK_IMPORTED_MODULE_5__/* .Button */ .z, {
                                 onClick: ()=>setRewardOpen(false),
                                 children: "Close"
                             })
@@ -443,7 +441,7 @@ function SharonsGarden() {
                     ]
                 })
             }),
-            showReward && /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx(_components_SurpriseReward__WEBPACK_IMPORTED_MODULE_6__/* ["default"] */ .Z, {
+            showReward && /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx(_components_SurpriseReward__WEBPACK_IMPORTED_MODULE_8__/* ["default"] */ .Z, {
                 onClose: ()=>setShowReward(false)
             })
         ]
@@ -497,6 +495,20 @@ module.exports = require("next/dist/server/utils.js");
 
 /***/ }),
 
+/***/ 3918:
+/***/ ((module) => {
+
+module.exports = require("next/dist/shared/lib/amp-context.js");
+
+/***/ }),
+
+/***/ 5732:
+/***/ ((module) => {
+
+module.exports = require("next/dist/shared/lib/amp-mode.js");
+
+/***/ }),
+
 /***/ 3280:
 /***/ ((module) => {
 
@@ -511,10 +523,38 @@ module.exports = require("next/dist/shared/lib/constants.js");
 
 /***/ }),
 
+/***/ 5132:
+/***/ ((module) => {
+
+module.exports = require("next/dist/shared/lib/get-img-props.js");
+
+/***/ }),
+
+/***/ 2796:
+/***/ ((module) => {
+
+module.exports = require("next/dist/shared/lib/head-manager-context.js");
+
+/***/ }),
+
 /***/ 8743:
 /***/ ((module) => {
 
 module.exports = require("next/dist/shared/lib/html-context.js");
+
+/***/ }),
+
+/***/ 744:
+/***/ ((module) => {
+
+module.exports = require("next/dist/shared/lib/image-config-context.js");
+
+/***/ }),
+
+/***/ 5843:
+/***/ ((module) => {
+
+module.exports = require("next/dist/shared/lib/image-config.js");
 
 /***/ }),
 
@@ -574,10 +614,31 @@ module.exports = require("next/dist/shared/lib/router/utils/resolve-href.js");
 
 /***/ }),
 
+/***/ 2470:
+/***/ ((module) => {
+
+module.exports = require("next/dist/shared/lib/side-effect.js");
+
+/***/ }),
+
 /***/ 9232:
 /***/ ((module) => {
 
 module.exports = require("next/dist/shared/lib/utils.js");
+
+/***/ }),
+
+/***/ 618:
+/***/ ((module) => {
+
+module.exports = require("next/dist/shared/lib/utils/warn-once.js");
+
+/***/ }),
+
+/***/ 968:
+/***/ ((module) => {
+
+module.exports = require("next/head");
 
 /***/ }),
 
@@ -595,10 +656,52 @@ module.exports = require("react");
 
 /***/ }),
 
+/***/ 6405:
+/***/ ((module) => {
+
+module.exports = require("react-dom");
+
+/***/ }),
+
+/***/ 3745:
+/***/ ((module) => {
+
+module.exports = import("firebase/app");;
+
+/***/ }),
+
+/***/ 401:
+/***/ ((module) => {
+
+module.exports = import("firebase/auth");;
+
+/***/ }),
+
+/***/ 1492:
+/***/ ((module) => {
+
+module.exports = import("firebase/firestore");;
+
+/***/ }),
+
 /***/ 6197:
 /***/ ((module) => {
 
 module.exports = import("framer-motion");;
+
+/***/ }),
+
+/***/ 690:
+/***/ ((module) => {
+
+module.exports = import("next-themes");;
+
+/***/ }),
+
+/***/ 6201:
+/***/ ((module) => {
+
+module.exports = import("react-hot-toast");;
 
 /***/ })
 
@@ -609,7 +712,7 @@ module.exports = import("framer-motion");;
 var __webpack_require__ = require("../webpack-runtime.js");
 __webpack_require__.C(exports);
 var __webpack_exec__ = (moduleId) => (__webpack_require__(__webpack_require__.s = moduleId))
-var __webpack_exports__ = __webpack_require__.X(0, [940,869,845,536], () => (__webpack_exec__(4568)));
+var __webpack_exports__ = __webpack_require__.X(0, [940,869,636,675,4,536], () => (__webpack_exec__(4568)));
 module.exports = __webpack_exports__;
 
 })();

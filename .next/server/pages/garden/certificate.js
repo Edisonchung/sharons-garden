@@ -5,7 +5,83 @@ exports.id = 143;
 exports.ids = [143,660];
 exports.modules = {
 
-/***/ 6034:
+/***/ 6089:
+/***/ ((module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.a(module, async (__webpack_handle_async_dependencies__, __webpack_async_result__) => { try {
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   config: () => (/* binding */ config),
+/* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__),
+/* harmony export */   getServerSideProps: () => (/* binding */ getServerSideProps),
+/* harmony export */   getStaticPaths: () => (/* binding */ getStaticPaths),
+/* harmony export */   getStaticProps: () => (/* binding */ getStaticProps),
+/* harmony export */   reportWebVitals: () => (/* binding */ reportWebVitals),
+/* harmony export */   routeModule: () => (/* binding */ routeModule),
+/* harmony export */   unstable_getServerProps: () => (/* binding */ unstable_getServerProps),
+/* harmony export */   unstable_getServerSideProps: () => (/* binding */ unstable_getServerSideProps),
+/* harmony export */   unstable_getStaticParams: () => (/* binding */ unstable_getStaticParams),
+/* harmony export */   unstable_getStaticPaths: () => (/* binding */ unstable_getStaticPaths),
+/* harmony export */   unstable_getStaticProps: () => (/* binding */ unstable_getStaticProps)
+/* harmony export */ });
+/* harmony import */ var next_dist_server_future_route_modules_pages_module__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(3185);
+/* harmony import */ var next_dist_server_future_route_modules_pages_module__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(next_dist_server_future_route_modules_pages_module__WEBPACK_IMPORTED_MODULE_0__);
+/* harmony import */ var next_dist_build_webpack_loaders_next_route_loader_helpers__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(7182);
+/* harmony import */ var next_dist_pages_document__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(2940);
+/* harmony import */ var next_dist_pages_document__WEBPACK_IMPORTED_MODULE_2___default = /*#__PURE__*/__webpack_require__.n(next_dist_pages_document__WEBPACK_IMPORTED_MODULE_2__);
+/* harmony import */ var private_next_pages_app_js__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(6004);
+/* harmony import */ var private_next_pages_garden_certificate_js__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(695);
+var __webpack_async_dependencies__ = __webpack_handle_async_dependencies__([private_next_pages_app_js__WEBPACK_IMPORTED_MODULE_3__]);
+private_next_pages_app_js__WEBPACK_IMPORTED_MODULE_3__ = (__webpack_async_dependencies__.then ? (await __webpack_async_dependencies__)() : __webpack_async_dependencies__)[0];
+
+        // Next.js Route Loader
+        
+        
+
+        // Import the app and document modules.
+        
+        
+
+        // Import the userland code.
+        
+
+        // Re-export the component (should be the default export).
+        /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = ((0,next_dist_build_webpack_loaders_next_route_loader_helpers__WEBPACK_IMPORTED_MODULE_1__/* .hoist */ .l)(private_next_pages_garden_certificate_js__WEBPACK_IMPORTED_MODULE_4__, "default"));
+
+        // Re-export methods.
+        const getStaticProps = (0,next_dist_build_webpack_loaders_next_route_loader_helpers__WEBPACK_IMPORTED_MODULE_1__/* .hoist */ .l)(private_next_pages_garden_certificate_js__WEBPACK_IMPORTED_MODULE_4__, "getStaticProps")
+        const getStaticPaths = (0,next_dist_build_webpack_loaders_next_route_loader_helpers__WEBPACK_IMPORTED_MODULE_1__/* .hoist */ .l)(private_next_pages_garden_certificate_js__WEBPACK_IMPORTED_MODULE_4__, "getStaticPaths")
+        const getServerSideProps = (0,next_dist_build_webpack_loaders_next_route_loader_helpers__WEBPACK_IMPORTED_MODULE_1__/* .hoist */ .l)(private_next_pages_garden_certificate_js__WEBPACK_IMPORTED_MODULE_4__, "getServerSideProps")
+        const config = (0,next_dist_build_webpack_loaders_next_route_loader_helpers__WEBPACK_IMPORTED_MODULE_1__/* .hoist */ .l)(private_next_pages_garden_certificate_js__WEBPACK_IMPORTED_MODULE_4__, "config")
+        const reportWebVitals = (0,next_dist_build_webpack_loaders_next_route_loader_helpers__WEBPACK_IMPORTED_MODULE_1__/* .hoist */ .l)(private_next_pages_garden_certificate_js__WEBPACK_IMPORTED_MODULE_4__, "reportWebVitals")
+        
+
+        // Re-export legacy methods.
+        const unstable_getStaticProps = (0,next_dist_build_webpack_loaders_next_route_loader_helpers__WEBPACK_IMPORTED_MODULE_1__/* .hoist */ .l)(private_next_pages_garden_certificate_js__WEBPACK_IMPORTED_MODULE_4__, "unstable_getStaticProps")
+        const unstable_getStaticPaths = (0,next_dist_build_webpack_loaders_next_route_loader_helpers__WEBPACK_IMPORTED_MODULE_1__/* .hoist */ .l)(private_next_pages_garden_certificate_js__WEBPACK_IMPORTED_MODULE_4__, "unstable_getStaticPaths")
+        const unstable_getStaticParams = (0,next_dist_build_webpack_loaders_next_route_loader_helpers__WEBPACK_IMPORTED_MODULE_1__/* .hoist */ .l)(private_next_pages_garden_certificate_js__WEBPACK_IMPORTED_MODULE_4__, "unstable_getStaticParams")
+        const unstable_getServerProps = (0,next_dist_build_webpack_loaders_next_route_loader_helpers__WEBPACK_IMPORTED_MODULE_1__/* .hoist */ .l)(private_next_pages_garden_certificate_js__WEBPACK_IMPORTED_MODULE_4__, "unstable_getServerProps")
+        const unstable_getServerSideProps = (0,next_dist_build_webpack_loaders_next_route_loader_helpers__WEBPACK_IMPORTED_MODULE_1__/* .hoist */ .l)(private_next_pages_garden_certificate_js__WEBPACK_IMPORTED_MODULE_4__, "unstable_getServerSideProps")
+
+        // Create and export the route module that will be consumed.
+        const options = {"definition":{"kind":"PAGES","page":"/garden/certificate","pathname":"/garden/certificate","bundlePath":"","filename":""}}
+        const routeModule = new (next_dist_server_future_route_modules_pages_module__WEBPACK_IMPORTED_MODULE_0___default())({
+          ...options,
+          components: {
+            App: private_next_pages_app_js__WEBPACK_IMPORTED_MODULE_3__["default"],
+            Document: (next_dist_pages_document__WEBPACK_IMPORTED_MODULE_2___default()),
+          },
+          userland: private_next_pages_garden_certificate_js__WEBPACK_IMPORTED_MODULE_4__,
+        })
+        
+        
+    
+__webpack_async_result__();
+} catch(e) { __webpack_async_result__(e); } });
+
+/***/ }),
+
+/***/ 695:
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 // ESM COMPAT FLAG
@@ -13,44 +89,16 @@ __webpack_require__.r(__webpack_exports__);
 
 // EXPORTS
 __webpack_require__.d(__webpack_exports__, {
-  config: () => (/* binding */ config),
-  "default": () => (/* binding */ next_route_loaderpage_2Fgarden_2Fcertificate_preferredRegion_absolutePagePath_private_next_pages_2Fgarden_2Fcertificate_js_absoluteAppPath_private_next_pages_2F_app_js_absoluteDocumentPath_next_2Fdist_2Fpages_2F_document_middlewareConfigBase64_e30_3D_),
-  getServerSideProps: () => (/* binding */ getServerSideProps),
-  getStaticPaths: () => (/* binding */ getStaticPaths),
-  getStaticProps: () => (/* binding */ getStaticProps),
-  reportWebVitals: () => (/* binding */ reportWebVitals),
-  routeModule: () => (/* binding */ routeModule),
-  unstable_getServerProps: () => (/* binding */ unstable_getServerProps),
-  unstable_getServerSideProps: () => (/* binding */ unstable_getServerSideProps),
-  unstable_getStaticParams: () => (/* binding */ unstable_getStaticParams),
-  unstable_getStaticPaths: () => (/* binding */ unstable_getStaticPaths),
-  unstable_getStaticProps: () => (/* binding */ unstable_getStaticProps)
+  "default": () => (/* binding */ CertificatePage)
 });
 
-// NAMESPACE OBJECT: ./pages/garden/certificate.js
-var certificate_namespaceObject = {};
-__webpack_require__.r(certificate_namespaceObject);
-__webpack_require__.d(certificate_namespaceObject, {
-  "default": () => (CertificatePage)
-});
-
-// EXTERNAL MODULE: ./node_modules/next/dist/server/future/route-modules/pages/module.js
-var pages_module = __webpack_require__(3185);
-var module_default = /*#__PURE__*/__webpack_require__.n(pages_module);
-// EXTERNAL MODULE: ./node_modules/next/dist/build/webpack/loaders/next-route-loader/helpers.js
-var helpers = __webpack_require__(7182);
-// EXTERNAL MODULE: ./node_modules/next/dist/pages/_document.js
-var _document = __webpack_require__(2940);
-var _document_default = /*#__PURE__*/__webpack_require__.n(_document);
-// EXTERNAL MODULE: ./pages/_app.js + 1 modules
-var _app = __webpack_require__(1845);
 // EXTERNAL MODULE: ./node_modules/react/jsx-runtime.js
 var jsx_runtime = __webpack_require__(5893);
 // EXTERNAL MODULE: external "react"
 var external_react_ = __webpack_require__(6689);
-;// CONCATENATED MODULE: external "html2canvas"
-const external_html2canvas_namespaceObject = require("html2canvas");
-var external_html2canvas_default = /*#__PURE__*/__webpack_require__.n(external_html2canvas_namespaceObject);
+// EXTERNAL MODULE: external "html2canvas"
+var external_html2canvas_ = __webpack_require__(7276);
+var external_html2canvas_default = /*#__PURE__*/__webpack_require__.n(external_html2canvas_);
 // EXTERNAL MODULE: ./components/ui/button.js
 var ui_button = __webpack_require__(6052);
 ;// CONCATENATED MODULE: external "use-sound"
@@ -150,50 +198,13 @@ function CertificatePage() {
     });
 }
 
-;// CONCATENATED MODULE: ./node_modules/next/dist/build/webpack/loaders/next-route-loader/index.js?page=%2Fgarden%2Fcertificate&preferredRegion=&absolutePagePath=private-next-pages%2Fgarden%2Fcertificate.js&absoluteAppPath=private-next-pages%2F_app.js&absoluteDocumentPath=next%2Fdist%2Fpages%2F_document&middlewareConfigBase64=e30%3D!
 
-        // Next.js Route Loader
-        
-        
+/***/ }),
 
-        // Import the app and document modules.
-        
-        
+/***/ 7276:
+/***/ ((module) => {
 
-        // Import the userland code.
-        
-
-        // Re-export the component (should be the default export).
-        /* harmony default export */ const next_route_loaderpage_2Fgarden_2Fcertificate_preferredRegion_absolutePagePath_private_next_pages_2Fgarden_2Fcertificate_js_absoluteAppPath_private_next_pages_2F_app_js_absoluteDocumentPath_next_2Fdist_2Fpages_2F_document_middlewareConfigBase64_e30_3D_ = ((0,helpers/* hoist */.l)(certificate_namespaceObject, "default"));
-
-        // Re-export methods.
-        const getStaticProps = (0,helpers/* hoist */.l)(certificate_namespaceObject, "getStaticProps")
-        const getStaticPaths = (0,helpers/* hoist */.l)(certificate_namespaceObject, "getStaticPaths")
-        const getServerSideProps = (0,helpers/* hoist */.l)(certificate_namespaceObject, "getServerSideProps")
-        const config = (0,helpers/* hoist */.l)(certificate_namespaceObject, "config")
-        const reportWebVitals = (0,helpers/* hoist */.l)(certificate_namespaceObject, "reportWebVitals")
-        
-
-        // Re-export legacy methods.
-        const unstable_getStaticProps = (0,helpers/* hoist */.l)(certificate_namespaceObject, "unstable_getStaticProps")
-        const unstable_getStaticPaths = (0,helpers/* hoist */.l)(certificate_namespaceObject, "unstable_getStaticPaths")
-        const unstable_getStaticParams = (0,helpers/* hoist */.l)(certificate_namespaceObject, "unstable_getStaticParams")
-        const unstable_getServerProps = (0,helpers/* hoist */.l)(certificate_namespaceObject, "unstable_getServerProps")
-        const unstable_getServerSideProps = (0,helpers/* hoist */.l)(certificate_namespaceObject, "unstable_getServerSideProps")
-
-        // Create and export the route module that will be consumed.
-        const options = {"definition":{"kind":"PAGES","page":"/garden/certificate","pathname":"/garden/certificate","bundlePath":"","filename":""}}
-        const routeModule = new (module_default())({
-          ...options,
-          components: {
-            App: _app["default"],
-            Document: (_document_default()),
-          },
-          userland: certificate_namespaceObject,
-        })
-        
-        
-    
+module.exports = require("html2canvas");
 
 /***/ }),
 
@@ -316,10 +327,10 @@ module.exports = require("next/dist/shared/lib/utils.js");
 
 /***/ }),
 
-/***/ 1853:
+/***/ 968:
 /***/ ((module) => {
 
-module.exports = require("next/router");
+module.exports = require("next/head");
 
 /***/ }),
 
@@ -327,6 +338,41 @@ module.exports = require("next/router");
 /***/ ((module) => {
 
 module.exports = require("react");
+
+/***/ }),
+
+/***/ 3745:
+/***/ ((module) => {
+
+module.exports = import("firebase/app");;
+
+/***/ }),
+
+/***/ 401:
+/***/ ((module) => {
+
+module.exports = import("firebase/auth");;
+
+/***/ }),
+
+/***/ 1492:
+/***/ ((module) => {
+
+module.exports = import("firebase/firestore");;
+
+/***/ }),
+
+/***/ 690:
+/***/ ((module) => {
+
+module.exports = import("next-themes");;
+
+/***/ }),
+
+/***/ 6201:
+/***/ ((module) => {
+
+module.exports = import("react-hot-toast");;
 
 /***/ })
 
@@ -337,7 +383,7 @@ module.exports = require("react");
 var __webpack_require__ = require("../../webpack-runtime.js");
 __webpack_require__.C(exports);
 var __webpack_exec__ = (moduleId) => (__webpack_require__(__webpack_require__.s = moduleId))
-var __webpack_exports__ = __webpack_require__.X(0, [940,869,845], () => (__webpack_exec__(6034)));
+var __webpack_exports__ = __webpack_require__.X(0, [940,869,4], () => (__webpack_exec__(6089)));
 module.exports = __webpack_exports__;
 
 })();

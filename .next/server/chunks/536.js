@@ -97,15 +97,17 @@ function SurpriseReward({ onClose }) {
 /* harmony export */   a: () => (/* binding */ CardContent)
 /* harmony export */ });
 /* harmony import */ var react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(5893);
+// components/ui/card.js
 
 function Card({ children, className = "" }) {
     return /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx("div", {
-        className: `border rounded-xl shadow-md p-4 bg-white ${className}`,
+        className: `rounded-lg shadow bg-white dark:bg-gray-800 ${className}`,
         children: children
     });
 }
-function CardContent({ children }) {
+function CardContent({ children, className = "" }) {
     return /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx("div", {
+        className: `p-4 ${className}`,
         children: children
     });
 }

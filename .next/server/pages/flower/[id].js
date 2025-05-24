@@ -5,77 +5,121 @@ exports.id = 312;
 exports.ids = [312,660];
 exports.modules = {
 
-/***/ 6819:
+/***/ 3017:
+/***/ ((module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.a(module, async (__webpack_handle_async_dependencies__, __webpack_async_result__) => { try {
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   config: () => (/* binding */ config),
+/* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__),
+/* harmony export */   getServerSideProps: () => (/* binding */ getServerSideProps),
+/* harmony export */   getStaticPaths: () => (/* binding */ getStaticPaths),
+/* harmony export */   getStaticProps: () => (/* binding */ getStaticProps),
+/* harmony export */   reportWebVitals: () => (/* binding */ reportWebVitals),
+/* harmony export */   routeModule: () => (/* binding */ routeModule),
+/* harmony export */   unstable_getServerProps: () => (/* binding */ unstable_getServerProps),
+/* harmony export */   unstable_getServerSideProps: () => (/* binding */ unstable_getServerSideProps),
+/* harmony export */   unstable_getStaticParams: () => (/* binding */ unstable_getStaticParams),
+/* harmony export */   unstable_getStaticPaths: () => (/* binding */ unstable_getStaticPaths),
+/* harmony export */   unstable_getStaticProps: () => (/* binding */ unstable_getStaticProps)
+/* harmony export */ });
+/* harmony import */ var next_dist_server_future_route_modules_pages_module__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(3185);
+/* harmony import */ var next_dist_server_future_route_modules_pages_module__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(next_dist_server_future_route_modules_pages_module__WEBPACK_IMPORTED_MODULE_0__);
+/* harmony import */ var next_dist_build_webpack_loaders_next_route_loader_helpers__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(7182);
+/* harmony import */ var next_dist_pages_document__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(2940);
+/* harmony import */ var next_dist_pages_document__WEBPACK_IMPORTED_MODULE_2___default = /*#__PURE__*/__webpack_require__.n(next_dist_pages_document__WEBPACK_IMPORTED_MODULE_2__);
+/* harmony import */ var private_next_pages_app_js__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(6004);
+/* harmony import */ var private_next_pages_flower_id_js__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(1450);
+var __webpack_async_dependencies__ = __webpack_handle_async_dependencies__([private_next_pages_app_js__WEBPACK_IMPORTED_MODULE_3__]);
+private_next_pages_app_js__WEBPACK_IMPORTED_MODULE_3__ = (__webpack_async_dependencies__.then ? (await __webpack_async_dependencies__)() : __webpack_async_dependencies__)[0];
+
+        // Next.js Route Loader
+        
+        
+
+        // Import the app and document modules.
+        
+        
+
+        // Import the userland code.
+        
+
+        // Re-export the component (should be the default export).
+        /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = ((0,next_dist_build_webpack_loaders_next_route_loader_helpers__WEBPACK_IMPORTED_MODULE_1__/* .hoist */ .l)(private_next_pages_flower_id_js__WEBPACK_IMPORTED_MODULE_4__, "default"));
+
+        // Re-export methods.
+        const getStaticProps = (0,next_dist_build_webpack_loaders_next_route_loader_helpers__WEBPACK_IMPORTED_MODULE_1__/* .hoist */ .l)(private_next_pages_flower_id_js__WEBPACK_IMPORTED_MODULE_4__, "getStaticProps")
+        const getStaticPaths = (0,next_dist_build_webpack_loaders_next_route_loader_helpers__WEBPACK_IMPORTED_MODULE_1__/* .hoist */ .l)(private_next_pages_flower_id_js__WEBPACK_IMPORTED_MODULE_4__, "getStaticPaths")
+        const getServerSideProps = (0,next_dist_build_webpack_loaders_next_route_loader_helpers__WEBPACK_IMPORTED_MODULE_1__/* .hoist */ .l)(private_next_pages_flower_id_js__WEBPACK_IMPORTED_MODULE_4__, "getServerSideProps")
+        const config = (0,next_dist_build_webpack_loaders_next_route_loader_helpers__WEBPACK_IMPORTED_MODULE_1__/* .hoist */ .l)(private_next_pages_flower_id_js__WEBPACK_IMPORTED_MODULE_4__, "config")
+        const reportWebVitals = (0,next_dist_build_webpack_loaders_next_route_loader_helpers__WEBPACK_IMPORTED_MODULE_1__/* .hoist */ .l)(private_next_pages_flower_id_js__WEBPACK_IMPORTED_MODULE_4__, "reportWebVitals")
+        
+
+        // Re-export legacy methods.
+        const unstable_getStaticProps = (0,next_dist_build_webpack_loaders_next_route_loader_helpers__WEBPACK_IMPORTED_MODULE_1__/* .hoist */ .l)(private_next_pages_flower_id_js__WEBPACK_IMPORTED_MODULE_4__, "unstable_getStaticProps")
+        const unstable_getStaticPaths = (0,next_dist_build_webpack_loaders_next_route_loader_helpers__WEBPACK_IMPORTED_MODULE_1__/* .hoist */ .l)(private_next_pages_flower_id_js__WEBPACK_IMPORTED_MODULE_4__, "unstable_getStaticPaths")
+        const unstable_getStaticParams = (0,next_dist_build_webpack_loaders_next_route_loader_helpers__WEBPACK_IMPORTED_MODULE_1__/* .hoist */ .l)(private_next_pages_flower_id_js__WEBPACK_IMPORTED_MODULE_4__, "unstable_getStaticParams")
+        const unstable_getServerProps = (0,next_dist_build_webpack_loaders_next_route_loader_helpers__WEBPACK_IMPORTED_MODULE_1__/* .hoist */ .l)(private_next_pages_flower_id_js__WEBPACK_IMPORTED_MODULE_4__, "unstable_getServerProps")
+        const unstable_getServerSideProps = (0,next_dist_build_webpack_loaders_next_route_loader_helpers__WEBPACK_IMPORTED_MODULE_1__/* .hoist */ .l)(private_next_pages_flower_id_js__WEBPACK_IMPORTED_MODULE_4__, "unstable_getServerSideProps")
+
+        // Create and export the route module that will be consumed.
+        const options = {"definition":{"kind":"PAGES","page":"/flower/[id]","pathname":"/flower/[id]","bundlePath":"","filename":""}}
+        const routeModule = new (next_dist_server_future_route_modules_pages_module__WEBPACK_IMPORTED_MODULE_0___default())({
+          ...options,
+          components: {
+            App: private_next_pages_app_js__WEBPACK_IMPORTED_MODULE_3__["default"],
+            Document: (next_dist_pages_document__WEBPACK_IMPORTED_MODULE_2___default()),
+          },
+          userland: private_next_pages_flower_id_js__WEBPACK_IMPORTED_MODULE_4__,
+        })
+        
+        
+    
+__webpack_async_result__();
+} catch(e) { __webpack_async_result__(e); } });
+
+/***/ }),
+
+/***/ 1450:
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
-// ESM COMPAT FLAG
 __webpack_require__.r(__webpack_exports__);
-
-// EXPORTS
-__webpack_require__.d(__webpack_exports__, {
-  config: () => (/* binding */ config),
-  "default": () => (/* binding */ next_route_loaderpage_2Fflower_2F_5Bid_5D_preferredRegion_absolutePagePath_private_next_pages_2Fflower_2F_5Bid_5D_js_absoluteAppPath_private_next_pages_2F_app_js_absoluteDocumentPath_next_2Fdist_2Fpages_2F_document_middlewareConfigBase64_e30_3D_),
-  getServerSideProps: () => (/* binding */ getServerSideProps),
-  getStaticPaths: () => (/* binding */ getStaticPaths),
-  getStaticProps: () => (/* binding */ getStaticProps),
-  reportWebVitals: () => (/* binding */ reportWebVitals),
-  routeModule: () => (/* binding */ routeModule),
-  unstable_getServerProps: () => (/* binding */ unstable_getServerProps),
-  unstable_getServerSideProps: () => (/* binding */ unstable_getServerSideProps),
-  unstable_getStaticParams: () => (/* binding */ unstable_getStaticParams),
-  unstable_getStaticPaths: () => (/* binding */ unstable_getStaticPaths),
-  unstable_getStaticProps: () => (/* binding */ unstable_getStaticProps)
-});
-
-// NAMESPACE OBJECT: ./pages/flower/[id].js
-var _id_namespaceObject = {};
-__webpack_require__.r(_id_namespaceObject);
-__webpack_require__.d(_id_namespaceObject, {
-  "default": () => (FlowerDetail)
-});
-
-// EXTERNAL MODULE: ./node_modules/next/dist/server/future/route-modules/pages/module.js
-var pages_module = __webpack_require__(3185);
-var module_default = /*#__PURE__*/__webpack_require__.n(pages_module);
-// EXTERNAL MODULE: ./node_modules/next/dist/build/webpack/loaders/next-route-loader/helpers.js
-var helpers = __webpack_require__(7182);
-// EXTERNAL MODULE: ./node_modules/next/dist/pages/_document.js
-var _document = __webpack_require__(2940);
-var _document_default = /*#__PURE__*/__webpack_require__.n(_document);
-// EXTERNAL MODULE: ./pages/_app.js + 1 modules
-var _app = __webpack_require__(1845);
-// EXTERNAL MODULE: ./node_modules/react/jsx-runtime.js
-var jsx_runtime = __webpack_require__(5893);
-// EXTERNAL MODULE: external "next/router"
-var router_ = __webpack_require__(1853);
-// EXTERNAL MODULE: external "react"
-var external_react_ = __webpack_require__(6689);
-// EXTERNAL MODULE: ./components/ui/button.js
-var ui_button = __webpack_require__(6052);
-// EXTERNAL MODULE: ./components/ui/card.js
-var card = __webpack_require__(9821);
-// EXTERNAL MODULE: ./components/SurpriseReward.js
-var SurpriseReward = __webpack_require__(28);
-;// CONCATENATED MODULE: ./pages/flower/[id].js
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (/* binding */ FlowerDetail)
+/* harmony export */ });
+/* harmony import */ var react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(5893);
+/* harmony import */ var next_router__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(1853);
+/* harmony import */ var next_router__WEBPACK_IMPORTED_MODULE_1___default = /*#__PURE__*/__webpack_require__.n(next_router__WEBPACK_IMPORTED_MODULE_1__);
+/* harmony import */ var react__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(6689);
+/* harmony import */ var react__WEBPACK_IMPORTED_MODULE_2___default = /*#__PURE__*/__webpack_require__.n(react__WEBPACK_IMPORTED_MODULE_2__);
+/* harmony import */ var _components_ui_button__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(6052);
+/* harmony import */ var _components_ui_card__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(9821);
+/* harmony import */ var _components_SurpriseReward__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(28);
 // pages/flower/[id].js
 
 
 
 
 
- // ✅ ensure correct relative path
+
 function FlowerDetail() {
-    const router = (0,router_.useRouter)();
+    const router = (0,next_router__WEBPACK_IMPORTED_MODULE_1__.useRouter)();
     const { id } = router.query;
-    const [flower, setFlower] = (0,external_react_.useState)(null);
-    const [waterCount, setWaterCount] = (0,external_react_.useState)(0);
-    const [bloomed, setBloomed] = (0,external_react_.useState)(false);
-    const [rewardShown, setRewardShown] = (0,external_react_.useState)(false);
-    const [lastWatered, setLastWatered] = (0,external_react_.useState)(null);
-    const [canWater, setCanWater] = (0,external_react_.useState)(true);
-    const [showReward, setShowReward] = (0,external_react_.useState)(false); // ✅ for surprise reward
-    (0,external_react_.useEffect)(()=>{
-        if (id) {
+    const [flower, setFlower] = (0,react__WEBPACK_IMPORTED_MODULE_2__.useState)(null);
+    const [waterCount, setWaterCount] = (0,react__WEBPACK_IMPORTED_MODULE_2__.useState)(0);
+    const [bloomed, setBloomed] = (0,react__WEBPACK_IMPORTED_MODULE_2__.useState)(false);
+    const [rewardShown, setRewardShown] = (0,react__WEBPACK_IMPORTED_MODULE_2__.useState)(false);
+    const [lastWatered, setLastWatered] = (0,react__WEBPACK_IMPORTED_MODULE_2__.useState)(null);
+    const [canWater, setCanWater] = (0,react__WEBPACK_IMPORTED_MODULE_2__.useState)(true);
+    const [showReward, setShowReward] = (0,react__WEBPACK_IMPORTED_MODULE_2__.useState)(false);
+    const [isClient, setIsClient] = (0,react__WEBPACK_IMPORTED_MODULE_2__.useState)(false);
+    (0,react__WEBPACK_IMPORTED_MODULE_2__.useEffect)(()=>{
+        setIsClient(true);
+    }, []);
+    (0,react__WEBPACK_IMPORTED_MODULE_2__.useEffect)(()=>{
+        if (!id || !isClient) return;
+        try {
             const cached = JSON.parse(localStorage.getItem("flowers") || "{}");
             const found = cached[id];
             if (found) {
@@ -92,9 +136,12 @@ function FlowerDetail() {
                 setLastWatered(last);
                 setCanWater(!sameDay);
             }
+        } catch (err) {
+            console.error("Failed to access localStorage", err);
         }
     }, [
-        id
+        id,
+        isClient
     ]);
     const handleWater = ()=>{
         if (!canWater) return alert("You've already watered this flower today. Try again tomorrow \uD83C\uDF19");
@@ -102,32 +149,35 @@ function FlowerDetail() {
         setWaterCount(newCount);
         const isBloomed = newCount >= 7;
         setBloomed(isBloomed);
-        const cached = JSON.parse(localStorage.getItem("flowers") || "{}");
-        if (cached[id]) {
-            cached[id].waterCount = newCount;
-            cached[id].bloomed = isBloomed;
-        }
-        localStorage.setItem("flowers", JSON.stringify(cached));
-        const now = new Date();
-        localStorage.setItem(`lastWatered_${id}`, now.toISOString());
-        setCanWater(false);
-        // ✅ Show surprise reward on exact bloom
-        if (newCount === 7) {
-            setShowReward(true);
+        try {
+            const cached = JSON.parse(localStorage.getItem("flowers") || "{}");
+            if (cached[id]) {
+                cached[id].waterCount = newCount;
+                cached[id].bloomed = isBloomed;
+            }
+            localStorage.setItem("flowers", JSON.stringify(cached));
+            const now = new Date();
+            localStorage.setItem(`lastWatered_${id}`, now.toISOString());
+            setCanWater(false);
+            if (newCount === 7) {
+                setShowReward(true);
+            }
+        } catch (err) {
+            console.error("Watering failed:", err);
         }
     };
-    if (!flower) return /*#__PURE__*/ jsx_runtime.jsx("p", {
+    if (!isClient || !flower) return /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx("p", {
         className: "text-center mt-10",
         children: "\uD83C\uDF3C Loading flower..."
     });
-    return /*#__PURE__*/ (0,jsx_runtime.jsxs)("div", {
+    return /*#__PURE__*/ (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", {
         className: "min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-purple-100 to-pink-100 p-6",
         children: [
-            /*#__PURE__*/ jsx_runtime.jsx(card/* Card */.Z, {
+            /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx(_components_ui_card__WEBPACK_IMPORTED_MODULE_4__/* .Card */ .Z, {
                 className: "bg-white max-w-md w-full shadow-xl rounded-2xl p-6 text-center",
-                children: /*#__PURE__*/ (0,jsx_runtime.jsxs)(card/* CardContent */.a, {
+                children: /*#__PURE__*/ (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)(_components_ui_card__WEBPACK_IMPORTED_MODULE_4__/* .CardContent */ .a, {
                     children: [
-                        /*#__PURE__*/ (0,jsx_runtime.jsxs)("h2", {
+                        /*#__PURE__*/ (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("h2", {
                             className: "text-2xl font-bold text-purple-700 mb-2",
                             children: [
                                 bloomed ? "\uD83C\uDF38" : "\uD83C\uDF3C",
@@ -135,14 +185,14 @@ function FlowerDetail() {
                                 flower.emotion
                             ]
                         }),
-                        /*#__PURE__*/ (0,jsx_runtime.jsxs)("p", {
+                        /*#__PURE__*/ (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("p", {
                             className: "text-sm italic text-gray-500 mb-1",
                             children: [
                                 "— ",
                                 flower.name || "Anonymous"
                             ]
                         }),
-                        flower.note && /*#__PURE__*/ (0,jsx_runtime.jsxs)("p", {
+                        flower.note && /*#__PURE__*/ (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("p", {
                             className: "text-sm text-gray-600 mb-2",
                             children: [
                                 "“",
@@ -150,7 +200,7 @@ function FlowerDetail() {
                                 "”"
                             ]
                         }),
-                        /*#__PURE__*/ (0,jsx_runtime.jsxs)("p", {
+                        /*#__PURE__*/ (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("p", {
                             className: "text-gray-600 mb-2",
                             children: [
                                 "Watered ",
@@ -158,24 +208,24 @@ function FlowerDetail() {
                                 " / 7 times"
                             ]
                         }),
-                        !bloomed ? /*#__PURE__*/ jsx_runtime.jsx(ui_button/* Button */.z, {
+                        !bloomed ? /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx(_components_ui_button__WEBPACK_IMPORTED_MODULE_3__/* .Button */ .z, {
                             onClick: handleWater,
                             disabled: !canWater,
                             children: canWater ? "\uD83D\uDCA7 Water this flower" : "⏳ Come back tomorrow"
-                        }) : /*#__PURE__*/ (0,jsx_runtime.jsxs)("div", {
+                        }) : /*#__PURE__*/ (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", {
                             children: [
-                                /*#__PURE__*/ jsx_runtime.jsx("p", {
+                                /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx("p", {
                                     className: "text-green-600 font-medium",
                                     children: "This flower has bloomed! \uD83C\uDF1F"
                                 }),
-                                !rewardShown && /*#__PURE__*/ (0,jsx_runtime.jsxs)("div", {
+                                !rewardShown && /*#__PURE__*/ (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", {
                                     className: "mt-4",
                                     children: [
-                                        /*#__PURE__*/ jsx_runtime.jsx("p", {
+                                        /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx("p", {
                                             className: "mb-2",
                                             children: "\uD83C\uDF81 Reward: Sharon’s exclusive voice note"
                                         }),
-                                        /*#__PURE__*/ jsx_runtime.jsx("a", {
+                                        /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx("a", {
                                             href: "https://example.com/sharon-reward",
                                             target: "_blank",
                                             rel: "noopener noreferrer",
@@ -189,57 +239,13 @@ function FlowerDetail() {
                     ]
                 })
             }),
-            showReward && /*#__PURE__*/ jsx_runtime.jsx(SurpriseReward/* default */.Z, {
+            showReward && /*#__PURE__*/ react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx(_components_SurpriseReward__WEBPACK_IMPORTED_MODULE_5__/* ["default"] */ .Z, {
                 onClose: ()=>setShowReward(false)
             })
         ]
     });
 }
 
-;// CONCATENATED MODULE: ./node_modules/next/dist/build/webpack/loaders/next-route-loader/index.js?page=%2Fflower%2F%5Bid%5D&preferredRegion=&absolutePagePath=private-next-pages%2Fflower%2F%5Bid%5D.js&absoluteAppPath=private-next-pages%2F_app.js&absoluteDocumentPath=next%2Fdist%2Fpages%2F_document&middlewareConfigBase64=e30%3D!
-
-        // Next.js Route Loader
-        
-        
-
-        // Import the app and document modules.
-        
-        
-
-        // Import the userland code.
-        
-
-        // Re-export the component (should be the default export).
-        /* harmony default export */ const next_route_loaderpage_2Fflower_2F_5Bid_5D_preferredRegion_absolutePagePath_private_next_pages_2Fflower_2F_5Bid_5D_js_absoluteAppPath_private_next_pages_2F_app_js_absoluteDocumentPath_next_2Fdist_2Fpages_2F_document_middlewareConfigBase64_e30_3D_ = ((0,helpers/* hoist */.l)(_id_namespaceObject, "default"));
-
-        // Re-export methods.
-        const getStaticProps = (0,helpers/* hoist */.l)(_id_namespaceObject, "getStaticProps")
-        const getStaticPaths = (0,helpers/* hoist */.l)(_id_namespaceObject, "getStaticPaths")
-        const getServerSideProps = (0,helpers/* hoist */.l)(_id_namespaceObject, "getServerSideProps")
-        const config = (0,helpers/* hoist */.l)(_id_namespaceObject, "config")
-        const reportWebVitals = (0,helpers/* hoist */.l)(_id_namespaceObject, "reportWebVitals")
-        
-
-        // Re-export legacy methods.
-        const unstable_getStaticProps = (0,helpers/* hoist */.l)(_id_namespaceObject, "unstable_getStaticProps")
-        const unstable_getStaticPaths = (0,helpers/* hoist */.l)(_id_namespaceObject, "unstable_getStaticPaths")
-        const unstable_getStaticParams = (0,helpers/* hoist */.l)(_id_namespaceObject, "unstable_getStaticParams")
-        const unstable_getServerProps = (0,helpers/* hoist */.l)(_id_namespaceObject, "unstable_getServerProps")
-        const unstable_getServerSideProps = (0,helpers/* hoist */.l)(_id_namespaceObject, "unstable_getServerSideProps")
-
-        // Create and export the route module that will be consumed.
-        const options = {"definition":{"kind":"PAGES","page":"/flower/[id]","pathname":"/flower/[id]","bundlePath":"","filename":""}}
-        const routeModule = new (module_default())({
-          ...options,
-          components: {
-            App: _app["default"],
-            Document: (_document_default()),
-          },
-          userland: _id_namespaceObject,
-        })
-        
-        
-    
 
 /***/ }),
 
@@ -369,6 +375,13 @@ module.exports = require("next/dist/shared/lib/utils.js");
 
 /***/ }),
 
+/***/ 968:
+/***/ ((module) => {
+
+module.exports = require("next/head");
+
+/***/ }),
+
 /***/ 1853:
 /***/ ((module) => {
 
@@ -381,6 +394,41 @@ module.exports = require("next/router");
 
 module.exports = require("react");
 
+/***/ }),
+
+/***/ 3745:
+/***/ ((module) => {
+
+module.exports = import("firebase/app");;
+
+/***/ }),
+
+/***/ 401:
+/***/ ((module) => {
+
+module.exports = import("firebase/auth");;
+
+/***/ }),
+
+/***/ 1492:
+/***/ ((module) => {
+
+module.exports = import("firebase/firestore");;
+
+/***/ }),
+
+/***/ 690:
+/***/ ((module) => {
+
+module.exports = import("next-themes");;
+
+/***/ }),
+
+/***/ 6201:
+/***/ ((module) => {
+
+module.exports = import("react-hot-toast");;
+
 /***/ })
 
 };
@@ -390,7 +438,7 @@ module.exports = require("react");
 var __webpack_require__ = require("../../webpack-runtime.js");
 __webpack_require__.C(exports);
 var __webpack_exec__ = (moduleId) => (__webpack_require__(__webpack_require__.s = moduleId))
-var __webpack_exports__ = __webpack_require__.X(0, [940,869,845,536], () => (__webpack_exec__(6819)));
+var __webpack_exports__ = __webpack_require__.X(0, [940,869,4,536], () => (__webpack_exec__(3017)));
 module.exports = __webpack_exports__;
 
 })();
