@@ -13,13 +13,13 @@ import {
   where,
   collection,
   getDocs,
-  orderBy
+  orderBy,
+  updateDoc
 } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 import debounce from 'lodash.debounce';
 import useAchievements from '../../hooks/useAchievements';
 import ProgressBadge from '../../components/ProgressBadge';
-import RewardRedemptionModal from '../../components/RewardRedemptionModal';
 
 export default function ProfilePage() {
   const [user, setUser] = useState(null);
@@ -33,7 +33,6 @@ export default function ProfilePage() {
   const [savingUsername, setSavingUsername] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [rewards, setRewards] = useState([]);
-  const [selectedReward, setSelectedReward] = useState(null);
 
   const { badges, getBadgeDetails, getAllBadges } = useAchievements();
   const cardRef = useRef();
@@ -146,6 +145,27 @@ export default function ProfilePage() {
       toast.error('Update failed.');
     } finally {
       setSavingUsername(false);
+    }
+  };
+
+  const handleRedeemReward = async (rewardId) => {
+    try {
+      const rewardRef = doc(db, 'rewards', rewardId);
+      await updateDoc(rewardRef, {
+        redeemed: true,
+        redeemedAt: new Date(),
+      });
+
+      setRewards(prev =>
+        prev.map(r =>
+          r.id === rewardId ? { ...r, redeemed: true, redeemedAt: new Date() } : r
+        )
+      );
+
+      toast.success("🎁 Reward claimed successfully!");
+    } catch (err) {
+      console.error("Reward claim error:", err);
+      toast.error("Failed to claim reward.");
     }
   };
 
@@ -269,42 +289,24 @@ export default function ProfilePage() {
             {rewards.map((r) => (
               <li
                 key={r.id}
-                className="p-3 bg-white rounded-xl shadow border border-purple-200 cursor-pointer hover:bg-purple-50"
-                onClick={() => setSelectedReward(r)}
+                className={`p-4 rounded-xl border shadow ${
+                  r.redeemed ? 'bg-green-50 border-green-200' : 'bg-white'
+                }`}
               >
-                <div className="font-medium text-purple-700">{r.rewardType} • {r.seedType}</div>
+                <div className="font-medium text-purple-700">
+                  {r.rewardType} • {r.seedType}
+                </div>
                 <div className="text-sm text-gray-600">{r.description}</div>
+                {r.redeemed ? (
+                  <p className="text-green-600 text-sm font-semibold mt-2">✅ Redeemed</p>
+                ) : (
+                  <Button onClick={() => handleRedeemReward(r.id)} className="mt-2">🎉 Claim</Button>
+                )}
               </li>
             ))}
           </ul>
         )}
       </div>
-
-      <Button
-        onClick={() => {
-          const link = `${window.location.origin}/u/${username}/badges`;
-          navigator.clipboard.writeText(link);
-          toast.success('📎 Public badge link copied!');
-        }}
-        disabled={!username}
-        className="mt-4 w-full max-w-md"
-      >
-        📎 Copy My Public Badge Link
-      </Button>
-
-      {username && (
-        <Button
-          onClick={() => router.push(`/u/${username}/badges`)}
-          className="mt-2 w-full max-w-md"
-          variant="outline"
-        >
-          🌍 Visit My Public Badge Page
-        </Button>
-      )}
-
-      {selectedReward && (
-        <RewardRedemptionModal reward={selectedReward} onClose={() => setSelectedReward(null)} />
-      )}
     </div>
   );
 }
