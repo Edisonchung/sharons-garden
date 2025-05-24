@@ -41,14 +41,15 @@ export default function PublicBadgesPage() {
         setProfile({
           name: data.displayName || username,
           avatar: data.photoURL || '',
-          joined: data.joinedAt?.toDate?.().toLocaleDateString() || 'N/A'
+          joined: data.joinedAt?.toDate?.().toLocaleDateString() || 'N/A',
         });
 
         setUserBadges(data.badges || []);
 
-        // Load progress for locked badges only
+        // Fetch badge progress for locked ones
         const all = getAllBadges();
         const progressData = {};
+
         for (const badge of all) {
           const earned = (data.badges || []).includes(badge.emoji);
           if (!earned && badge.progress) {
@@ -56,9 +57,10 @@ export default function PublicBadgesPage() {
             progressData[badge.emoji] = prog;
           }
         }
+
         setBadgeProgress(progressData);
       } catch (err) {
-        console.error('Failed to load user badges:', err);
+        console.error('Failed to load public badge page:', err);
         setNotFound(true);
       } finally {
         setLoading(false);
@@ -73,13 +75,24 @@ export default function PublicBadgesPage() {
   }
 
   if (notFound) {
-    return <p className="text-center mt-10 text-red-500">User not found or profile is private.</p>;
+    return (
+      <p className="text-center mt-10 text-red-500">
+        User not found or profile is private.
+      </p>
+    );
   }
 
   const allBadges = getAllBadges();
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-black p-6 text-center">
+
+      {/* Public Info Banner */}
+      <div className="bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 p-3 text-sm text-center rounded mb-6">
+        This is a public badge profile. Feel free to share it and inspire others! 🌟
+      </div>
+
+      {/* Profile Header */}
       <div className="mb-6">
         {profile.avatar && (
           <img
@@ -91,9 +104,12 @@ export default function PublicBadgesPage() {
         <h1 className="text-3xl font-bold text-indigo-700 dark:text-indigo-300">
           🎖️ {profile.name}’s Badges
         </h1>
-        <p className="text-sm text-gray-600 dark:text-gray-400">Joined: {profile.joined}</p>
+        <p className="text-sm text-gray-600 dark:text-gray-400">
+          Joined: {profile.joined}
+        </p>
       </div>
 
+      {/* Badge Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6 max-w-5xl mx-auto">
         {allBadges.map((badge) => {
           const earned = userBadges.includes(badge.emoji);
@@ -114,14 +130,17 @@ export default function PublicBadgesPage() {
                 {earned ? badge.description : 'Keep growing to unlock!'}
               </p>
 
-              {/* 🔄 Progress bar for locked badges */}
+              {/* Progress Indicator */}
               {!earned && progress && (
                 <>
                   <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
                     <div
                       className="bg-green-400 h-2 rounded-full transition-all"
                       style={{
-                        width: `${Math.min((progress.current / progress.target) * 100, 100)}%`
+                        width: `${Math.min(
+                          (progress.current / progress.target) * 100,
+                          100
+                        )}%`,
                       }}
                     />
                   </div>
