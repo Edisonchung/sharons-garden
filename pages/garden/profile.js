@@ -223,8 +223,9 @@ export default function ProfilePage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {badges.map((emoji) => {
               const badge = getBadgeDetails(emoji);
-              return (
-                <div key={badge.id} className="p-3 bg-white rounded-xl shadow border border-purple-200 text-left">
+              if (!badge) return null;
+                return (
+                <div key={emoji} className="p-3 bg-white rounded-xl shadow border border-purple-200 text-left">
                   <div className="text-xl">{badge.emoji} <strong>{badge.name}</strong></div>
                   <div className="text-sm text-gray-600">{badge.description}</div>
                 </div>
