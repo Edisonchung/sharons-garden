@@ -1,4 +1,3 @@
-
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 import { collection, getDocs, query, where } from 'firebase/firestore';
@@ -13,7 +12,7 @@ export default function PublicBadgesPage() {
   const [userBadges, setUserBadges] = useState([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
-  const { getBadgeDetails, getAllBadges } = useAchievements();
+  const { getAllBadges } = useAchievements();
 
   useEffect(() => {
     if (!username) return;
@@ -87,13 +86,17 @@ export default function PublicBadgesPage() {
           return (
             <div
               key={badge.emoji}
-              className={`p-4 rounded-xl border shadow bg-white dark:bg-gray-800 border-green-300 ${
-                earned ? 'text-green-700 dark:text-green-300' : 'text-gray-400 opacity-50 grayscale'
+              className={`p-4 rounded-xl border shadow transition-all duration-200 ${
+                earned
+                  ? 'bg-white dark:bg-gray-800 border-green-300 text-green-700 dark:text-green-300'
+                  : 'bg-gray-100 dark:bg-gray-800 border-gray-300 text-gray-400 opacity-50 grayscale'
               }`}
             >
               <div className="text-4xl mb-2">{badge.emoji}</div>
               <h3 className="font-semibold">{badge.name}</h3>
-              <p className="text-xs">{earned ? badge.description : 'Keep growing to unlock!'}</p>
+              <p className="text-xs mt-1">
+                {earned ? badge.description : 'Keep growing to unlock!'}
+              </p>
             </div>
           );
         })}
