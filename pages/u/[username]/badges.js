@@ -10,9 +10,11 @@ export default function PublicBadgesPage() {
 
   const [profile, setProfile] = useState(null);
   const [userBadges, setUserBadges] = useState([]);
+  const [badgeProgress, setBadgeProgress] = useState({});
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
-  const { getAllBadges } = useAchievements();
+
+  const { getAllBadges, getBadgeProgress } = useAchievements();
 
   useEffect(() => {
     if (!username) return;
@@ -43,6 +45,18 @@ export default function PublicBadgesPage() {
         });
 
         setUserBadges(data.badges || []);
+
+        // Load progress for locked badges only
+        const all = getAllBadges();
+        const progressData = {};
+        for (const badge of all) {
+          const earned = (data.badges || []).includes(badge.emoji);
+          if (!earned && badge.progress) {
+            const prog = await getBadgeProgress(badge);
+            progressData[badge.emoji] = prog;
+          }
+        }
+        setBadgeProgress(progressData);
       } catch (err) {
         console.error('Failed to load user badges:', err);
         setNotFound(true);
@@ -83,6 +97,8 @@ export default function PublicBadgesPage() {
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6 max-w-5xl mx-auto">
         {allBadges.map((badge) => {
           const earned = userBadges.includes(badge.emoji);
+          const progress = badgeProgress[badge.emoji];
+
           return (
             <div
               key={badge.emoji}
@@ -97,6 +113,23 @@ export default function PublicBadgesPage() {
               <p className="text-xs mt-1">
                 {earned ? badge.description : 'Keep growing to unlock!'}
               </p>
+
+              {/* 🔄 Progress bar for locked badges */}
+              {!earned && progress && (
+                <>
+                  <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+                    <div
+                      className="bg-green-400 h-2 rounded-full transition-all"
+                      style={{
+                        width: `${Math.min((progress.current / progress.target) * 100, 100)}%`
+                      }}
+                    />
+                  </div>
+                  <p className="text-xs mt-1 text-gray-500">
+                    {progress.current} / {progress.target}
+                  </p>
+                </>
+              )}
             </div>
           );
         })}
