@@ -179,6 +179,11 @@ export default function ProfilePage() {
     Username is permanent and already set to: <span className="font-semibold text-purple-700">{username}</span>
   </div>
 ) : (
+  {username ? (
+  <div className="mb-4 text-sm text-gray-500 italic">
+    Username is permanent and already set to: <span className="font-semibold text-purple-700">{username}</span>
+  </div>
+) : (
   <div className="flex flex-col gap-2 mb-4">
             <input
               type="text"
