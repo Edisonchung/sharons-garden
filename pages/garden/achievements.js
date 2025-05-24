@@ -13,6 +13,73 @@ const ALL_ACHIEVEMENTS = [
   { name: 'Diligent Waterer', icon: '💧', desc: 'Watered 20 times', condition: (b, t, w) => w >= 20, image: '/badges/waterer.png' }
 ];
 
+
+  // 🔁 Load badges from Firestore and merge with local ones
+  useEffect(() => {
+    const preloadBadgesFromFirestore = async () => {
+      const user = auth.currentUser;
+      if (!user) return;
+
+      try {
+        const ref = doc(db, 'users', user.uid);
+        const snap = await getDoc(ref);
+
+        if (snap.exists()) {
+          const serverBadges = snap.data().badges || [];
+
+          const merged = achievements.map(badge => ({
+            ...badge,
+            unlocked: badge.unlocked || serverBadges.includes(badge.name)
+          }));
+
+          setAchievements(merged);
+          localStorage.setItem('achievements', JSON.stringify(merged));
+          console.log('✅ Loaded badges from Firestore:', serverBadges);
+        }
+      } catch (err) {
+        console.error('❌ Failed to load badges from Firestore:', err);
+      }
+    };
+
+    if (typeof window !== 'undefined' && auth.currentUser) {
+      preloadBadgesFromFirestore();
+    }
+  }, []);
+
+  // ☁️ Sync unlocked badges to Firestore
+  useEffect(() => {
+    const syncToFirestore = async () => {
+      const user = auth.currentUser;
+      if (!user) return;
+
+      const earned = unlocked.filter(b => b.unlocked).map(b => b.name);
+
+      try {
+        const ref = doc(db, 'users', user.uid);
+        const snap = await getDoc(ref);
+
+        const current = snap.exists() ? (snap.data().badges || []) : [];
+        const newBadges = earned.filter(b => !current.includes(b));
+
+        if (newBadges.length > 0) {
+          const updated = Array.from(new Set([...current, ...newBadges]));
+          if (snap.exists()) {
+            await updateDoc(ref, { badges: updated });
+          } else {
+            await setDoc(ref, { badges: updated });
+          }
+          console.log('✅ Synced badges to Firestore:', updated);
+        }
+      } catch (err) {
+        console.error('❌ Firestore sync failed:', err);
+      }
+    };
+
+    if (typeof window !== 'undefined' && auth.currentUser) {
+      syncToFirestore();
+    }
+  }, [unlocked]);
+
 export default function AchievementsPage() {
   const [achievements, setAchievements] = useState([]);
   const [newlyUnlocked, setNewlyUnlocked] = useState([]);
