@@ -1,4 +1,3 @@
-// pages/garden/my.js
 import { useEffect, useState } from 'react';
 import { auth, db } from '../../lib/firebase';
 import {
@@ -23,19 +22,25 @@ export default function MyGarden() {
   const [filter, setFilter] = useState('all');
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission !== 'granted') {
-      Notification.requestPermission();
-    }
+    if (typeof window !== 'undefined') {
+      if ('Notification' in window && Notification.permission !== 'granted') {
+        Notification.requestPermission();
+      }
 
-    const reminderKey = 'lastWaterReminder';
-    const last = localStorage.getItem(reminderKey);
-    const now = new Date();
-    const oneDay = 24 * 60 * 60 * 1000;
+      try {
+        const reminderKey = 'lastWaterReminder';
+        const last = window.localStorage.getItem(reminderKey);
+        const now = new Date();
+        const oneDay = 24 * 60 * 60 * 1000;
 
-    if (!last || now - new Date(last) > oneDay) {
-      if (typeof window !== 'undefined' && Notification.permission === 'granted') {
-        new Notification('💧 Time to water your seeds in Sharon’s Garden!');
-        localStorage.setItem(reminderKey, now.toISOString());
+        if (!last || now - new Date(last) > oneDay) {
+          if (Notification.permission === 'granted') {
+            new Notification('💧 Time to water your seeds in Sharon’s Garden!');
+            window.localStorage.setItem(reminderKey, now.toISOString());
+          }
+        }
+      } catch (err) {
+        console.warn('LocalStorage/Notification issue:', err);
       }
     }
   }, []);
@@ -99,8 +104,8 @@ export default function MyGarden() {
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-gradient-to-b from-pink-50 to-purple-100 dark:from-gray-900 dark:to-black p-4 sm:p-6 text-center">
-      <h1 className="text-3xl font-bold text-purple-700 dark:text-purple-300 mb-6">🌿 My Garden
-      </h1>
+      <h1 className="text-3xl font-bold text-purple-700 dark:text-purple-300 mb-6">🌿 My Garden</h1>
+
       {loading ? (
         <p className="text-gray-600 dark:text-gray-400">Loading your flowers...</p>
       ) : (
