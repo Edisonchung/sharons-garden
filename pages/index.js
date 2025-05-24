@@ -46,28 +46,33 @@ export default function SharonsGarden() {
   const audioRef = useRef(null);
 
   useEffect(() => {
-    setIsClient(true);
+  let unsubscribeSnapshot = null;
 
-    const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
-      if (!currentUser) {
-        router.push('/auth');
-        return;
-      }
-
+  const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
+    if (!currentUser) {
+      router.push('/auth');
+    } else {
+      console.log("✅ Authenticated user:", currentUser.uid);
       setUser(currentUser);
       setShowMain(true);
 
       const q = query(collection(db, 'flowers'), where('userId', '==', currentUser.uid));
-      const unsubscribeSnapshot = onSnapshot(q, (snapshot) => {
+      unsubscribeSnapshot = onSnapshot(q, (snapshot) => {
         const flowers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        console.log("🌼 Planted seeds fetched:", flowers);
         setPlanted(flowers);
       });
+    }
+  });
 
-      return () => unsubscribeSnapshot();
-    });
-
-    return () => unsubscribeAuth();
-  }, [router]);
+  return () => {
+    unsubscribeAuth();
+    if (unsubscribeSnapshot) {
+      unsubscribeSnapshot();
+      console.log("📤 Unsubscribed from Firestore snapshot");
+    }
+  };
+}, [router]);
 
   const handlePlant = async () => {
     if (!user) return;
