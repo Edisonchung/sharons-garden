@@ -1,139 +1,107 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/router';
-import { onAuthStateChanged } from 'firebase/auth';
-import {
-  collection,
-  getDocs,
-  query,
-  where,
-  doc,
-  updateDoc,
-  getDoc
-} from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, updateDoc, onSnapshot } from 'firebase/firestore';
 import { auth, db } from '../../lib/firebase';
 import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
+import { motion, AnimatePresence } from 'framer-motion';
+import useAuth from '../../hooks/useAuth';
+import Avatar from '../../components/Avatar';
 import WateringHistoryModal from '../../components/WateringHistoryModal';
-import toast from 'react-hot-toast';
 
 export default function MyGardenPage() {
   const router = useRouter();
-  const [user, setUser] = useState(null);
+  const { user } = useAuth();
   const [seeds, setSeeds] = useState([]);
-  const [filter, setFilter] = useState('all');
-  const [loading, setLoading] = useState(true);
-  const [selectedSeedId, setSelectedSeedId] = useState(null);
+  const [bloomedToday, setBloomedToday] = useState([]);
+  const [wateringSeedId, setWateringSeedId] = useState(null);
+  const [showHistoryFor, setShowHistoryFor] = useState(null);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      if (!currentUser) {
-        router.push('/auth');
-      } else {
-        setUser(currentUser);
-        const q = query(collection(db, 'flowers'), where('userId', '==', currentUser.uid));
-        const snap = await getDocs(q);
-        const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        setSeeds(data);
-        setLoading(false);
-      }
+    if (!user) return;
+
+    const q = query(collection(db, 'flowers'), where('userId', '==', user.uid));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const flowers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setSeeds(flowers);
     });
+
     return () => unsubscribe();
-  }, [router]);
+  }, [user]);
 
-  const today = new Date().toDateString();
-  const filteredSeeds = seeds.filter((seed) => {
-    if (filter === 'bloomed') return seed.bloomed;
-    if (filter === 'unbloomed') return !seed.bloomed;
-    if (filter === 'needsWater') {
-      const lastKey = `lastWatered_${seed.id}`;
-      const last = localStorage.getItem(lastKey);
-      return !last || new Date(last).toDateString() !== today;
+  useEffect(() => {
+    const newBlooms = seeds.filter(
+      (seed) => seed.bloomed && !seed.bloomAnimationShown
+    );
+    if (newBlooms.length > 0) {
+      setBloomedToday(newBlooms.map((s) => s.id));
     }
-    return true;
-  });
+  }, [seeds]);
 
-  const handleWater = async (seed) => {
-    const lastKey = `lastWatered_${seed.id}`;
-    const last = localStorage.getItem(lastKey);
-    if (last && new Date(last).toDateString() === today) {
-      toast('💧 Already watered today');
-      return;
-    }
-
+  const markBloomSeen = async (seedId) => {
     try {
-      const ref = doc(db, 'flowers', seed.id);
-      const snap = await getDoc(ref);
-      if (!snap.exists()) return;
-
-      const data = snap.data();
-      const count = (data.waterCount || 0) + 1;
-      const bloomed = count >= 7;
-
-      await updateDoc(ref, {
-        waterCount: count,
-        bloomed,
-        bloomedFlower: bloomed ? seed.bloomedFlower || '🌸' : null,
-        lastWatered: new Date().toISOString()
-      });
-
-      localStorage.setItem(lastKey, new Date().toISOString());
-      toast.success('💧 Watered successfully');
+      await updateDoc(doc(db, 'flowers', seedId), { bloomAnimationShown: true });
     } catch (err) {
-      console.error('Watering failed:', err);
-      toast.error('Failed to water');
+      console.error('Failed to mark bloom animation seen:', err);
     }
   };
 
-  if (loading) {
-    return <p className="text-center mt-10">Loading your garden...</p>;
-  }
-
   return (
-    <div className="min-h-screen bg-gradient-to-b from-pink-50 to-purple-100 p-6">
-      <h1 className="text-3xl font-bold text-center text-purple-700 mb-6">🌺 My Garden</h1>
+    <div className="min-h-screen bg-gradient-to-b from-pink-100 to-purple-200 p-6">
+      <h1 className="text-3xl font-bold text-center mb-4">🌼 My Garden</h1>
 
-      <div className="flex gap-2 justify-center mb-6">
-        {['all', 'bloomed', 'unbloomed', 'needsWater'].map((f) => (
-          <Button
-            key={f}
-            variant={filter === f ? 'default' : 'outline'}
-            onClick={() => setFilter(f)}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+        {seeds.map((seed) => (
+          <motion.div
+            key={seed.id}
+            layout
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
           >
-            {f === 'all' && '🌼 All'}
-            {f === 'bloomed' && '🌸 Bloomed'}
-            {f === 'unbloomed' && '🌱 Seedlings'}
-            {f === 'needsWater' && '💧 Needs Water'}
-          </Button>
+            <Card className="bg-white rounded-xl shadow p-4">
+              <CardContent>
+                <h3 className="text-lg font-semibold text-purple-700">
+                  {seed.bloomed ? `${seed.bloomedFlower} ${seed.type}` : '🌱 Seedling'}
+                </h3>
+                <p className="text-sm text-gray-600 italic">
+                  {seed.name || 'Anonymous'} | {seed.color}
+                </p>
+                {seed.note && <p className="text-sm mt-1">“{seed.note}”</p>}
+                <p className="text-xs text-gray-500 mt-2">Watered {seed.waterCount} / 7 times</p>
+                <div className="flex flex-wrap gap-2 mt-3">
+                  <Button onClick={() => setShowHistoryFor(seed.id)} variant="outline">
+                    ⏳ View History
+                  </Button>
+                </div>
+
+                <AnimatePresence>
+                  {bloomedToday.includes(seed.id) && (
+                    <motion.div
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.8 }}
+                      transition={{ duration: 0.5 }}
+                      className="mt-4 p-3 rounded-lg bg-yellow-100 border border-yellow-300 text-yellow-800 shadow text-center"
+                      onAnimationComplete={() => markBloomSeen(seed.id)}
+                    >
+                      🌸 Your flower has bloomed beautifully!
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </CardContent>
+            </Card>
+          </motion.div>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-        {filteredSeeds.map((seed) => (
-          <Card key={seed.id} className="bg-white shadow-xl rounded-xl p-4">
-            <CardContent>
-              <h3 className="text-xl font-semibold text-purple-700">
-                {seed.bloomed ? `${seed.bloomedFlower} ${seed.type}` : '🌱 Seedling'}
-              </h3>
-              <p className="text-sm italic text-gray-500 mb-1">— {seed.name || 'Anonymous'} | {seed.color}</p>
-              {seed.note && <p className="text-sm text-gray-600 mb-2">“{seed.note}”</p>}
-              <p className="text-sm text-gray-500">Watered {seed.waterCount} / 7 times</p>
-              <div className="mt-2 flex gap-2">
-                {!seed.bloomed && (
-                  <Button onClick={() => handleWater(seed)}>💧 Water</Button>
-                )}
-                <Button variant="outline" onClick={() => setSelectedSeedId(seed.id)}>📜 History</Button>
-              </div>
-              {seed.bloomed && <p className="text-green-600 font-medium mt-2">Bloomed! 🌟</p>}
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      <WateringHistoryModal
-        seedId={selectedSeedId}
-        isOpen={!!selectedSeedId}
-        onClose={() => setSelectedSeedId(null)}
-      />
+      {showHistoryFor && (
+        <WateringHistoryModal
+          seedId={showHistoryFor}
+          isOpen={!!showHistoryFor}
+          onClose={() => setShowHistoryFor(null)}
+        />
+      )}
     </div>
   );
 }
