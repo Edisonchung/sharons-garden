@@ -1,11 +1,15 @@
-// components/FlowerCanvas.js
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { db } from '../lib/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
 
 export default function FlowerCanvas({ flowers = [] }) {
   const [selected, setSelected] = useState(null);
+  const [isClient, setIsClient] = useState(false); // ✅ added
+
+  useEffect(() => {
+    setIsClient(true); // ✅ ensures this only runs on client
+  }, []);
 
   const handleWater = async (flower) => {
     if (!flower || flower.bloomed || flower.waterCount >= 7) return;
@@ -26,6 +30,9 @@ export default function FlowerCanvas({ flowers = [] }) {
       toast.error('Failed to water this flower.');
     }
   };
+
+  // ⛔ SSR-safe render block
+  if (!isClient) return null;
 
   return (
     <div className="relative">
