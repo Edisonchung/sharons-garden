@@ -1,4 +1,6 @@
+
 import { useEffect, useState, useRef } from 'react';
+import { useRouter } from 'next/router';
 import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import html2canvas from 'html2canvas';
@@ -14,12 +16,14 @@ import {
   getDocs
 } from 'firebase/firestore';
 import toast from 'react-hot-toast';
+import debounce from 'lodash.debounce';
 
 export default function ProfilePage() {
   const [user, setUser] = useState(null);
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
   const [newUsername, setNewUsername] = useState('');
+  const [usernameStatus, setUsernameStatus] = useState(null); // null | 'available' | 'taken'
   const [notify, setNotify] = useState(true);
   const [loading, setLoading] = useState(true);
   const [isClient, setIsClient] = useState(false);
@@ -27,6 +31,7 @@ export default function ProfilePage() {
   const [downloading, setDownloading] = useState(false);
 
   const cardRef = useRef();
+  const router = useRouter();
 
   useEffect(() => {
     setIsClient(true);
@@ -58,6 +63,36 @@ export default function ProfilePage() {
 
     return () => unsubscribe();
   }, [isClient]);
+
+  useEffect(() => {
+    if (!newUsername) {
+      setUsernameStatus(null);
+      return;
+    }
+
+    const checkUsername = debounce(async () => {
+      const trimmed = newUsername.toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (trimmed.length < 3) {
+        setUsernameStatus(null);
+        return;
+      }
+
+      try {
+        const q = query(collection(db, 'users'), where('username', '==', trimmed));
+        const snapshot = await getDocs(q);
+
+        const taken = snapshot.docs.some(docSnap => docSnap.id !== user?.uid);
+        setUsernameStatus(taken ? 'taken' : 'available');
+      } catch (err) {
+        console.error('Failed username check:', err);
+        setUsernameStatus(null);
+      }
+    }, 500);
+
+    checkUsername();
+
+    return () => checkUsername.cancel();
+  }, [newUsername, user?.uid]);
 
   const handleToggle = async () => {
     if (!user) return;
@@ -91,32 +126,17 @@ export default function ProfilePage() {
   };
 
   const handleUsernameUpdate = async () => {
-    if (!user || !newUsername) return;
+    if (!user || !newUsername || usernameStatus !== 'available') return;
 
     const trimmed = newUsername.toLowerCase().replace(/[^a-z0-9]/g, '');
 
-    if (trimmed.length < 3) {
-      toast.error('Username must be at least 3 characters.');
-      return;
-    }
-
     setSavingUsername(true);
     try {
-      // Check if username is taken
-      const q = query(collection(db, 'users'), where('username', '==', trimmed));
-      const snapshot = await getDocs(q);
-
-      const takenBySomeoneElse = snapshot.docs.some(docSnap => docSnap.id !== user.uid);
-      if (takenBySomeoneElse) {
-        toast.error('Username already taken.');
-        return;
-      }
-
-      // Save new username
       await setDoc(doc(db, 'users', user.uid), { username: trimmed }, { merge: true });
       setUsername(trimmed);
       setNewUsername('');
       toast.success('Username updated!');
+      router.push(`/u/${trimmed}/badges`);
     } catch (err) {
       console.error(err);
       toast.error('Failed to update username.');
@@ -134,7 +154,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-pink-100 to-purple-200 p-6">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-pink-100 to-purple-200 p-6">
       <Card ref={cardRef} className="bg-white w-full max-w-md shadow-xl rounded-2xl p-6 text-center">
         <CardContent>
           <h1 className="text-2xl font-bold text-purple-700 mb-2">👤 Profile</h1>
@@ -151,9 +171,15 @@ export default function ProfilePage() {
             <Button onClick={handleToggle} variant={notify ? 'default' : 'outline'}>
               {notify ? 'On' : 'Off'}
             </Button>
-          </div>
+  </div>
+)}
 
-          <div className="flex flex-col gap-2 mb-4">
+          {username ? (
+  <div className="mb-4 text-sm text-gray-500 italic">
+    Username is permanent and already set to: <span className="font-semibold text-purple-700">{username}</span>
+  </div>
+) : (
+  <div className="flex flex-col gap-2 mb-4">
             <input
               type="text"
               value={newUsername}
@@ -162,10 +188,20 @@ export default function ProfilePage() {
               className="border border-gray-300 rounded px-3 py-2"
               disabled={savingUsername}
             />
-            <Button onClick={handleUsernameUpdate} disabled={savingUsername}>
+            {newUsername && (
+              <p className={`text-sm ${usernameStatus === 'available' ? 'text-green-600' : 'text-red-500'}`}>
+                {usernameStatus === 'available' && '✅ Username available'}
+                {usernameStatus === 'taken' && '❌ Username already taken'}
+              </p>
+            )}
+            <Button
+              onClick={handleUsernameUpdate}
+              disabled={savingUsername || usernameStatus !== 'available'}
+            >
               {savingUsername ? 'Saving...' : 'Update Username'}
             </Button>
-          </div>
+  </div>
+)}
 
           <Button
             onClick={handleDownload}
@@ -176,6 +212,18 @@ export default function ProfilePage() {
           </Button>
         </CardContent>
       </Card>
+
+      <Button
+        onClick={() => {
+          const link = `${window.location.origin}/u/${username}/badges`;
+          navigator.clipboard.writeText(link);
+          toast.success('📎 Profile link copied!');
+        }}
+        disabled={!username}
+        className="mt-4 w-full max-w-md"
+      >
+        📎 Copy My Public Badge Link
+      </Button>
     </div>
   );
 }
