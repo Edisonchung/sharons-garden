@@ -1,172 +1,99 @@
-import { useEffect, useState } from 'react';
-import { auth, db } from '../../lib/firebase';
+import React, { useEffect, useState } from 'react';
+import { db } from '../../lib/firebase';
 import {
   collection,
   query,
   where,
   getDocs,
-  deleteDoc,
-  doc,
-  updateDoc
+  orderBy,
+  limit
 } from 'firebase/firestore';
-import { onAuthStateChanged } from 'firebase/auth';
-import toast from 'react-hot-toast';
-import { Button } from '../../components/ui/button';
 import { Card, CardContent } from '../../components/ui/card';
-import FlowerCanvas from '../../components/FlowerCanvas';
+import { Button } from '../../components/ui/button';
+import { useAuth } from '../../hooks/useAuth';
+import Avatar from '../../components/Avatar';
 
-export default function MyGarden() {
-  const [user, setUser] = useState(null);
-  const [flowers, setFlowers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('all');
-  const [isClient, setIsClient] = useState(false); // ✅
-
-  useEffect(() => {
-    setIsClient(true); // ✅ prevent SSR mismatch
-
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      if (currentUser) {
-        setUser(currentUser);
-        try {
-          const flowerQuery = query(
-            collection(db, 'flowers'),
-            where('userId', '==', currentUser.uid)
-          );
-          const snapshot = await getDocs(flowerQuery);
-          const userFlowers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-          setFlowers(userFlowers);
-        } catch (err) {
-          console.error(err);
-          toast.error('Failed to load your garden.');
-        } finally {
-          setLoading(false);
-        }
-      } else {
-        setUser(null);
-        setFlowers([]);
-        setLoading(false);
-      }
-    });
-
-    return () => unsubscribe();
-  }, []);
+export default function MyGardenPage() {
+  const { user } = useAuth();
+  const [seeds, setSeeds] = useState([]);
+  const [helpers, setHelpers] = useState({});
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const reminderKey = 'lastWaterReminder';
-        const last = window.localStorage.getItem(reminderKey);
-        const now = new Date();
-        const oneDay = 24 * 60 * 60 * 1000;
+    if (!user) return;
 
-        if (!last || now - new Date(last) > oneDay) {
-          if ('Notification' in window && Notification.permission !== 'granted') {
-            Notification.requestPermission().then(permission => {
-              if (permission === 'granted') {
-                new Notification('💧 Time to water your seeds in Sharon’s Garden!');
-                window.localStorage.setItem(reminderKey, now.toISOString());
-              }
-            });
-          }
-        }
-      } catch (err) {
-        console.warn('Notification/localStorage error:', err);
+    const fetchSeedsAndHelpers = async () => {
+      const flowerQuery = query(
+        collection(db, 'flowers'),
+        where('userId', '==', user.uid)
+      );
+      const flowerSnap = await getDocs(flowerQuery);
+      const flowerList = flowerSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setSeeds(flowerList);
+
+      const newHelpers = {};
+      for (const seed of flowerList) {
+        const waterQuery = query(
+          collection(db, 'waterings'),
+          where('seedId', '==', seed.id),
+          orderBy('timestamp', 'desc'),
+          limit(5)
+        );
+        const waterSnap = await getDocs(waterQuery);
+        newHelpers[seed.id] = waterSnap.docs.map(doc => doc.data());
       }
-    }
-  }, []);
+      setHelpers(newHelpers);
+    };
 
-  const handleDelete = async (id) => {
-    try {
-      await deleteDoc(doc(db, 'flowers', id));
-      setFlowers(prev => prev.filter(f => f.id !== id));
-      toast.success('Flower deleted');
-    } catch (err) {
-      console.error(err);
-      toast.error('Failed to delete flower.');
-    }
-  };
+    fetchSeedsAndHelpers();
+  }, [user]);
 
-  const handleUpdate = async (id, newNote) => {
-    try {
-      const flowerRef = doc(db, 'flowers', id);
-      await updateDoc(flowerRef, { note: newNote });
-      setFlowers(prev => prev.map(f => f.id === id ? { ...f, note: newNote } : f));
-      toast.success('Note updated');
-    } catch (err) {
-      console.error(err);
-      toast.error('Failed to update note.');
-    }
-  };
-
-  const filteredFlowers = flowers.filter(f => {
-    if (filter === 'bloomed') return f.bloomed;
-    if (filter === 'notBloomed') return !f.bloomed;
-    return true;
-  });
-
-  if (!isClient) return null; // ✅ prevent hydration mismatch
+  if (!user) {
+    return <p className="text-center mt-10">Please sign in to view your garden.</p>;
+  }
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-gradient-to-b from-pink-50 to-purple-100 dark:from-gray-900 dark:to-black p-4 sm:p-6 text-center">
-      <h1 className="text-3xl font-bold text-purple-700 dark:text-purple-300 mb-6">🌿 My Garden</h1>
+    <div className="min-h-screen bg-gradient-to-b from-pink-50 to-purple-100 dark:from-gray-900 dark:to-black p-6">
+      <h1 className="text-3xl font-bold text-purple-700 dark:text-purple-300 text-center mb-6">🌸 My Garden</h1>
 
-      {loading ? (
-        <p className="text-gray-600 dark:text-gray-400">Loading your flowers...</p>
-      ) : (
-        <>
-          <div className="flex flex-wrap justify-center gap-3 mb-6">
-            <Button variant={filter === 'all' ? 'default' : 'outline'} onClick={() => setFilter('all')}>All</Button>
-            <Button variant={filter === 'bloomed' ? 'default' : 'outline'} onClick={() => setFilter('bloomed')}>Bloomed</Button>
-            <Button variant={filter === 'notBloomed' ? 'default' : 'outline'} onClick={() => setFilter('notBloomed')}>Not Bloomed</Button>
-          </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 max-w-6xl mx-auto">
+        {seeds.map(seed => (
+          <Card key={seed.id} className="bg-white dark:bg-gray-800 shadow-lg rounded-xl p-4">
+            <CardContent>
+              <h2 className="text-xl font-bold text-purple-700 mb-1">
+                {seed.bloomed ? `${seed.bloomedFlower} ${seed.type}` : '🌱 Seedling'}
+              </h2>
+              <p className="text-sm italic text-gray-500 mb-1">
+                — {seed.name || 'Anonymous'} | {seed.color}
+              </p>
+              {seed.note && <p className="text-sm text-gray-600 mb-2">“{seed.note}”</p>}
+              <p className="text-sm text-gray-500 mb-2">Watered {seed.waterCount} / 7 times</p>
 
-          <FlowerCanvas flowers={filteredFlowers} />
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 mt-10 max-w-6xl mx-auto">
-            {filteredFlowers.map(flower => (
-              <Card key={flower.id} className={`p-4 bg-white dark:bg-gray-800 shadow-md relative ${
-      flower.touchedBySharon ? 'border-4 border-yellow-400 animate-pulse' : ''
-    }`}>
-                <CardContent>
-                  <h3 className="text-lg font-semibold text-purple-700 dark:text-purple-200">
-                    {flower.bloomed ? `${flower.bloomedFlower || '🌸'} ${flower.type}` : '🌱 Seedling'}
-                  </h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-300 italic truncate">
-                    — {flower.name || 'Anonymous'} | {flower.color}
-                  </p>
-                  <p className="text-sm mt-2 text-gray-500 dark:text-gray-400 break-words">
-                    {flower.note || 'No note'}
-                  </p>
-                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">
-                    Watered {flower.waterCount} / 7 times
-                  </p>
-                  {flower.bloomed && (
-                    <p className="text-green-500 font-medium mt-2 animate-pulse">This flower has bloomed! 🌟</p>
-                  )}
-                  {flower.touchedBySharon && (
-                    <>
-                      <p className="text-yellow-500 font-semibold mt-2 animate-bounce">💜 Touched by Sharon</p>
-                      {flower.touchedBySharon.message && (
-                        <p className="text-sm italic text-purple-400 mt-1">
-                          “{flower.touchedBySharon.message}”
-                        </p>
-                      )}
-                      <p className="text-xs text-gray-400 mt-1">
-                        {new Date(flower.touchedBySharon.touchedAt.seconds * 1000).toLocaleDateString()}
-                      </p>
-                    </>
-                  )}
-                  <div className="flex flex-wrap justify-center gap-2 mt-4">
-                    <Button onClick={() => handleDelete(flower.id)} variant="destructive">Delete</Button>
-                    <Button onClick={() => handleUpdate(flower.id, prompt('Edit note:', flower.note) || flower.note)} variant="outline">Edit</Button>
+              {helpers[seed.id] && helpers[seed.id].length > 0 && (
+                <div className="mt-3">
+                  <p className="text-xs text-gray-400 mb-1">Recently watered by:</p>
+                  <div className="flex -space-x-2">
+                    {helpers[seed.id].map((w, index) => (
+                      <Avatar
+                        key={index}
+                        name={w.helperName || 'Unknown'}
+                        photoURL={w.helperPhotoURL || ''}
+                        size="sm"
+                        tooltip={
+                          w.timestamp?.toDate
+                            ? `Watered on ${w.timestamp.toDate().toLocaleString()}`
+                            : undefined
+                        }
+                      />
+                    ))}
                   </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </>
-      )}
+                </div>
+              )}
+
+              {seed.bloomed && <p className="text-green-600 font-medium mt-2">Bloomed! 🌟</p>}
+            </CardContent>
+          </Card>
+        ))}
+      </div>
     </div>
   );
 }
