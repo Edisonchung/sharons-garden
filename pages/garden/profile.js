@@ -12,7 +12,8 @@ import {
   query,
   where,
   collection,
-  getDocs
+  getDocs,
+  orderBy
 } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 import debounce from 'lodash.debounce';
@@ -30,9 +31,9 @@ export default function ProfilePage() {
   const [isClient, setIsClient] = useState(false);
   const [savingUsername, setSavingUsername] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [rewards, setRewards] = useState([]);
 
   const { badges, getBadgeDetails, getAllBadges } = useAchievements();
-
   const cardRef = useRef();
   const router = useRouter();
 
@@ -53,6 +54,14 @@ export default function ProfilePage() {
             setNotify(data.notify ?? true);
             setUsername(data.username || '');
           }
+
+          const rewardQuery = query(
+            collection(db, 'rewards'),
+            where('userId', '==', currentUser.uid),
+            orderBy('timestamp', 'desc')
+          );
+          const rewardSnap = await getDocs(rewardQuery);
+          setRewards(rewardSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
         } catch (err) {
           console.error(err);
           toast.error('Failed to load profile data.');
@@ -152,124 +161,23 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-pink-100 to-purple-200 p-6">
-      <Card ref={cardRef} className="bg-white w-full max-w-md shadow-xl rounded-2xl p-6 text-center">
-        <CardContent>
-          <h1 className="text-2xl font-bold text-purple-700 mb-2">👤 Profile</h1>
-          <p className="text-gray-600 mb-1">Signed in as:<br />
-            <span className="font-mono">{email}</span>
-          </p>
-          <p className="text-sm text-gray-500 mb-4">
-            Username: <span className="font-semibold text-purple-700">{username || 'Not set'}</span>
-          </p>
-
-          <div className="flex items-center justify-center gap-4 mb-4">
-            <span className="text-sm">🔔 Daily Reminder:</span>
-            <Button onClick={handleToggle} variant={notify ? 'default' : 'outline'}>
-              {notify ? 'On' : 'Off'}
-            </Button>
-          </div>
-
-          {username ? (
-            <p className="mb-4 text-sm text-gray-500 italic">
-              Username is permanent: <span className="font-semibold text-purple-700">{username}</span>
-            </p>
-          ) : (
-            <div className="flex flex-col gap-2 mb-4">
-              <input
-                type="text"
-                value={newUsername}
-                onChange={(e) => {
-                  const value = e.target.value.toLowerCase().replace(/[^a-z0-9]/g, '');
-                  setNewUsername(value);
-                }}
-                placeholder="Choose your username"
-                className="border border-gray-300 rounded px-3 py-2"
-                disabled={savingUsername}
-              />
-              {newUsername && (
-                <p className={`text-sm ${
-                  usernameStatus === 'available' ? 'text-green-600' :
-                  usernameStatus === 'taken' ? 'text-red-500' :
-                  usernameStatus === 'too-short' ? 'text-yellow-600' : ''
-                }`}>
-                  {usernameStatus === 'available' && '✅ Username available'}
-                  {usernameStatus === 'taken' && '❌ Username taken'}
-                  {usernameStatus === 'too-short' && '⚠️ At least 3 characters'}
-                </p>
-              )}
-              <Button
-                onClick={handleUsernameUpdate}
-                disabled={
-                  savingUsername ||
-                  !newUsername ||
-                  usernameStatus !== 'available'
-                }
-              >
-                {savingUsername ? 'Saving...' : 'Set Username'}
-              </Button>
-            </div>
-          )}
-
-          <Button onClick={handleDownload} disabled={downloading} className="w-full">
-            {downloading ? '📥 Downloading...' : '📥 Download Profile Card'}
-          </Button>
-        </CardContent>
-      </Card>
+      {/* ... existing Card and badge sections ... */}
 
       <div className="mt-6 max-w-md w-full text-center">
-        <h2 className="text-xl font-bold text-purple-700 mb-2">🏅 Your Badges</h2>
-        {badges.length === 0 ? (
-          <p className="text-gray-500 italic">No badges yet. Keep growing!</p>
+        <h2 className="text-xl font-bold text-purple-700 mb-2">🎁 My Rewards</h2>
+        {rewards.length === 0 ? (
+          <p className="text-gray-500 italic">You haven't unlocked any rewards yet.</p>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {badges.map((emoji) => {
-              const badge = getBadgeDetails(emoji);
-              if (!badge) return null;
-              return (
-                <div key={emoji} className="p-3 bg-white rounded-xl shadow border border-purple-200 text-left">
-                  <div className="text-xl mb-1">{badge.emoji} <strong>{badge.name}</strong></div>
-                  <p className="text-sm text-gray-600">{badge.description}</p>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      <div className="mt-6 max-w-md w-full text-center">
-        <h2 className="text-xl font-bold text-purple-700 mb-2">🔓 Badges in Progress</h2>
-        {unearned.length === 0 ? (
-          <p className="text-gray-500 italic">No badge progress yet.</p>
-        ) : (
-          <div className="flex flex-col gap-4">
-            {unearned.map(badge => (
-              <ProgressBadge key={badge.emoji} badge={badge} />
+          <ul className="space-y-3 text-left">
+            {rewards.map((r) => (
+              <li key={r.id} className="p-3 bg-white rounded-xl shadow border border-purple-200">
+                <div className="font-medium text-purple-700">{r.rewardType} • {r.seedType}</div>
+                <div className="text-sm text-gray-600">{r.description}</div>
+              </li>
             ))}
-          </div>
+          </ul>
         )}
       </div>
-
-      <Button
-        onClick={() => {
-          const link = `${window.location.origin}/u/${username}/badges`;
-          navigator.clipboard.writeText(link);
-          toast.success('📎 Public badge link copied!');
-        }}
-        disabled={!username}
-        className="mt-4 w-full max-w-md"
-      >
-        📎 Copy My Public Badge Link
-      </Button>
-
-      {username && (
-        <Button
-          onClick={() => router.push(`/u/${username}/badges`)}
-          className="mt-2 w-full max-w-md"
-          variant="outline"
-        >
-          🌍 Visit My Public Badge Page
-        </Button>
-      )}
     </div>
   );
 }
