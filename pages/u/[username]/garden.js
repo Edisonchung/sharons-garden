@@ -8,16 +8,11 @@ import {
   where,
   doc,
   updateDoc,
-  getDoc,
-  addDoc,
-  orderBy,
-  Timestamp,
+  getDoc
 } from 'firebase/firestore';
 import { Card, CardContent } from '../../../components/ui/card';
 import { Button } from '../../../components/ui/button';
 import toast from 'react-hot-toast';
-import WateringHistoryModal from '../../../components/WateringHistoryModal';
-import { onAuthStateChanged } from 'firebase/auth';
 
 export default function FriendGardenPage() {
   const router = useRouter();
@@ -26,15 +21,7 @@ export default function FriendGardenPage() {
   const [seeds, setSeeds] = useState([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
-  const [user, setUser] = useState(null);
-  const [selectedSeedId, setSelectedSeedId] = useState(null);
-
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) setUser(user);
-    });
-    return () => unsubscribe();
-  }, []);
+  const [helpers, setHelpers] = useState({});
 
   useEffect(() => {
     if (!username) return;
@@ -74,6 +61,16 @@ export default function FriendGardenPage() {
         const flowerSnap = await getDocs(flowerQuery);
         const flowerData = flowerSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         setSeeds(flowerData);
+
+        // Fetch helpers for each seed
+        const allHelpers = {};
+        for (const seed of flowerData) {
+          const wq = query(collection(db, 'waterings'), where('seedId', '==', seed.id));
+          const wsnap = await getDocs(wq);
+          allHelpers[seed.id] = wsnap.docs.map(doc => doc.data().userName || 'Anonymous');
+        }
+        setHelpers(allHelpers);
+
       } catch (err) {
         console.error('Failed to fetch friend garden:', err);
         setNotFound(true);
@@ -111,16 +108,29 @@ export default function FriendGardenPage() {
         lastWatered: new Date().toISOString()
       });
 
-      await addDoc(collection(db, 'waterings'), {
-        seedId: seed.id,
-        userId: user?.uid,
-        displayName: user?.displayName || '',
-        photoURL: user?.photoURL || '',
-        wateredAt: Timestamp.now()
-      });
-
       localStorage.setItem(lastKey, new Date().toISOString());
       toast.success('💧 Watered successfully');
+
+      // Record helper
+      const currentUser = auth.currentUser;
+      await addDoc(collection(db, 'waterings'), {
+        seedId: seed.id,
+        userId: currentUser?.uid || 'anon',
+        userName: currentUser?.displayName || 'Someone',
+        wateredAt: new Date().toISOString()
+      });
+
+      // Notify owner
+      const ownerRef = doc(db, 'users', seed.userId);
+      await updateDoc(ownerRef, {
+        notifications: arrayUnion({
+          type: 'watered',
+          seedName: seed.name || 'Unnamed',
+          from: currentUser?.displayName || 'Someone',
+          timestamp: new Date().toISOString()
+        })
+      });
+
     } catch (err) {
       console.error('Watering failed:', err);
       toast.error('Failed to water');
@@ -165,15 +175,13 @@ export default function FriendGardenPage() {
                 <Button onClick={() => handleWater(seed)} className="mt-2">💧 Water</Button>
               )}
               {seed.bloomed && <p className="text-green-600 font-medium mt-2">Bloomed! 🌟</p>}
-              <Button onClick={() => setSelectedSeedId(seed.id)} variant="outline" className="mt-2">View History</Button>
+              <div className="mt-2 text-sm text-gray-500 italic">
+                💧 Watered by: {helpers[seed.id]?.join(', ') || 'Nobody yet'}
+              </div>
             </CardContent>
           </Card>
         ))}
       </div>
-
-      {selectedSeedId && (
-        <WateringHistoryModal seedId={selectedSeedId} onClose={() => setSelectedSeedId(null)} />
-      )}
     </div>
   );
 }
