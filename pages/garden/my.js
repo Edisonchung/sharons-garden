@@ -9,13 +9,15 @@ import {
   updateDoc,
   getDoc,
   addDoc,
-  serverTimestamp,
+  serverTimestamp
 } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent } from '../../components/ui/card';
 import WateringHistoryModal from '../../components/WateringHistoryModal';
 import SurpriseDrawModal from '../../components/SurpriseDrawModal';
+import StreakDisplay from '../../components/StreakDisplay';
+import { differenceInDays, isToday } from 'date-fns';
 
 export default function MyGardenPage() {
   const [user, setUser] = useState(null);
@@ -25,7 +27,7 @@ export default function MyGardenPage() {
   const [audioOn, setAudioOn] = useState(true);
   const [showDraw, setShowDraw] = useState(false);
   const [bloomCount, setBloomCount] = useState(0);
-  const [latestBloom, setLatestBloom] = useState(null);
+  const [streak, setStreak] = useState(0);
   const audioRef = useRef(null);
 
   useEffect(() => {
@@ -37,14 +39,43 @@ export default function MyGardenPage() {
 
   useEffect(() => {
     if (!user) return;
-    const q = query(collection(db, 'flowers'), where('userId', '==', user.uid));
-    const unsub = onSnapshot(q, (snap) => {
+
+    const flowerQuery = query(collection(db, 'flowers'), where('userId', '==', user.uid));
+    const unsub = onSnapshot(flowerQuery, async (snap) => {
       const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setSeeds(data);
       setBloomCount(data.filter(d => d.bloomed).length);
+
+      // Update streak logic
+      const userRef = doc(db, 'users', user.uid);
+      const userSnap = await getDoc(userRef);
+      if (userSnap.exists()) {
+        const userData = userSnap.data();
+        const lastDate = userData.lastStreakDate?.toDate?.();
+        const today = new Date();
+
+        if (!lastDate || !isToday(lastDate)) {
+          const diff = lastDate ? differenceInDays(today, lastDate) : 0;
+          const nextStreak = diff === 1 ? (userData.streak || 0) + 1 : 1;
+
+          await updateDoc(userRef, {
+            streak: nextStreak,
+            lastStreakDate: new Date()
+          });
+          setStreak(nextStreak);
+
+          if ([7, 14, 21].includes(nextStreak)) {
+            setShowDraw(true);
+            if (audioOn && audioRef.current) audioRef.current.play();
+          }
+        } else {
+          setStreak(userData.streak || 1);
+        }
+      }
     });
+
     return () => unsub();
-  }, [user]);
+  }, [user, audioOn]);
 
   const handleWater = async (seed) => {
     const today = new Date().toDateString();
@@ -56,67 +87,33 @@ export default function MyGardenPage() {
       return;
     }
 
-    try {
-      const flowerRef = doc(db, 'flowers', seed.id);
-      const flowerSnap = await getDoc(flowerRef);
-      if (!flowerSnap.exists()) return;
+    const ref = doc(db, 'flowers', seed.id);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return;
 
-      const flowerData = flowerSnap.data();
-      const newCount = (flowerData.waterCount || 0) + 1;
-      const bloomed = newCount >= 7;
+    const data = snap.data();
+    const newCount = (data.waterCount || 0) + 1;
+    const bloomed = newCount >= 7;
 
-      await updateDoc(flowerRef, {
-        waterCount: newCount,
-        bloomed,
-        bloomedFlower: bloomed ? flowerData.bloomedFlower || '🌸' : null,
-        lastWatered: new Date().toISOString()
-      });
+    await updateDoc(ref, {
+      waterCount: newCount,
+      bloomed,
+      bloomedFlower: bloomed ? data.bloomedFlower || '🌸' : null,
+      lastWatered: new Date().toISOString()
+    });
 
-      // 💾 Add watering log
-      await addDoc(collection(db, 'waterings'), {
-        seedId: seed.id,
-        userId: user.uid,
-        fromUsername: user.displayName || user.email || 'Anonymous',
-        timestamp: serverTimestamp(),
-      });
+    await addDoc(collection(db, 'waterings'), {
+      seedId: seed.id,
+      userId: user.uid,
+      fromUsername: user.displayName || user.email || 'Anonymous',
+      timestamp: serverTimestamp(),
+    });
 
-      localStorage.setItem(lastKey, new Date().toISOString());
+    localStorage.setItem(lastKey, new Date().toISOString());
 
-      // 🔧 Streak logic
-      const userRef = doc(db, 'users', user.uid);
-      const userSnap = await getDoc(userRef);
-      const userData = userSnap.data();
-      const lastWatered = userData.lastWateredDate ? new Date(userData.lastWateredDate) : null;
-
-      const todayDate = new Date();
-      const yesterday = new Date(todayDate);
-      yesterday.setDate(todayDate.getDate() - 1);
-
-      let newStreak = 1;
-      if (lastWatered) {
-        const last = new Date(lastWatered.toDate ? lastWatered.toDate() : lastWatered);
-        if (last.toDateString() === yesterday.toDateString()) {
-          newStreak = (userData.streakCount || 0) + 1;
-        } else if (last.toDateString() === todayDate.toDateString()) {
-          newStreak = userData.streakCount || 1;
-        }
-      }
-
-      await updateDoc(userRef, {
-        streakCount: newStreak,
-        lastWateredDate: todayDate.toISOString(),
-      });
-
-      // 🌸 Reward logic
-      if (bloomed && !flowerData.bloomed) {
-        setLatestBloom(seed);
-        setShowDraw(true);
-        if (audioOn && audioRef.current) audioRef.current.play();
-      }
-
-    } catch (err) {
-      console.error('💥 Watering failed:', err);
-      alert('Something went wrong while watering.');
+    if (bloomed && !data.bloomed) {
+      setShowDraw(true);
+      if (audioOn && audioRef.current) audioRef.current.play();
     }
   };
 
@@ -130,8 +127,9 @@ export default function MyGardenPage() {
       <audio ref={audioRef} src="/audio/bloom.mp3" preload="auto" />
       <h1 className="text-3xl font-bold text-purple-700 mb-4">🌱 My Garden</h1>
 
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex flex-col sm:flex-row items-center justify-between mb-4 gap-4">
         <p className="text-gray-700">🌸 Blooms: {bloomCount}</p>
+        <StreakDisplay streak={streak} />
         <Button onClick={() => setAudioOn(!audioOn)} variant="outline">
           {audioOn ? '🔊 Sound On' : '🔇 Sound Off'}
         </Button>
@@ -168,11 +166,11 @@ export default function MyGardenPage() {
         />
       )}
 
-      {showDraw && latestBloom && (
+      {showDraw && (
         <SurpriseDrawModal
           isOpen={showDraw}
           onClose={() => setShowDraw(false)}
-          seedType={latestBloom.type}
+          seedType={seeds.find(s => s.bloomed)?.type}
         />
       )}
     </div>
