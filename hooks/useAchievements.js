@@ -1,6 +1,13 @@
 import { useEffect, useState } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
+import {
+  doc,
+  getDoc,
+  updateDoc,
+  setDoc,
+  collection,
+  getDocs
+} from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
 
 const BADGE_CATALOG = {
@@ -39,6 +46,12 @@ const BADGE_CATALOG = {
     emoji: '💜',
     name: 'Touched by Sharon',
     description: 'One of your flowers was personally blessed by Sharon.'
+  },
+  '🦋 Social Butterfly': {
+    id: 'social-butterfly',
+    emoji: '🦋',
+    name: 'Social Butterfly',
+    description: 'You’ve shared 3 blooms with the world!'
   }
 };
 
@@ -95,6 +108,21 @@ export default function useAchievements() {
     }
   };
 
+  // 🔍 Used in logShareEvent to evaluate share count
+  const checkShareBadge = async (userId) => {
+    try {
+      const sharesRef = collection(db, 'users', userId, 'bloomShares');
+      const snapshot = await getDocs(sharesRef);
+      const sharedCount = snapshot.docs.length;
+
+      if (sharedCount >= 3) {
+        await unlockBadge('🦋 Social Butterfly');
+      }
+    } catch (err) {
+      console.error('Failed to check share badge:', err);
+    }
+  };
+
   const getBadgeDetails = (emoji) => BADGE_CATALOG[emoji] || null;
 
   const getAllBadges = () => Object.values(BADGE_CATALOG);
@@ -105,6 +133,7 @@ export default function useAchievements() {
     loading,
     unlockBadge,
     getBadgeDetails,
-    getAllBadges
+    getAllBadges,
+    checkShareBadge // exported to use in logShareEvent.js
   };
 }
