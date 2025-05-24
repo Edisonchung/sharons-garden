@@ -1,20 +1,60 @@
-// pages/garden/achievements.js
-import { useEffect, useState, useRef } from 'react';
-import { Card, CardContent } from '../../components/ui/card';
-import { Button } from '../../components/ui/button';
+import { useEffect, useState } from 'react';
+import { auth, db } from '../../lib/firebase';
+import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import Confetti from 'react-confetti';
 import Link from 'next/link';
-import confetti from 'canvas-confetti';
 
-const ALL_ACHIEVEMENTS = [
-  { name: 'First Bloom', icon: '🌸', desc: 'Bloomed your first flower!', condition: (b, t, w) => b >= 1, image: '/badges/first-bloom.png' },
-  { name: 'Gardener', icon: '🌼', desc: 'Bloomed 3 flowers', condition: (b, t, w) => b >= 3, image: '/badges/gardener.png' },
-  { name: 'Flower Fanatic', icon: '🌻', desc: 'Bloomed 7 flowers', condition: (b, t, w) => b >= 7, image: '/badges/fanatic.png' },
-  { name: 'Garden Master', icon: '👑', desc: 'Collected all flower types', condition: (b, t, w) => t >= 5, image: '/badges/master.png' },
-  { name: 'Diligent Waterer', icon: '💧', desc: 'Watered 20 times', condition: (b, t, w) => w >= 20, image: '/badges/waterer.png' }
+const initialBadges = [
+  {
+    name: 'Green Thumb',
+    emoji: '🌿',
+    description: 'Bloom 5 flowers',
+    unlocked: false,
+    image: '/badges/green-thumb.png'
+  },
+  {
+    name: 'First Seed',
+    emoji: '🌱',
+    description: 'Plant your first seed',
+    unlocked: false,
+    image: '/badges/first-seed.png'
+  },
+  {
+    name: 'Bloom Master',
+    emoji: '🌸',
+    description: 'Bloom 10 flowers',
+    unlocked: false,
+    image: '/badges/bloom-master.png'
+  },
+  {
+    name: 'Streak Star',
+    emoji: '🔥',
+    description: 'Water 7 days in a row',
+    unlocked: false,
+    image: '/badges/streak-star.png'
+  },
+  {
+    name: 'Reflective Gardener',
+    emoji: '🪞',
+    description: 'Write 3 reflections',
+    unlocked: false,
+    image: '/badges/reflective-gardener.png'
+  }
 ];
 
+export default function AchievementsPage() {
+  const [achievements, setAchievements] = useState(initialBadges);
+  const [showConfetti, setShowConfetti] = useState(false);
 
-  // 🔁 Load badges from Firestore and merge with local ones
+  // Load localStorage progress on mount
+  useEffect(() => {
+    const stored = localStorage.getItem('achievements');
+    if (stored) {
+      setAchievements(JSON.parse(stored));
+    }
+  }, []);
+
+  // 🔁 Load badges from Firestore and merge with local
   useEffect(() => {
     const preloadBadgesFromFirestore = async () => {
       const user = auth.currentUser;
@@ -52,7 +92,7 @@ const ALL_ACHIEVEMENTS = [
       const user = auth.currentUser;
       if (!user) return;
 
-      const earned = unlocked.filter(b => b.unlocked).map(b => b.name);
+      const earned = achievements.filter(b => b.unlocked).map(b => b.name);
 
       try {
         const ref = doc(db, 'users', user.uid);
@@ -78,76 +118,52 @@ const ALL_ACHIEVEMENTS = [
     if (typeof window !== 'undefined' && auth.currentUser) {
       syncToFirestore();
     }
-  }, [unlocked]);
+  }, [achievements]);
 
-export default function AchievementsPage() {
-  const [achievements, setAchievements] = useState([]);
-  const [newlyUnlocked, setNewlyUnlocked] = useState([]);
-  const hasMounted = useRef(false);
-
+  // 🎉 Confetti animation when a new badge is unlocked
   useEffect(() => {
-    const cached = JSON.parse(localStorage.getItem('flowers') || '{}');
-    const all = Object.values(cached);
-    const bloomed = all.filter(f => f.bloomed);
-    const types = new Set(bloomed.map(f => f.type));
-    const waterCounts = all.reduce((sum, f) => sum + (f.waterCount || 0), 0);
-
-    const unlocked = ALL_ACHIEVEMENTS.map(a => ({
-      ...a,
-      unlocked: a.condition(bloomed.length, types.size, waterCounts),
-      progress: a.name === 'Diligent Waterer' ? waterCounts : a.name === 'Flower Fanatic' ? bloomed.length : 0
-    }));
-
-    const newUnlocks = unlocked.filter(u => u.unlocked && !localStorage.getItem(`badge_${u.name}`));
-    newUnlocks.forEach(u => localStorage.setItem(`badge_${u.name}`, 'true'));
-    if (hasMounted.current && newUnlocks.length > 0) confetti();
-
-    setAchievements(unlocked);
-    setNewlyUnlocked(newUnlocks);
-    hasMounted.current = true;
-  }, []);
+    if (achievements.some(b => b.unlocked)) {
+      setShowConfetti(true);
+      const timeout = setTimeout(() => setShowConfetti(false), 4000);
+      return () => clearTimeout(timeout);
+    }
+  }, [achievements]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-100 to-purple-100 p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-purple-800">🏅 My Achievements</h1>
-        <Link href="/">
-          <Button variant="outline">🏡 Back to Garden</Button>
-        </Link>
+    <div className="min-h-screen bg-gradient-to-b from-yellow-50 to-orange-100 dark:from-gray-900 dark:to-black p-6 text-center">
+      {showConfetti && <Confetti />}
+      <h1 className="text-3xl font-bold text-orange-600 dark:text-orange-300 mb-8">🏅 My Achievements</h1>
+
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6 max-w-5xl mx-auto">
+        {achievements.map((badge) => (
+          <div
+            key={badge.name}
+            className={`rounded-xl border shadow-md p-4 transition-all text-center
+              ${badge.unlocked
+                ? 'bg-white dark:bg-gray-800 text-green-700 dark:text-green-300 border-green-300'
+                : 'bg-gray-100 dark:bg-gray-800 text-gray-400 border-gray-300 opacity-60'}
+            `}
+          >
+            <div className="text-4xl mb-2">{badge.unlocked ? badge.emoji : '🔒'}</div>
+            <h3 className="font-semibold">{badge.name}</h3>
+            <p className="text-sm italic mt-1">{badge.description}</p>
+            {badge.unlocked && (
+              <img
+                src={badge.image}
+                alt={badge.name}
+                className="mt-2 mx-auto rounded-md w-16 h-16 object-contain"
+              />
+            )}
+          </div>
+        ))}
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-        {achievements.map((a, index) => (
-          <Card
-            key={index}
-            className={`rounded-xl p-4 shadow-lg border-l-4 ${a.unlocked ? 'border-yellow-400 bg-white' : 'border-gray-300 bg-gray-100 opacity-70'}`}
-          >
-            <CardContent>
-              <h3 className={`text-xl font-semibold ${a.unlocked ? 'text-yellow-600' : 'text-gray-400'}`}>
-                {a.icon} {a.name}
-              </h3>
-              <p className="text-sm text-gray-600 mt-1">{a.desc}</p>
-              {!a.unlocked && (
-                <p className="text-xs text-gray-500 mt-2 italic">Not yet unlocked</p>
-              )}
-              {a.name === 'Diligent Waterer' && (
-                <div className="text-xs mt-1 text-gray-500">Progress: {a.progress}/20</div>
-              )}
-              {a.name === 'Flower Fanatic' && (
-                <div className="text-xs mt-1 text-gray-500">Progress: {a.progress}/7</div>
-              )}
-              {a.unlocked && (
-                <a
-                  href={a.image}
-                  download
-                  className="text-xs mt-3 inline-block text-blue-600 underline hover:text-blue-800"
-                >
-                  Download Badge
-                </a>
-              )}
-            </CardContent>
-          </Card>
-        ))}
+      <div className="mt-8">
+        <Link href="/garden">
+          <button className="bg-orange-500 text-white px-4 py-2 rounded hover:bg-orange-600">
+            ← Back to Garden
+          </button>
+        </Link>
       </div>
     </div>
   );
