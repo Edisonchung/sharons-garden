@@ -16,15 +16,7 @@ import {
   getDocs
 } from 'firebase/firestore';
 import toast from 'react-hot-toast';
-
-function debounce(func, delay) {
-  let timer;
-  return (...args) => {
-    clearTimeout(timer);
-    timer = setTimeout(() => func(...args), delay);
-  };
-}
-
+import debounce from 'lodash.debounce';
 
 export default function ProfilePage() {
   const [user, setUser] = useState(null);
