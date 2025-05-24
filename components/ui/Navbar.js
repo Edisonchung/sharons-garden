@@ -6,18 +6,16 @@ import {
   signOut,
   onAuthStateChanged,
 } from 'firebase/auth';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import Link from 'next/link';
-import { useRouter } from 'next/router';
 
 export default function Navbar() {
   const [user, setUser] = useState(null);
+  const [username, setUsername] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [hasUnwatered, setHasUnwatered] = useState(false);
-  const router = useRouter();
-
-  const isActive = (path) => router.pathname === path;
+  const [publicMenuOpen, setPublicMenuOpen] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -36,10 +34,17 @@ export default function Navbar() {
           return !last || new Date(last).toDateString() !== today;
         });
         setHasUnwatered(needsWater);
+
+        const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+        if (userDoc.exists()) {
+          setUsername(userDoc.data().username || '');
+        }
       } else {
         setHasUnwatered(false);
+        setUsername('');
       }
     });
+
     return () => unsubscribe();
   }, []);
 
@@ -62,9 +67,6 @@ export default function Navbar() {
       console.error("Logout Error:", err.message);
     }
   };
-
-  const linkClass = (path) =>
-    `${isActive(path) ? 'font-bold underline text-purple-900 dark:text-white' : 'text-purple-700 dark:text-white'} hover:underline`;
 
   return (
     <>
@@ -98,10 +100,10 @@ export default function Navbar() {
         </div>
 
         <nav className="flex flex-col gap-4 relative">
-          <Link href="/" className={linkClass('/')}>🏠 Home</Link>
+          <Link href="/" className="text-purple-700 dark:text-white hover:underline">🏠 Home</Link>
 
           <div className="relative">
-            <Link href="/garden/my" className={linkClass('/garden/my')}>
+            <Link href="/garden/my" className="text-purple-700 dark:text-white hover:underline">
               🌱 My Garden
             </Link>
             {hasUnwatered && (
@@ -111,13 +113,27 @@ export default function Navbar() {
             )}
           </div>
 
-          <Link href="/garden/profile" className={linkClass('/garden/profile')}>👤 Profile</Link>
-          <Link href="/garden/achievements" className={linkClass('/garden/achievements')}>🏆 Achievements</Link>
-          <Link href="/garden/analytics" className="text-purple-700 dark:text-white hover:underline">📊 Analytics</Link>
-          <Link href="/garden/settings" className={linkClass('/garden/settings')}>⚙️ Settings</Link>
-          <Link href="/garden/timeline" className={linkClass('/garden/timeline')}>🗓️ Timeline</Link>
-          <Link href="/garden/leaderboard" className={linkClass('/garden/leaderboard')}>🏅 Leaderboard</Link>
-          <Link href="/garden/logs" className={linkClass('/garden/logs')}>📊 Logs</Link>
+          <Link href="/garden/profile" className="text-purple-700 dark:text-white hover:underline">👤 Profile</Link>
+          <Link href="/garden/achievements" className="text-purple-700 dark:text-white hover:underline">🏆 Achievements</Link>
+          <Link href="/garden/settings" className="text-purple-700 dark:text-white hover:underline">⚙️ Settings</Link>
+
+          {/* Public Pages Dropdown */}
+          {user && username && (
+            <div className="relative">
+              <button
+                onClick={() => setPublicMenuOpen(!publicMenuOpen)}
+                className="text-purple-700 dark:text-white hover:underline text-left"
+              >
+                🔗 Public Pages ▾
+              </button>
+              {publicMenuOpen && (
+                <div className="absolute left-0 mt-2 bg-white dark:bg-gray-800 border dark:border-gray-600 rounded shadow-lg z-10 w-48">
+                  <Link href={`/u/${username}/badges`} className="block px-4 py-2 hover:bg-purple-100 dark:hover:bg-gray-700">🎖️ Badges</Link>
+                  <Link href={`/u/${username}/timeline`} className="block px-4 py-2 hover:bg-purple-100 dark:hover:bg-gray-700">📖 Timeline</Link>
+                </div>
+              )}
+            </div>
+          )}
 
           <Button onClick={() => setDarkMode(!darkMode)} variant="outline" className="mt-2">
             {darkMode ? '🌞 Light Mode' : '🌙 Dark Mode'}
