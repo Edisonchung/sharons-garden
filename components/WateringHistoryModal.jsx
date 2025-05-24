@@ -1,33 +1,27 @@
 import { useEffect, useState } from 'react';
 import { collection, query, where, orderBy, getDocs } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { Button } from './ui/button';
-import { formatDistanceToNow, format } from 'date-fns';
+import { Dialog } from '@headlessui/react';
+import { formatDistanceToNow } from 'date-fns';
 
-export default function WateringHistoryModal({ seedId, onClose }) {
-  const [groupedHistory, setGroupedHistory] = useState({});
+export default function WateringHistoryModal({ seedId, isOpen, onClose }) {
+  const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchWateringHistory = async () => {
-      if (!seedId) return;
+    if (!isOpen || !seedId) return;
+
+    const fetchHistory = async () => {
+      setLoading(true);
       try {
         const q = query(
           collection(db, 'waterings'),
           where('seedId', '==', seedId),
-          orderBy('wateredAt', 'desc')
+          orderBy('timestamp', 'desc')
         );
-        const snapshot = await getDocs(q);
-        const results = snapshot.docs.map(doc => doc.data());
-
-        const grouped = results.reduce((acc, item) => {
-          const day = format(new Date(item.wateredAt), 'PPP');
-          if (!acc[day]) acc[day] = [];
-          acc[day].push(item);
-          return acc;
-        }, {});
-
-        setGroupedHistory(grouped);
+        const snap = await getDocs(q);
+        const items = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setHistory(items);
       } catch (err) {
         console.error('Failed to fetch watering history:', err);
       } finally {
@@ -35,55 +29,45 @@ export default function WateringHistoryModal({ seedId, onClose }) {
       }
     };
 
-    fetchWateringHistory();
-  }, [seedId]);
+    fetchHistory();
+  }, [isOpen, seedId]);
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
-      <div className="bg-white dark:bg-gray-900 rounded-xl p-6 w-full max-w-md shadow-xl">
-        <h2 className="text-xl font-bold text-purple-700 dark:text-purple-300 mb-4">
-          💧 Watering History
-        </h2>
+    <Dialog open={isOpen} onClose={onClose} className="fixed z-50 inset-0 overflow-y-auto">
+      <div className="flex items-center justify-center min-h-screen p-4">
+        <Dialog.Panel className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6">
+          <Dialog.Title className="text-lg font-bold text-purple-700 dark:text-white mb-4">
+            💧 Watering History
+          </Dialog.Title>
 
-        {loading ? (
-          <p className="text-gray-500">Loading...</p>
-        ) : Object.keys(groupedHistory).length === 0 ? (
-          <p className="text-gray-500 italic">No one has watered this seed yet.</p>
-        ) : (
-          <div className="space-y-4 max-h-64 overflow-y-auto">
-            {Object.entries(groupedHistory).map(([date, entries]) => (
-              <div key={date}>
-                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">{date}</h3>
-                <ul className="space-y-2">
-                  {entries.map((entry, index) => (
-                    <li key={index} className="flex items-center gap-3 border-b border-gray-200 dark:border-gray-700 pb-2">
-                      {entry.photoURL ? (
-                        <img src={entry.photoURL} alt="avatar" className="w-8 h-8 rounded-full" />
-                      ) : (
-                        <div className="w-8 h-8 bg-gray-400 rounded-full flex items-center justify-center text-white text-sm">
-                          {entry.userName?.charAt(0).toUpperCase() || 'U'}
-                        </div>
-                      )}
-                      <div>
-                        <p className="text-sm text-gray-800 dark:text-gray-200">
-                          <strong>{entry.userName || 'Anonymous'}</strong> watered this
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {formatDistanceToNow(new Date(entry.wateredAt), { addSuffix: true })}
-                        </p>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
+          {loading ? (
+            <p className="text-center text-gray-500">Loading...</p>
+          ) : history.length === 0 ? (
+            <p className="text-center text-gray-500">No watering history yet.</p>
+          ) : (
+            <ul className="divide-y divide-gray-200 dark:divide-gray-700">
+              {history.map((h) => (
+                <li key={h.id} className="py-2 text-sm">
+                  <span className="font-medium text-purple-600 dark:text-purple-300">{h.fromUsername || 'Anonymous'}</span>{' '}
+                  watered this seed{' '}
+                  <span className="text-gray-600 dark:text-gray-400">
+                    {formatDistanceToNow(h.timestamp?.toDate?.(), { addSuffix: true })}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          <div className="mt-4 text-right">
+            <button
+              onClick={onClose}
+              className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700 transition"
+            >
+              Close
+            </button>
           </div>
-        )}
-
-        <div className="mt-4 flex justify-end">
-          <Button onClick={onClose} variant="outline">Close</Button>
-        </div>
+        </Dialog.Panel>
       </div>
-    </div>
+    </Dialog>
   );
 }
