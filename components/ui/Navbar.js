@@ -113,6 +113,7 @@ export default function Navbar() {
 
           <Link href="/garden/profile" className={linkClass('/garden/profile')}>👤 Profile</Link>
           <Link href="/garden/achievements" className={linkClass('/garden/achievements')}>🏆 Achievements</Link>
+          <Link href="/garden/analytics" className="text-purple-700 dark:text-white hover:underline">📊 Analytics</Link>
           <Link href="/garden/settings" className={linkClass('/garden/settings')}>⚙️ Settings</Link>
           <Link href="/garden/timeline" className={linkClass('/garden/timeline')}>🗓️ Timeline</Link>
           <Link href="/garden/leaderboard" className={linkClass('/garden/leaderboard')}>🏅 Leaderboard</Link>
