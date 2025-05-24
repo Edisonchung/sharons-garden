@@ -19,6 +19,7 @@ import toast from 'react-hot-toast';
 import debounce from 'lodash.debounce';
 import useAchievements from '../../hooks/useAchievements';
 import ProgressBadge from '../../components/ProgressBadge';
+import RewardRedemptionModal from '../../components/RewardRedemptionModal';
 
 export default function ProfilePage() {
   const [user, setUser] = useState(null);
@@ -32,6 +33,7 @@ export default function ProfilePage() {
   const [savingUsername, setSavingUsername] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [rewards, setRewards] = useState([]);
+  const [selectedReward, setSelectedReward] = useState(null);
 
   const { badges, getBadgeDetails, getAllBadges } = useAchievements();
   const cardRef = useRef();
@@ -164,8 +166,7 @@ export default function ProfilePage() {
       <Card ref={cardRef} className="bg-white w-full max-w-md shadow-xl rounded-2xl p-6 text-center">
         <CardContent>
           <h1 className="text-2xl font-bold text-purple-700 mb-2">👤 Profile</h1>
-          <p className="text-gray-600 mb-1">
-            Signed in as:<br />
+          <p className="text-gray-600 mb-1">Signed in as:<br />
             <span className="font-mono">{email}</span>
           </p>
           <p className="text-sm text-gray-500 mb-4">
@@ -188,9 +189,10 @@ export default function ProfilePage() {
               <input
                 type="text"
                 value={newUsername}
-                onChange={(e) =>
-                  setNewUsername(e.target.value.toLowerCase().replace(/[^a-z0-9]/g, ''))
-                }
+                onChange={(e) => {
+                  const value = e.target.value.toLowerCase().replace(/[^a-z0-9]/g, '');
+                  setNewUsername(value);
+                }}
                 placeholder="Choose your username"
                 className="border border-gray-300 rounded px-3 py-2"
                 disabled={savingUsername}
@@ -208,7 +210,11 @@ export default function ProfilePage() {
               )}
               <Button
                 onClick={handleUsernameUpdate}
-                disabled={!newUsername || savingUsername || usernameStatus !== 'available'}
+                disabled={
+                  savingUsername ||
+                  !newUsername ||
+                  usernameStatus !== 'available'
+                }
               >
                 {savingUsername ? 'Saving...' : 'Set Username'}
               </Button>
@@ -261,7 +267,11 @@ export default function ProfilePage() {
         ) : (
           <ul className="space-y-3 text-left">
             {rewards.map((r) => (
-              <li key={r.id} className="p-3 bg-white rounded-xl shadow border border-purple-200">
+              <li
+                key={r.id}
+                className="p-3 bg-white rounded-xl shadow border border-purple-200 cursor-pointer hover:bg-purple-50"
+                onClick={() => setSelectedReward(r)}
+              >
                 <div className="font-medium text-purple-700">{r.rewardType} • {r.seedType}</div>
                 <div className="text-sm text-gray-600">{r.description}</div>
               </li>
@@ -269,6 +279,32 @@ export default function ProfilePage() {
           </ul>
         )}
       </div>
+
+      <Button
+        onClick={() => {
+          const link = `${window.location.origin}/u/${username}/badges`;
+          navigator.clipboard.writeText(link);
+          toast.success('📎 Public badge link copied!');
+        }}
+        disabled={!username}
+        className="mt-4 w-full max-w-md"
+      >
+        📎 Copy My Public Badge Link
+      </Button>
+
+      {username && (
+        <Button
+          onClick={() => router.push(`/u/${username}/badges`)}
+          className="mt-2 w-full max-w-md"
+          variant="outline"
+        >
+          🌍 Visit My Public Badge Page
+        </Button>
+      )}
+
+      {selectedReward && (
+        <RewardRedemptionModal reward={selectedReward} onClose={() => setSelectedReward(null)} />
+      )}
     </div>
   );
 }
