@@ -1,8 +1,7 @@
 // pages/auth.js
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import {
-  getAuth,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signInWithPopup,
@@ -11,14 +10,21 @@ import { auth, googleProvider } from '../lib/firebase';
 
 export default function AuthPage() {
   const router = useRouter();
+  const [isClient, setIsClient] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLogin, setIsLogin] = useState(true);
   const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const handleAuth = async (e) => {
     e.preventDefault();
     setError(null);
+    setLoading(true);
     try {
       if (isLogin) {
         await signInWithEmailAndPassword(auth, email, password);
@@ -27,19 +33,26 @@ export default function AuthPage() {
       }
       router.push('/');
     } catch (err) {
-      setError(err.message);
+      setError('Authentication failed. Please check your credentials or try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleGoogleLogin = async () => {
     setError(null);
+    setLoading(true);
     try {
       await signInWithPopup(auth, googleProvider);
       router.push('/');
     } catch (err) {
-      setError('Google login failed: ' + err.message);
+      setError('Google login failed. Please try again later.');
+    } finally {
+      setLoading(false);
     }
   };
+
+  if (!isClient) return null;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-100 to-pink-100">
@@ -69,9 +82,10 @@ export default function AuthPage() {
           />
           <button
             type="submit"
+            disabled={loading}
             className="bg-purple-600 hover:bg-purple-700 text-white py-2 rounded"
           >
-            {isLogin ? 'Sign In' : 'Sign Up'}
+            {loading ? 'Processing...' : isLogin ? 'Sign In' : 'Sign Up'}
           </button>
         </form>
 
@@ -79,10 +93,11 @@ export default function AuthPage() {
 
         <button
           onClick={handleGoogleLogin}
+          disabled={loading}
           className="w-full bg-red-500 hover:bg-red-600 text-white py-2 rounded flex items-center justify-center gap-2"
         >
           <img src="/google-icon.svg" alt="Google" className="w-5 h-5" />
-          Continue with Google
+          {loading ? 'Signing in...' : 'Continue with Google'}
         </button>
 
         <p className="text-center text-sm text-gray-500 mt-4">
