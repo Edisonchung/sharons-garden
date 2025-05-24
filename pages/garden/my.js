@@ -14,19 +14,16 @@ import toast from 'react-hot-toast';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent } from '../../components/ui/card';
 import FlowerCanvas from '../../components/FlowerCanvas';
-import dynamic from 'next/dynamic';
-
-const BadgeManager = dynamic(() => import('../../components/BadgeManager'), { ssr: false });
 
 export default function MyGarden() {
   const [user, setUser] = useState(null);
   const [flowers, setFlowers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
-  const [isClient, setIsClient] = useState(false);
+  const [isClient, setIsClient] = useState(false); // ✅
 
   useEffect(() => {
-    setIsClient(true);
+    setIsClient(true); // ✅ prevent SSR mismatch
 
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
@@ -108,12 +105,10 @@ export default function MyGarden() {
     return true;
   });
 
-  if (!isClient) return null;
+  if (!isClient) return null; // ✅ prevent hydration mismatch
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-gradient-to-b from-pink-50 to-purple-100 dark:from-gray-900 dark:to-black p-4 sm:p-6 text-center">
-      <BadgeManager flowers={flowers} />
-
       <h1 className="text-3xl font-bold text-purple-700 dark:text-purple-300 mb-6">🌿 My Garden</h1>
 
       {loading ? (
@@ -130,7 +125,9 @@ export default function MyGarden() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 mt-10 max-w-6xl mx-auto">
             {filteredFlowers.map(flower => (
-              <Card key={flower.id} className="p-4 bg-white dark:bg-gray-800 shadow-md relative">
+              <Card key={flower.id} className={`p-4 bg-white dark:bg-gray-800 shadow-md relative ${
+      flower.touchedBySharon ? 'border-4 border-yellow-400 animate-pulse' : ''
+    }`}>
                 <CardContent>
                   <h3 className="text-lg font-semibold text-purple-700 dark:text-purple-200">
                     {flower.bloomed ? `${flower.bloomedFlower || '🌸'} ${flower.type}` : '🌱 Seedling'}
@@ -146,6 +143,19 @@ export default function MyGarden() {
                   </p>
                   {flower.bloomed && (
                     <p className="text-green-500 font-medium mt-2 animate-pulse">This flower has bloomed! 🌟</p>
+                  )}
+                  {flower.touchedBySharon && (
+                    <>
+                      <p className="text-yellow-500 font-semibold mt-2 animate-bounce">💜 Touched by Sharon</p>
+                      {flower.touchedBySharon.message && (
+                        <p className="text-sm italic text-purple-400 mt-1">
+                          “{flower.touchedBySharon.message}”
+                        </p>
+                      )}
+                      <p className="text-xs text-gray-400 mt-1">
+                        {new Date(flower.touchedBySharon.touchedAt.seconds * 1000).toLocaleDateString()}
+                      </p>
+                    </>
                   )}
                   <div className="flex flex-wrap justify-center gap-2 mt-4">
                     <Button onClick={() => handleDelete(flower.id)} variant="destructive">Delete</Button>
