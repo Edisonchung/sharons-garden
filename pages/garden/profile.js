@@ -69,7 +69,10 @@ export default function ProfilePage() {
 
     const checkUsername = debounce(async () => {
       const trimmed = newUsername.toLowerCase().replace(/[^a-z0-9]/g, '');
-      if (trimmed.length < 3) return setUsernameStatus(null);
+      if (trimmed.length < 3) {
+        setUsernameStatus('too-short');
+        return;
+      }
 
       try {
         const q = query(collection(db, 'users'), where('username', '==', trimmed));
@@ -175,20 +178,32 @@ export default function ProfilePage() {
               <input
                 type="text"
                 value={newUsername}
-                onChange={(e) => setNewUsername(e.target.value)}
+                onChange={(e) => {
+                  const value = e.target.value.toLowerCase().replace(/[^a-z0-9]/g, '');
+                  setNewUsername(value);
+                }}
                 placeholder="Choose your username"
                 className="border border-gray-300 rounded px-3 py-2"
                 disabled={savingUsername}
               />
               {newUsername && (
-                <p className={`text-sm ${usernameStatus === 'available' ? 'text-green-600' : 'text-red-500'}`}>
+                <p className={`text-sm ${
+                  usernameStatus === 'available' ? 'text-green-600' :
+                  usernameStatus === 'taken' ? 'text-red-500' :
+                  usernameStatus === 'too-short' ? 'text-yellow-600' : ''
+                }`}>
                   {usernameStatus === 'available' && '✅ Username available'}
                   {usernameStatus === 'taken' && '❌ Username taken'}
+                  {usernameStatus === 'too-short' && '⚠️ At least 3 characters'}
                 </p>
               )}
               <Button
                 onClick={handleUsernameUpdate}
-                disabled={savingUsername || usernameStatus !== 'available'}
+                disabled={
+                  savingUsername ||
+                  !newUsername ||
+                  usernameStatus !== 'available'
+                }
               >
                 {savingUsername ? 'Saving...' : 'Set Username'}
               </Button>
@@ -247,15 +262,14 @@ export default function ProfilePage() {
       </Button>
 
       {username && (
-  <Button
-    onClick={() => router.push(`/u/${username}/badges`)}
-    className="mt-2 w-full max-w-md"
-    variant="outline"
-  >
-    🌍 Visit My Public Badge Page
-  </Button>
-)}
-
+        <Button
+          onClick={() => router.push(`/u/${username}/badges`)}
+          className="mt-2 w-full max-w-md"
+          variant="outline"
+        >
+          🌍 Visit My Public Badge Page
+        </Button>
+      )}
     </div>
   );
 }
