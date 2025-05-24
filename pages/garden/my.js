@@ -25,6 +25,7 @@ export default function MyGardenPage() {
   const [audioOn, setAudioOn] = useState(true);
   const [showDraw, setShowDraw] = useState(false);
   const [bloomCount, setBloomCount] = useState(0);
+  const [latestBloom, setLatestBloom] = useState(null);
   const audioRef = useRef(null);
 
   useEffect(() => {
@@ -55,33 +56,67 @@ export default function MyGardenPage() {
       return;
     }
 
-    const ref = doc(db, 'flowers', seed.id);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) return;
+    try {
+      const flowerRef = doc(db, 'flowers', seed.id);
+      const flowerSnap = await getDoc(flowerRef);
+      if (!flowerSnap.exists()) return;
 
-    const data = snap.data();
-    const newCount = (data.waterCount || 0) + 1;
-    const bloomed = newCount >= 7;
+      const flowerData = flowerSnap.data();
+      const newCount = (flowerData.waterCount || 0) + 1;
+      const bloomed = newCount >= 7;
 
-    await updateDoc(ref, {
-      waterCount: newCount,
-      bloomed,
-      bloomedFlower: bloomed ? data.bloomedFlower || '🌸' : null,
-      lastWatered: new Date().toISOString()
-    });
+      await updateDoc(flowerRef, {
+        waterCount: newCount,
+        bloomed,
+        bloomedFlower: bloomed ? flowerData.bloomedFlower || '🌸' : null,
+        lastWatered: new Date().toISOString()
+      });
 
-    await addDoc(collection(db, 'waterings'), {
-      seedId: seed.id,
-      userId: user.uid,
-      fromUsername: user.displayName || user.email || 'Anonymous',
-      timestamp: serverTimestamp(),
-    });
+      // 💾 Add watering log
+      await addDoc(collection(db, 'waterings'), {
+        seedId: seed.id,
+        userId: user.uid,
+        fromUsername: user.displayName || user.email || 'Anonymous',
+        timestamp: serverTimestamp(),
+      });
 
-    localStorage.setItem(lastKey, new Date().toISOString());
+      localStorage.setItem(lastKey, new Date().toISOString());
 
-    if (bloomed && !data.bloomed) {
-      setShowDraw(true);
-      if (audioOn && audioRef.current) audioRef.current.play();
+      // 🔧 Streak logic
+      const userRef = doc(db, 'users', user.uid);
+      const userSnap = await getDoc(userRef);
+      const userData = userSnap.data();
+      const lastWatered = userData.lastWateredDate ? new Date(userData.lastWateredDate) : null;
+
+      const todayDate = new Date();
+      const yesterday = new Date(todayDate);
+      yesterday.setDate(todayDate.getDate() - 1);
+
+      let newStreak = 1;
+      if (lastWatered) {
+        const last = new Date(lastWatered.toDate ? lastWatered.toDate() : lastWatered);
+        if (last.toDateString() === yesterday.toDateString()) {
+          newStreak = (userData.streakCount || 0) + 1;
+        } else if (last.toDateString() === todayDate.toDateString()) {
+          newStreak = userData.streakCount || 1;
+        }
+      }
+
+      await updateDoc(userRef, {
+        streakCount: newStreak,
+        lastWateredDate: todayDate.toISOString(),
+      });
+
+      // 🌸 Reward logic
+      if (bloomed && !flowerData.bloomed) {
+        setLatestBloom(seed);
+        setShowDraw(true);
+        if (audioOn && audioRef.current) audioRef.current.play();
+      }
+
+    } catch (err) {
+      console.error('💥 Watering failed:', err);
+      alert('Something went wrong while watering.');
     }
   };
 
@@ -133,11 +168,11 @@ export default function MyGardenPage() {
         />
       )}
 
-      {showDraw && (
+      {showDraw && latestBloom && (
         <SurpriseDrawModal
           isOpen={showDraw}
           onClose={() => setShowDraw(false)}
-          seedType={seeds.find(s => s.bloomed)?.type}
+          seedType={latestBloom.type}
         />
       )}
     </div>
