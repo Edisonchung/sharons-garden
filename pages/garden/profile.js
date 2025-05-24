@@ -245,6 +245,17 @@ export default function ProfilePage() {
       >
         📎 Copy My Public Badge Link
       </Button>
+
+      {username && (
+  <Button
+    onClick={() => router.push(`/u/${username}/badges`)}
+    className="mt-2 w-full max-w-md"
+    variant="outline"
+  >
+    🌍 Visit My Public Badge Page
+  </Button>
+)}
+
     </div>
   );
 }
