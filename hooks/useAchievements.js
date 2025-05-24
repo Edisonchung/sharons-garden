@@ -12,7 +12,8 @@ import {
 } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
 
-const BADGE_CATALOG = {
+// 🔖 Badge Catalog
+export const BADGE_CATALOG = {
   '🌿 Green Thumb': {
     id: 'green-thumb',
     emoji: '🌿',
@@ -85,8 +86,8 @@ export default function useAchievements() {
           await setDoc(userRef, { badges: [] });
           setBadges([]);
         }
-      } catch (error) {
-        console.error('Error loading achievements:', error);
+      } catch (err) {
+        console.error('Error loading achievements:', err);
       } finally {
         setLoading(false);
       }
@@ -95,14 +96,15 @@ export default function useAchievements() {
     return () => unsubscribe();
   }, []);
 
+  // 🏅 Add a new badge to the user's list
   const unlockBadge = async (badgeName) => {
     const user = auth.currentUser;
     if (!user) return;
 
     try {
       const userRef = doc(db, 'users', user.uid);
-      const userSnap = await getDoc(userRef);
-      const currentBadges = userSnap.exists() ? (userSnap.data().badges || []) : [];
+      const snap = await getDoc(userRef);
+      const currentBadges = snap.exists() ? (snap.data().badges || []) : [];
 
       if (!currentBadges.includes(badgeName)) {
         const updated = [...currentBadges, badgeName];
@@ -115,24 +117,26 @@ export default function useAchievements() {
     }
   };
 
+  // 🦋 Triggered when bloom is shared
   const checkShareBadge = async (userId) => {
     try {
       const sharesRef = collection(db, 'users', userId, 'bloomShares');
-      const snapshot = await getDocs(sharesRef);
-      const sharedCount = snapshot.docs.length;
-
-      if (sharedCount >= 3) {
-        await unlockBadge('🦋 Social Butterfly');
-      }
+      const snap = await getDocs(sharesRef);
+      if (snap.size >= 3) await unlockBadge('🦋 Social Butterfly');
     } catch (err) {
       console.error('Failed to check share badge:', err);
     }
   };
 
-  const getBadgeDetails = (emoji) => BADGE_CATALOG[emoji] || null;
+  // 🧠 Lookup badge details by emoji or ID
+  const getBadgeDetails = (key) =>
+    Object.values(BADGE_CATALOG).find(b => b.emoji === key || b.id === key) || null;
 
   const getAllBadges = () => Object.values(BADGE_CATALOG);
 
+  const hasBadge = (emoji) => badges.includes(emoji);
+
+  // 📊 Calculate badge progress
   const getBadgeProgress = async (badge) => {
     const user = auth.currentUser;
     if (!user || !badge.progress) return null;
@@ -153,19 +157,17 @@ export default function useAchievements() {
       }
 
       if (type === 'shares') {
-        const q = collection(db, 'users', user.uid, 'bloomShares');
-        const snap = await getDocs(q);
+        const snap = await getDocs(collection(db, 'users', user.uid, 'bloomShares'));
         return { current: snap.size, target };
       }
 
       if (type === 'streak') {
-        const userRef = doc(db, 'users', user.uid);
-        const userSnap = await getDoc(userRef);
-        const streak = userSnap.exists() ? (userSnap.data().wateringStreak || 0) : 0;
+        const snap = await getDoc(doc(db, 'users', user.uid));
+        const streak = snap.exists() ? snap.data().wateringStreak || 0 : 0;
         return { current: streak, target };
       }
     } catch (err) {
-      console.error('Failed to fetch badge progress:', err);
+      console.error(`Failed to get progress for ${badge.name}`, err);
     }
 
     return null;
@@ -176,9 +178,10 @@ export default function useAchievements() {
     newBadge,
     loading,
     unlockBadge,
+    checkShareBadge,
     getBadgeDetails,
     getAllBadges,
     getBadgeProgress,
-    checkShareBadge
+    hasBadge
   };
 }
