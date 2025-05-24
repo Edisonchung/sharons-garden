@@ -1,54 +1,60 @@
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/router';
 import { onAuthStateChanged } from 'firebase/auth';
-import { auth, db } from '../../lib/firebase';
 import {
   collection,
+  getDocs,
   query,
   where,
-  getDocs,
   doc,
-  getDoc,
   updateDoc,
+  getDoc
 } from 'firebase/firestore';
+import { auth, db } from '../../lib/firebase';
 import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
+import WateringHistoryModal from '../../components/WateringHistoryModal';
 import toast from 'react-hot-toast';
 
 export default function MyGardenPage() {
+  const router = useRouter();
   const [user, setUser] = useState(null);
   const [seeds, setSeeds] = useState([]);
+  const [filter, setFilter] = useState('all');
   const [loading, setLoading] = useState(true);
+  const [selectedSeedId, setSelectedSeedId] = useState(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      setUser(currentUser);
-      if (currentUser) {
-        try {
-          const q = query(
-            collection(db, 'flowers'),
-            where('userId', '==', currentUser.uid)
-          );
-          const snap = await getDocs(q);
-          const data = snap.docs.map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
-          }));
-          setSeeds(data);
-        } catch (error) {
-          console.error('Failed to load seeds:', error);
-        }
+      if (!currentUser) {
+        router.push('/auth');
+      } else {
+        setUser(currentUser);
+        const q = query(collection(db, 'flowers'), where('userId', '==', currentUser.uid));
+        const snap = await getDocs(q);
+        const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setSeeds(data);
+        setLoading(false);
       }
-      setLoading(false);
     });
-
     return () => unsubscribe();
-  }, []);
+  }, [router]);
+
+  const today = new Date().toDateString();
+  const filteredSeeds = seeds.filter((seed) => {
+    if (filter === 'bloomed') return seed.bloomed;
+    if (filter === 'unbloomed') return !seed.bloomed;
+    if (filter === 'needsWater') {
+      const lastKey = `lastWatered_${seed.id}`;
+      const last = localStorage.getItem(lastKey);
+      return !last || new Date(last).toDateString() !== today;
+    }
+    return true;
+  });
 
   const handleWater = async (seed) => {
-    const today = new Date().toDateString();
     const lastKey = `lastWatered_${seed.id}`;
     const last = localStorage.getItem(lastKey);
-
     if (last && new Date(last).toDateString() === today) {
       toast('💧 Already watered today');
       return;
@@ -62,60 +68,48 @@ export default function MyGardenPage() {
       const data = snap.data();
       const count = (data.waterCount || 0) + 1;
       const bloomed = count >= 7;
-      const flowerIcon = seed.bloomedFlower || '🌸';
 
       await updateDoc(ref, {
         waterCount: count,
         bloomed,
-        bloomedFlower: bloomed ? flowerIcon : null,
+        bloomedFlower: bloomed ? seed.bloomedFlower || '🌸' : null,
         lastWatered: new Date().toISOString()
       });
 
       localStorage.setItem(lastKey, new Date().toISOString());
       toast.success('💧 Watered successfully');
-
-      // Refresh the seed list
-      const q = query(collection(db, 'flowers'), where('userId', '==', user.uid));
-      const snapRefresh = await getDocs(q);
-      const dataRefresh = snapRefresh.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setSeeds(dataRefresh);
-
     } catch (err) {
       console.error('Watering failed:', err);
-      toast.error('Failed to water this seed.');
+      toast.error('Failed to water');
     }
-  };
-
-  const handleShare = (seedId) => {
-    const url = `${window.location.origin}/flower/${seedId}`;
-    navigator.clipboard.writeText(url);
-    toast.success('📋 Shareable link copied!');
   };
 
   if (loading) {
     return <p className="text-center mt-10">Loading your garden...</p>;
   }
 
-  if (!user) {
-    return <p className="text-center mt-10">Please log in to view your garden.</p>;
-  }
-
   return (
-    <div className="min-h-screen bg-gradient-to-b from-green-50 to-lime-100 dark:from-gray-900 dark:to-black p-6">
-      <div className="mb-6 text-center">
-        <img
-          src={user.photoURL || '/default-avatar.png'}
-          alt={user.displayName || 'User'}
-          className="mx-auto rounded-full w-24 h-24 mb-2 border-4 border-white shadow"
-        />
-        <h1 className="text-3xl font-bold text-green-700 dark:text-green-300">
-          🌿 Welcome, {user.displayName || user.email}
-        </h1>
+    <div className="min-h-screen bg-gradient-to-b from-pink-50 to-purple-100 p-6">
+      <h1 className="text-3xl font-bold text-center text-purple-700 mb-6">🌺 My Garden</h1>
+
+      <div className="flex gap-2 justify-center mb-6">
+        {['all', 'bloomed', 'unbloomed', 'needsWater'].map((f) => (
+          <Button
+            key={f}
+            variant={filter === f ? 'default' : 'outline'}
+            onClick={() => setFilter(f)}
+          >
+            {f === 'all' && '🌼 All'}
+            {f === 'bloomed' && '🌸 Bloomed'}
+            {f === 'unbloomed' && '🌱 Seedlings'}
+            {f === 'needsWater' && '💧 Needs Water'}
+          </Button>
+        ))}
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-        {seeds.map((seed) => (
-          <Card key={seed.id} className="bg-white dark:bg-gray-800 shadow rounded-xl p-4">
+        {filteredSeeds.map((seed) => (
+          <Card key={seed.id} className="bg-white shadow-xl rounded-xl p-4">
             <CardContent>
               <h3 className="text-xl font-semibold text-purple-700">
                 {seed.bloomed ? `${seed.bloomedFlower} ${seed.type}` : '🌱 Seedling'}
@@ -123,24 +117,23 @@ export default function MyGardenPage() {
               <p className="text-sm italic text-gray-500 mb-1">— {seed.name || 'Anonymous'} | {seed.color}</p>
               {seed.note && <p className="text-sm text-gray-600 mb-2">“{seed.note}”</p>}
               <p className="text-sm text-gray-500">Watered {seed.waterCount} / 7 times</p>
-
-              {!seed.bloomed ? (
-                <Button onClick={() => handleWater(seed)} className="mt-2">💧 Water</Button>
-              ) : (
-                <p className="text-green-600 font-medium mt-2">Bloomed! 🌟</p>
-              )}
-
-              <Button
-                onClick={() => handleShare(seed.id)}
-                variant="outline"
-                className="mt-2 w-full"
-              >
-                🔗 Share
-              </Button>
+              <div className="mt-2 flex gap-2">
+                {!seed.bloomed && (
+                  <Button onClick={() => handleWater(seed)}>💧 Water</Button>
+                )}
+                <Button variant="outline" onClick={() => setSelectedSeedId(seed.id)}>📜 History</Button>
+              </div>
+              {seed.bloomed && <p className="text-green-600 font-medium mt-2">Bloomed! 🌟</p>}
             </CardContent>
           </Card>
         ))}
       </div>
+
+      <WateringHistoryModal
+        seedId={selectedSeedId}
+        isOpen={!!selectedSeedId}
+        onClose={() => setSelectedSeedId(null)}
+      />
     </div>
   );
 }
