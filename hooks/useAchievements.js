@@ -1,7 +1,23 @@
+
 import { useEffect, useState } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
+
+const BADGE_CATALOG = {
+  '🌿 Green Thumb': {
+    id: 'green-thumb',
+    emoji: '🌿',
+    name: 'Green Thumb',
+    description: 'You’ve bloomed at least 5 flowers!'
+  },
+  '💜 Touched by Sharon': {
+    id: 'touched-by-sharon',
+    emoji: '💜',
+    name: 'Touched by Sharon',
+    description: 'One of your flowers was personally blessed by Sharon.'
+  }
+};
 
 export default function useAchievements() {
   const [badges, setBadges] = useState([]);
@@ -56,5 +72,14 @@ export default function useAchievements() {
     }
   };
 
-  return { badges, newBadge, loading, unlockBadge };
+  const getBadgeDetails = (emoji) => BADGE_CATALOG[emoji] || null;
+
+  return {
+    badges,
+    newBadge,
+    loading,
+    unlockBadge,
+    getBadgeDetails,
+    badgeCatalog: BADGE_CATALOG
+  };
 }
