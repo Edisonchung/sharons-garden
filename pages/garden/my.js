@@ -15,26 +15,20 @@ import { Button } from '../../components/ui/button';
 import { Card, CardContent } from '../../components/ui/card';
 import FlowerCanvas from '../../components/FlowerCanvas';
 import BadgePopup from '../../components/BadgePopup';
+import useIsClient from '../../hooks/useIsClient';
 
 export default function MyGarden() {
+  const isClient = useIsClient();
   const [user, setUser] = useState(null);
   const [flowers, setFlowers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
-  const [isClient, setIsClient] = useState(false);
-  const [achievements, setAchievements] = useState(null); // store newBadge & unlockBadge
 
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
-
-  useEffect(() => {
-    if (isClient) {
-      const { default: useAchievements } = require('../../hooks/useAchievements');
-      const result = useAchievements();
-      setAchievements(result);
-    }
-  }, [isClient]);
+  let achievements = null;
+  if (isClient) {
+    const { default: useAchievements } = require('../../hooks/useAchievements');
+    achievements = useAchievements();
+  }
 
   useEffect(() => {
     if (!isClient) return;
