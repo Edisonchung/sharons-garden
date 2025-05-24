@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import useAchievements from '../hooks/useAchievements';
 import BadgePopup from './BadgePopup';
@@ -12,7 +11,7 @@ export default function BadgeManager({ flowers }) {
   }, []);
 
   useEffect(() => {
-    if (!isClient || !flowers?.length) return;
+    if (!isClient || !Array.isArray(flowers)) return;
 
     const bloomCount = flowers.filter(f => f.bloomed).length;
     if (bloomCount >= 5) {
@@ -20,7 +19,7 @@ export default function BadgeManager({ flowers }) {
     }
   }, [flowers, isClient]);
 
-  if (!isClient) return null;
+  if (!isClient || !Array.isArray(flowers)) return null;
 
   return <>{newBadge && <BadgePopup badgeName={newBadge} />}</>;
 }
