@@ -9,15 +9,20 @@ import {
   updateDoc,
   getDoc,
   addDoc,
-  serverTimestamp
+  serverTimestamp,
+  getDocs,
 } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent } from '../../components/ui/card';
 import WateringHistoryModal from '../../components/WateringHistoryModal';
 import SurpriseDrawModal from '../../components/SurpriseDrawModal';
-import StreakDisplay from '../../components/StreakDisplay';
-import { differenceInDays, isToday } from 'date-fns';
+
+const STREAK_REWARDS = [
+  { day: 3, reward: 'Sticker Pack', description: '3-Day Watering Champion 🎖️' },
+  { day: 7, reward: 'Wallpaper Unlock', description: '7-Day Garden Master 🖼️' },
+  { day: 14, reward: 'Exclusive Voice Note', description: '14-Day Sharon Whisper 🎧' }
+];
 
 export default function MyGardenPage() {
   const [user, setUser] = useState(null);
@@ -27,7 +32,8 @@ export default function MyGardenPage() {
   const [audioOn, setAudioOn] = useState(true);
   const [showDraw, setShowDraw] = useState(false);
   const [bloomCount, setBloomCount] = useState(0);
-  const [streak, setStreak] = useState(0);
+  const [streakCount, setStreakCount] = useState(0);
+  const [rewardToShow, setRewardToShow] = useState(null);
   const audioRef = useRef(null);
 
   useEffect(() => {
@@ -39,43 +45,48 @@ export default function MyGardenPage() {
 
   useEffect(() => {
     if (!user) return;
-
-    const flowerQuery = query(collection(db, 'flowers'), where('userId', '==', user.uid));
-    const unsub = onSnapshot(flowerQuery, async (snap) => {
+    const q = query(collection(db, 'flowers'), where('userId', '==', user.uid));
+    const unsub = onSnapshot(q, (snap) => {
       const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setSeeds(data);
       setBloomCount(data.filter(d => d.bloomed).length);
-
-      // Update streak logic
-      const userRef = doc(db, 'users', user.uid);
-      const userSnap = await getDoc(userRef);
-      if (userSnap.exists()) {
-        const userData = userSnap.data();
-        const lastDate = userData.lastStreakDate?.toDate?.();
-        const today = new Date();
-
-        if (!lastDate || !isToday(lastDate)) {
-          const diff = lastDate ? differenceInDays(today, lastDate) : 0;
-          const nextStreak = diff === 1 ? (userData.streak || 0) + 1 : 1;
-
-          await updateDoc(userRef, {
-            streak: nextStreak,
-            lastStreakDate: new Date()
-          });
-          setStreak(nextStreak);
-
-          if ([7, 14, 21].includes(nextStreak)) {
-            setShowDraw(true);
-            if (audioOn && audioRef.current) audioRef.current.play();
-          }
-        } else {
-          setStreak(userData.streak || 1);
-        }
-      }
     });
-
     return () => unsub();
-  }, [user, audioOn]);
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    const today = new Date().toDateString();
+    const streakKey = `streak_${user.uid}`;
+    const lastKey = `lastStreak_${user.uid}`;
+    const last = localStorage.getItem(lastKey);
+
+    if (last && new Date(last).toDateString() === today) return;
+
+    let currentStreak = parseInt(localStorage.getItem(streakKey) || '0', 10);
+    currentStreak++;
+    localStorage.setItem(streakKey, currentStreak);
+    localStorage.setItem(lastKey, new Date().toISOString());
+    setStreakCount(currentStreak);
+
+    (async () => {
+      const rewardsSnap = await getDocs(query(collection(db, 'rewards'), where('userId', '==', user.uid)));
+      const claimed = rewardsSnap.docs.map(doc => doc.data().rewardType);
+      const reward = STREAK_REWARDS.find(r => r.day === currentStreak && !claimed.includes(r.reward));
+
+      if (reward) {
+        await addDoc(collection(db, 'rewards'), {
+          userId: user.uid,
+          rewardType: reward.reward,
+          seedType: `Day ${reward.day} Streak`,
+          description: reward.description,
+          timestamp: serverTimestamp(),
+        });
+        setRewardToShow(reward);
+        setShowDraw(true);
+      }
+    })();
+  }, [user]);
 
   const handleWater = async (seed) => {
     const today = new Date().toDateString();
@@ -127,9 +138,8 @@ export default function MyGardenPage() {
       <audio ref={audioRef} src="/audio/bloom.mp3" preload="auto" />
       <h1 className="text-3xl font-bold text-purple-700 mb-4">🌱 My Garden</h1>
 
-      <div className="flex flex-col sm:flex-row items-center justify-between mb-4 gap-4">
-        <p className="text-gray-700">🌸 Blooms: {bloomCount}</p>
-        <StreakDisplay streak={streak} />
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-gray-700">🌸 Blooms: {bloomCount} • 🔥 Streak: {streakCount} days</p>
         <Button onClick={() => setAudioOn(!audioOn)} variant="outline">
           {audioOn ? '🔊 Sound On' : '🔇 Sound Off'}
         </Button>
@@ -166,11 +176,12 @@ export default function MyGardenPage() {
         />
       )}
 
-      {showDraw && (
+      {showDraw && rewardToShow && (
         <SurpriseDrawModal
           isOpen={showDraw}
           onClose={() => setShowDraw(false)}
-          seedType={seeds.find(s => s.bloomed)?.type}
+          seedType={rewardToShow.seedType}
+          rewardLabel={rewardToShow.reward}
         />
       )}
     </div>
