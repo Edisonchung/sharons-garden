@@ -1,4 +1,3 @@
-
 import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/router';
 import { Card, CardContent } from '../../components/ui/card';
@@ -36,9 +35,7 @@ export default function ProfilePage() {
   const cardRef = useRef();
   const router = useRouter();
 
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
+  useEffect(() => setIsClient(true), []);
 
   useEffect(() => {
     if (!isClient) return;
@@ -47,12 +44,11 @@ export default function ProfilePage() {
       if (currentUser) {
         setUser(currentUser);
         setEmail(currentUser.email);
-
         try {
           const userDoc = doc(db, 'users', currentUser.uid);
-          const docSnap = await getDoc(userDoc);
-          if (docSnap.exists()) {
-            const data = docSnap.data();
+          const snap = await getDoc(userDoc);
+          if (snap.exists()) {
+            const data = snap.data();
             setNotify(data.notify ?? true);
             setUsername(data.username || '');
           }
@@ -68,32 +64,24 @@ export default function ProfilePage() {
   }, [isClient]);
 
   useEffect(() => {
-    if (!newUsername) {
-      setUsernameStatus(null);
-      return;
-    }
+    if (!newUsername) return setUsernameStatus(null);
 
     const checkUsername = debounce(async () => {
       const trimmed = newUsername.toLowerCase().replace(/[^a-z0-9]/g, '');
-      if (trimmed.length < 3) {
-        setUsernameStatus(null);
-        return;
-      }
+      if (trimmed.length < 3) return setUsernameStatus(null);
 
       try {
         const q = query(collection(db, 'users'), where('username', '==', trimmed));
-        const snapshot = await getDocs(q);
-
-        const taken = snapshot.docs.some(docSnap => docSnap.id !== user?.uid);
+        const snap = await getDocs(q);
+        const taken = snap.docs.some(docSnap => docSnap.id !== user?.uid);
         setUsernameStatus(taken ? 'taken' : 'available');
       } catch (err) {
-        console.error('Failed username check:', err);
+        console.error('Username check failed:', err);
         setUsernameStatus(null);
       }
     }, 500);
 
     checkUsername();
-
     return () => checkUsername.cancel();
   }, [newUsername, user?.uid]);
 
@@ -106,13 +94,12 @@ export default function ProfilePage() {
       toast.success(`Reminders turned ${!notify ? 'on' : 'off'}`);
     } catch (err) {
       console.error(err);
-      toast.error('Failed to update settings.');
+      toast.error('Failed to update setting.');
     }
   };
 
   const handleDownload = async () => {
     if (!cardRef.current || !isClient) return;
-
     try {
       setDownloading(true);
       const canvas = await html2canvas(cardRef.current);
@@ -122,7 +109,7 @@ export default function ProfilePage() {
       link.click();
     } catch (err) {
       console.error(err);
-      toast.error('Failed to download profile card.');
+      toast.error('Failed to download.');
     } finally {
       setDownloading(false);
     }
@@ -142,7 +129,7 @@ export default function ProfilePage() {
       router.push(`/u/${trimmed}/badges`);
     } catch (err) {
       console.error(err);
-      toast.error('Failed to update username.');
+      toast.error('Update failed.');
     } finally {
       setSavingUsername(false);
     }
@@ -177,9 +164,9 @@ export default function ProfilePage() {
           </div>
 
           {username ? (
-            <div className="mb-4 text-sm text-gray-500 italic">
-              Username is permanent and already set to: <span className="font-semibold text-purple-700">{username}</span>
-            </div>
+            <p className="mb-4 text-sm text-gray-500 italic">
+              Username is permanent: <span className="font-semibold text-purple-700">{username}</span>
+            </p>
           ) : (
             <div className="flex flex-col gap-2 mb-4">
               <input
@@ -193,7 +180,7 @@ export default function ProfilePage() {
               {newUsername && (
                 <p className={`text-sm ${usernameStatus === 'available' ? 'text-green-600' : 'text-red-500'}`}>
                   {usernameStatus === 'available' && '✅ Username available'}
-                  {usernameStatus === 'taken' && '❌ Username already taken'}
+                  {usernameStatus === 'taken' && '❌ Username taken'}
                 </p>
               )}
               <Button
@@ -205,11 +192,7 @@ export default function ProfilePage() {
             </div>
           )}
 
-          <Button
-            onClick={handleDownload}
-            disabled={downloading}
-            className="w-full"
-          >
+          <Button onClick={handleDownload} disabled={downloading} className="w-full">
             {downloading ? '📥 Downloading...' : '📥 Download Profile Card'}
           </Button>
         </CardContent>
@@ -220,14 +203,14 @@ export default function ProfilePage() {
         {badges.length === 0 ? (
           <p className="text-gray-500 italic">No badges yet. Keep growing!</p>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {badges.map((emoji) => {
               const badge = getBadgeDetails(emoji);
               if (!badge) return null;
-                return (
+              return (
                 <div key={emoji} className="p-3 bg-white rounded-xl shadow border border-purple-200 text-left">
-                  <div className="text-xl">{badge.emoji} <strong>{badge.name}</strong></div>
-                  <div className="text-sm text-gray-600">{badge.description}</div>
+                  <div className="text-xl mb-1">{badge.emoji} <strong>{badge.name}</strong></div>
+                  <p className="text-sm text-gray-600">{badge.description}</p>
                 </div>
               );
             })}
@@ -239,7 +222,7 @@ export default function ProfilePage() {
         onClick={() => {
           const link = `${window.location.origin}/u/${username}/badges`;
           navigator.clipboard.writeText(link);
-          toast.success('📎 Profile link copied!');
+          toast.success('📎 Public badge link copied!');
         }}
         disabled={!username}
         className="mt-4 w-full max-w-md"
