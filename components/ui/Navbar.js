@@ -138,25 +138,28 @@ export default function Navbar() {
           <Link href="/garden/achievements" className="text-purple-700 dark:text-white hover:underline">🏅 Badges</Link>
           <Link href="/garden/settings" className="text-purple-700 dark:text-white hover:underline">⚙️ Settings</Link>
 
+
           {/* 🌐 Community Dropdown */}
-          <div className="relative">
-            <button
-              onClick={handleOpenCommunity}
-              className="text-purple-700 dark:text-white hover:underline flex items-center gap-1"
-            >
-              🌐 Community
-              {!publicMenuSeen && (
-                <span className="text-xs text-red-600 font-bold animate-bounce">🆕</span>
-              )}
-            </button>
-            {showCommunity && (
-              <div className="ml-4 mt-2 flex flex-col gap-2 text-sm text-purple-700 dark:text-white">
-                <Link href="/explore" className="hover:underline">🌸 Flower Feed</Link>
-                <Link href="/rankings" className="hover:underline">🏆 Leaderboard</Link>
-                <Link href="/top-badges" className="hover:underline">🎖️ Top Badges</Link>
-              </div>
-            )}
-          </div>
+<div className="relative">
+  <button
+    onClick={handleOpenCommunity}
+    className="text-purple-700 dark:text-white hover:underline flex items-center gap-1"
+  >
+    🌐 Community
+    {!publicMenuSeen && (
+      <span className="text-xs text-red-600 font-bold animate-bounce">🆕</span>
+    )}
+  </button>
+  {showCommunity && (
+    <div className="ml-4 mt-2 flex flex-col gap-2 text-sm text-purple-700 dark:text-white">
+      <Link href="/explore" className="hover:underline">🌸 Explore Feed</Link>
+      <Link href="/rankings" className="hover:underline">🏆 Leaderboard</Link>
+      <Link href="/top-badges" className="hover:underline">🎖️ Top Badges</Link>
+      <Link href={`/u/${user?.displayName || 'username'}/badges`} className="hover:underline">📛 My Public Badge Page</Link>
+    </div>
+  )}
+</div>      
+        
 
           {/* Theme toggle */}
           <Button onClick={() => setDarkMode(!darkMode)} variant="outline" className="mt-2">
