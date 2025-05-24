@@ -1,4 +1,3 @@
-// Enhanced badge styles & tooltip
 import React, { useEffect, useState } from 'react';
 import { Button } from './button';
 import { auth, googleProvider, db } from '../../lib/firebase';
@@ -9,12 +8,16 @@ import {
 } from 'firebase/auth';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import Link from 'next/link';
+import { useRouter } from 'next/router';
 
 export default function Navbar() {
   const [user, setUser] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [hasUnwatered, setHasUnwatered] = useState(false);
+  const router = useRouter();
+
+  const isActive = (path) => router.pathname === path;
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -60,6 +63,9 @@ export default function Navbar() {
     }
   };
 
+  const linkClass = (path) =>
+    `${isActive(path) ? 'font-bold underline text-purple-900 dark:text-white' : 'text-purple-700 dark:text-white'} hover:underline`;
+
   return (
     <>
       <div className="fixed top-4 left-4 z-50">
@@ -92,9 +98,10 @@ export default function Navbar() {
         </div>
 
         <nav className="flex flex-col gap-4 relative">
-          <Link href="/" className="text-purple-700 dark:text-white hover:underline">🏠 Home</Link>
+          <Link href="/" className={linkClass('/')}>🏠 Home</Link>
+
           <div className="relative">
-            <Link href="/garden/my" className="text-purple-700 dark:text-white hover:underline">
+            <Link href="/garden/my" className={linkClass('/garden/my')}>
               🌱 My Garden
             </Link>
             {hasUnwatered && (
@@ -103,9 +110,13 @@ export default function Navbar() {
               </span>
             )}
           </div>
-          <Link href="/garden/profile" className="text-purple-700 dark:text-white hover:underline">👤 Profile</Link>
-          <Link href="/garden/achievements" className="text-purple-700 dark:text-white hover:underline">🏆 Achievements</Link>
-          <Link href="/garden/settings" className="text-purple-700 dark:text-white hover:underline">⚙️ Settings</Link>
+
+          <Link href="/garden/profile" className={linkClass('/garden/profile')}>👤 Profile</Link>
+          <Link href="/garden/achievements" className={linkClass('/garden/achievements')}>🏆 Achievements</Link>
+          <Link href="/garden/settings" className={linkClass('/garden/settings')}>⚙️ Settings</Link>
+          <Link href="/garden/timeline" className={linkClass('/garden/timeline')}>🗓️ Timeline</Link>
+          <Link href="/garden/leaderboard" className={linkClass('/garden/leaderboard')}>🏅 Leaderboard</Link>
+          <Link href="/garden/logs" className={linkClass('/garden/logs')}>📊 Logs</Link>
 
           <Button onClick={() => setDarkMode(!darkMode)} variant="outline" className="mt-2">
             {darkMode ? '🌞 Light Mode' : '🌙 Dark Mode'}
