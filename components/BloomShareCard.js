@@ -1,6 +1,9 @@
 import React, { useRef } from 'react';
 import html2canvas from 'html2canvas';
 import { Button } from './ui/button';
+import { auth } from '../lib/firebase';
+import toast from 'react-hot-toast';
+import { logShareEvent } from '../utils/logShareEvent';
 
 export default function BloomShareCard({ flower, onClose }) {
   const cardRef = useRef();
@@ -12,6 +15,20 @@ export default function BloomShareCard({ flower, onClose }) {
     link.download = `bloom-${flower.id || 'flower'}.png`;
     link.href = canvas.toDataURL();
     link.click();
+
+    if (auth.currentUser) {
+      await logShareEvent(auth.currentUser.uid, flower.id, 'download');
+    }
+  };
+
+  const handleCopyLink = async () => {
+    const url = `${window.location.origin}/flower/${flower.id}`;
+    navigator.clipboard.writeText(url);
+    toast.success('📎 Link copied to clipboard!');
+
+    if (auth.currentUser) {
+      await logShareEvent(auth.currentUser.uid, flower.id, 'link');
+    }
   };
 
   if (!flower) return null;
@@ -33,8 +50,7 @@ export default function BloomShareCard({ flower, onClose }) {
             {flower.name || 'Anonymous'} • {flower.color}
           </p>
           <p className="text-xs text-gray-400 mb-2">
-            Bloomed:{' '}
-            {new Date(
+            Bloomed: {new Date(
               flower.bloomTime?.toDate?.() || flower.bloomTime
             ).toLocaleDateString()}
           </p>
@@ -54,7 +70,10 @@ export default function BloomShareCard({ flower, onClose }) {
 
         <div className="mt-4 flex flex-col gap-2">
           <Button onClick={handleDownload}>📥 Download as Image</Button>
-          <Button variant="outline" onClick={onClose}>Close</Button>
+          <Button onClick={handleCopyLink} variant="outline">
+            📎 Copy Bloom Link
+          </Button>
+          <Button variant="ghost" onClick={onClose}>Close</Button>
         </div>
       </div>
     </div>
