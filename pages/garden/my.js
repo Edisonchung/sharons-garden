@@ -14,16 +14,20 @@ import toast from 'react-hot-toast';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent } from '../../components/ui/card';
 import FlowerCanvas from '../../components/FlowerCanvas';
+import useAchievements from '../../hooks/useAchievements';
+import BadgePopup from '../../components/BadgePopup';
 
 export default function MyGarden() {
   const [user, setUser] = useState(null);
   const [flowers, setFlowers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
-  const [isClient, setIsClient] = useState(false); // ✅
+  const [isClient, setIsClient] = useState(false);
+
+  const { newBadge, unlockBadge } = useAchievements();
 
   useEffect(() => {
-    setIsClient(true); // ✅ prevent SSR mismatch
+    setIsClient(true);
 
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
@@ -76,6 +80,13 @@ export default function MyGarden() {
     }
   }, []);
 
+  useEffect(() => {
+    const bloomCount = flowers.filter(f => f.bloomed).length;
+    if (bloomCount >= 5) {
+      unlockBadge('🌿 Green Thumb');
+    }
+  }, [flowers]);
+
   const handleDelete = async (id) => {
     try {
       await deleteDoc(doc(db, 'flowers', id));
@@ -105,10 +116,12 @@ export default function MyGarden() {
     return true;
   });
 
-  if (!isClient) return null; // ✅ prevent hydration mismatch
+  if (!isClient) return null;
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-gradient-to-b from-pink-50 to-purple-100 dark:from-gray-900 dark:to-black p-4 sm:p-6 text-center">
+      <BadgePopup badgeName={newBadge} />
+
       <h1 className="text-3xl font-bold text-purple-700 dark:text-purple-300 mb-6">🌿 My Garden</h1>
 
       {loading ? (
