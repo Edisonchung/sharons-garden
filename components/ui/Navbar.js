@@ -6,20 +6,29 @@ import {
   signOut,
   onAuthStateChanged,
 } from 'firebase/auth';
-import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  doc,
+  getDoc,
+  setDoc,
+} from 'firebase/firestore';
 import Link from 'next/link';
 
 export default function Navbar() {
   const [user, setUser] = useState(null);
-  const [username, setUsername] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [hasUnwatered, setHasUnwatered] = useState(false);
-  const [publicMenuOpen, setPublicMenuOpen] = useState(false);
+  const [publicMenuSeen, setPublicMenuSeen] = useState(false);
+  const [showCommunity, setShowCommunity] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
+
       if (currentUser) {
         const flowerQuery = query(
           collection(db, 'flowers'),
@@ -35,13 +44,14 @@ export default function Navbar() {
         });
         setHasUnwatered(needsWater);
 
-        const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
-        if (userDoc.exists()) {
-          setUsername(userDoc.data().username || '');
+        // Check publicMenuSeen
+        const docRef = doc(db, 'users', currentUser.uid);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          setPublicMenuSeen(docSnap.data().publicMenuSeen || false);
         }
       } else {
         setHasUnwatered(false);
-        setUsername('');
       }
     });
 
@@ -68,6 +78,14 @@ export default function Navbar() {
     }
   };
 
+  const handleOpenCommunity = async () => {
+    setShowCommunity(!showCommunity);
+    if (user && !publicMenuSeen) {
+      await setDoc(doc(db, 'users', user.uid), { publicMenuSeen: true }, { merge: true });
+      setPublicMenuSeen(true);
+    }
+  };
+
   return (
     <>
       <div className="fixed top-4 left-4 z-50">
@@ -83,7 +101,7 @@ export default function Navbar() {
         <div
           className="fixed inset-0 bg-black bg-opacity-40 z-30"
           onClick={() => setSidebarOpen(false)}
-        ></div>
+        />
       )}
 
       <div
@@ -107,34 +125,40 @@ export default function Navbar() {
               🌱 My Garden
             </Link>
             {hasUnwatered && (
-              <span className="absolute -top-1 -right-3 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center animate-ping-short" title="Some seeds need watering">
+              <span
+                className="absolute -top-1 -right-3 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center animate-ping-short"
+                title="Some seeds need watering"
+              >
                 !
               </span>
             )}
           </div>
 
           <Link href="/garden/profile" className="text-purple-700 dark:text-white hover:underline">👤 Profile</Link>
-          <Link href="/garden/achievements" className="text-purple-700 dark:text-white hover:underline">🏆 Achievements</Link>
+          <Link href="/garden/achievements" className="text-purple-700 dark:text-white hover:underline">🏅 Badges</Link>
           <Link href="/garden/settings" className="text-purple-700 dark:text-white hover:underline">⚙️ Settings</Link>
 
-          {/* Public Pages Dropdown */}
-          {user && username && (
-            <div className="relative">
-              <button
-                onClick={() => setPublicMenuOpen(!publicMenuOpen)}
-                className="text-purple-700 dark:text-white hover:underline text-left"
-              >
-                🔗 Public Pages ▾
-              </button>
-              {publicMenuOpen && (
-                <div className="absolute left-0 mt-2 bg-white dark:bg-gray-800 border dark:border-gray-600 rounded shadow-lg z-10 w-48">
-                  <Link href={`/u/${username}/badges`} className="block px-4 py-2 hover:bg-purple-100 dark:hover:bg-gray-700">🎖️ Badges</Link>
-                  <Link href={`/u/${username}/timeline`} className="block px-4 py-2 hover:bg-purple-100 dark:hover:bg-gray-700">📖 Timeline</Link>
-                </div>
+          {/* 🌐 Community Dropdown */}
+          <div className="relative">
+            <button
+              onClick={handleOpenCommunity}
+              className="text-purple-700 dark:text-white hover:underline flex items-center gap-1"
+            >
+              🌐 Community
+              {!publicMenuSeen && (
+                <span className="text-xs text-red-600 font-bold animate-bounce">🆕</span>
               )}
-            </div>
-          )}
+            </button>
+            {showCommunity && (
+              <div className="ml-4 mt-2 flex flex-col gap-2 text-sm text-purple-700 dark:text-white">
+                <Link href="/explore" className="hover:underline">🌸 Flower Feed</Link>
+                <Link href="/rankings" className="hover:underline">🏆 Leaderboard</Link>
+                <Link href="/top-badges" className="hover:underline">🎖️ Top Badges</Link>
+              </div>
+            )}
+          </div>
 
+          {/* Theme toggle */}
           <Button onClick={() => setDarkMode(!darkMode)} variant="outline" className="mt-2">
             {darkMode ? '🌞 Light Mode' : '🌙 Dark Mode'}
           </Button>
