@@ -1,3 +1,4 @@
+// pages/garden/settings.js
 import React, { useEffect, useState } from 'react';
 import { auth, db } from '../../lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -7,6 +8,7 @@ import { useTheme } from 'next-themes';
 import { toast } from 'react-hot-toast';
 
 export default function SettingsPage() {
+  const [isClient, setIsClient] = useState(false);
   const [user, setUser] = useState(null);
   const [displayName, setDisplayName] = useState('');
   const [age, setAge] = useState('');
@@ -18,6 +20,12 @@ export default function SettingsPage() {
   const { setTheme } = useTheme();
 
   useEffect(() => {
+    setIsClient(true); // prevent SSR errors
+  }, []);
+
+  useEffect(() => {
+    if (!isClient) return;
+
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
         setUser(currentUser);
@@ -36,8 +44,9 @@ export default function SettingsPage() {
         }
       }
     });
+
     return () => unsubscribe();
-  }, [setTheme]);
+  }, [isClient, setTheme]);
 
   const handleSave = async () => {
     if (!user) return;
@@ -58,6 +67,8 @@ export default function SettingsPage() {
       toast.error('Failed to save settings');
     }
   };
+
+  if (!isClient) return null; // avoid SSR hydration issues
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-purple-50 to-pink-100 p-6 dark:from-gray-900 dark:to-gray-800 text-gray-900 dark:text-white">
