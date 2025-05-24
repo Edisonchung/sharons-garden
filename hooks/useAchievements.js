@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
@@ -10,6 +9,30 @@ const BADGE_CATALOG = {
     emoji: '🌿',
     name: 'Green Thumb',
     description: 'You’ve bloomed at least 5 flowers!'
+  },
+  '🌱 First Seed': {
+    id: 'first-seed',
+    emoji: '🌱',
+    name: 'First Seed',
+    description: 'You planted your first seed!'
+  },
+  '🌸 Bloom Master': {
+    id: 'bloom-master',
+    emoji: '🌸',
+    name: 'Bloom Master',
+    description: 'You’ve bloomed 10 flowers!'
+  },
+  '⭐ Streak Star': {
+    id: 'streak-star',
+    emoji: '⭐',
+    name: 'Streak Star',
+    description: 'You watered 7 days in a row!'
+  },
+  '📝 Reflective Gardener': {
+    id: 'reflective-gardener',
+    emoji: '📝',
+    name: 'Reflective Gardener',
+    description: 'You wrote 3 reflections.'
   },
   '💜 Touched by Sharon': {
     id: 'touched-by-sharon',
@@ -74,12 +97,14 @@ export default function useAchievements() {
 
   const getBadgeDetails = (emoji) => BADGE_CATALOG[emoji] || null;
 
+  const getAllBadges = () => Object.values(BADGE_CATALOG);
+
   return {
     badges,
     newBadge,
     loading,
     unlockBadge,
     getBadgeDetails,
-    badgeCatalog: BADGE_CATALOG
+    getAllBadges
   };
 }
