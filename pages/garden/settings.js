@@ -1,4 +1,3 @@
-// pages/garden/settings.js
 import React, { useEffect, useState } from 'react';
 import { auth, db } from '../../lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -20,7 +19,7 @@ export default function SettingsPage() {
   const { setTheme } = useTheme();
 
   useEffect(() => {
-    setIsClient(true); // prevent SSR errors
+    setIsClient(true);
   }, []);
 
   useEffect(() => {
@@ -30,26 +29,33 @@ export default function SettingsPage() {
       if (currentUser) {
         setUser(currentUser);
         setEmail(currentUser.email);
-        const docRef = doc(db, 'users', currentUser.uid);
-        const snap = await getDoc(docRef);
-        if (snap.exists()) {
-          const prefs = snap.data();
-          setDisplayName(prefs.displayName || '');
-          setAge(prefs.age || '');
-          setPhotoURL(prefs.photoURL || '');
-          setDarkMode(prefs.darkMode || false);
-          setLanguage(prefs.language || 'en');
-          setFontSize(prefs.fontSize || 'medium');
-          setTheme(prefs.darkMode ? 'dark' : 'light');
+
+        try {
+          const docRef = doc(db, 'users', currentUser.uid);
+          const snap = await getDoc(docRef);
+
+          if (snap.exists()) {
+            const prefs = snap.data();
+            setDisplayName(prefs.displayName || '');
+            setAge(prefs.age || '');
+            setPhotoURL(prefs.photoURL || '');
+            setDarkMode(!!prefs.darkMode);
+            setLanguage(prefs.language || 'en');
+            setFontSize(prefs.fontSize || 'medium');
+            setTheme(prefs.darkMode ? 'dark' : 'light');
+          }
+        } catch (err) {
+          console.error('Failed to fetch user settings:', err);
         }
       }
     });
 
-    return () => unsubscribe();
+    return () => unsubscribe(); // cleanup listener
   }, [isClient, setTheme]);
 
   const handleSave = async () => {
     if (!user) return;
+
     const prefs = {
       displayName,
       age,
@@ -58,6 +64,7 @@ export default function SettingsPage() {
       language,
       fontSize,
     };
+
     try {
       await setDoc(doc(db, 'users', user.uid), prefs, { merge: true });
       setTheme(darkMode ? 'dark' : 'light');
@@ -68,7 +75,13 @@ export default function SettingsPage() {
     }
   };
 
-  if (!isClient) return null; // avoid SSR hydration issues
+  if (!isClient) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-purple-700 bg-white dark:bg-black">
+        <p>Loading settings...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-purple-50 to-pink-100 p-6 dark:from-gray-900 dark:to-gray-800 text-gray-900 dark:text-white">
