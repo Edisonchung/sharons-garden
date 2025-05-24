@@ -1,6 +1,6 @@
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
-import { db } from '../../lib/firebase';
+import { auth, db } from '../../../lib/firebase';
 import {
   collection,
   getDocs,
@@ -10,7 +10,6 @@ import {
   updateDoc,
   getDoc
 } from 'firebase/firestore';
-import { auth, db } from '../../../lib/firebase';
 import { Card, CardContent } from '../../../components/ui/card';
 import { Button } from '../../../components/ui/button';
 import toast from 'react-hot-toast';
