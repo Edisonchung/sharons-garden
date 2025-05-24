@@ -4,7 +4,7 @@ import Image from 'next/image';
 import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import SurpriseReward from '../components/SurpriseReward';
 import { auth, db } from '../lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -44,6 +44,7 @@ export default function SharonsGarden() {
   const [shareId, setShareId] = useState(null);
   const [showReward, setShowReward] = useState(false);
   const audioRef = useRef(null);
+  const plantingAudio = useRef(null);
 
   useEffect(() => {
     setIsClient(true);
@@ -68,14 +69,14 @@ export default function SharonsGarden() {
   }, [router]);
 
   const handlePlant = async () => {
-    if (!user || !name.trim()) return;
+    if (!user) return;
 
     const newSeed = {
       userId: user.uid,
       type: seedType,
       color: seedColor,
-      name: name.trim(),
-      note: note.trim(),
+      name,
+      note,
       waterCount: 0,
       bloomed: false,
       bloomedFlower: null,
@@ -83,6 +84,7 @@ export default function SharonsGarden() {
     };
 
     await addDoc(collection(db, 'flowers'), newSeed);
+    if (plantingAudio.current) plantingAudio.current.play();
     setName('');
     setNote('');
   };
@@ -147,6 +149,7 @@ export default function SharonsGarden() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-pink-100 to-purple-200 p-6 relative">
       <audio ref={audioRef} loop hidden />
+      <audio ref={plantingAudio} src="/audio/plant.mp3" preload="auto" />
       <h1 className="text-4xl font-bold text-center mb-2">🌱 Sharon's Garden of Seeds 🌱</h1>
       <p className="text-center text-md max-w-xl mx-auto mb-6">
         Plant your unique seed and let others water it. After 7 days, it will bloom into a special flower representing your feelings.
@@ -161,32 +164,44 @@ export default function SharonsGarden() {
           {seedColors.map((c) => <option key={c} value={c}>{c}</option>)}
         </select>
         <Input placeholder="Add a short note (optional)..." value={note} onChange={(e) => setNote(e.target.value)} className="w-full sm:w-1/5" />
-        <Button onClick={handlePlant} disabled={!name.trim()}>Plant Seed</Button>
+        <Button onClick={handlePlant}>Plant Seed</Button>
       </div>
 
+      {planted.length === 0 && (
+        <p className="text-center text-sm text-gray-600 italic mb-6">🌱 Your garden is ready for its first seed. Plant a feeling today!</p>
+      )}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-        {planted.map((seed) => (
-          <motion.div key={seed.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-            <Card className="bg-white shadow-xl rounded-2xl p-4">
-              <CardContent>
-                <h3 className="text-xl font-semibold text-purple-700">
-                  {seed.bloomed ? `${seed.bloomedFlower} ${seed.type}` : '🌱 Seedling'}
-                </h3>
-                <p className="text-sm italic text-gray-500 mb-1">— {seed.name || 'Anonymous'} | {seed.color}</p>
-                {seed.note && <p className="text-sm text-gray-600 mb-2">“{seed.note}”</p>}
-                <p className="text-sm text-gray-500 mt-2">Watered {seed.waterCount} / 7 times</p>
-                {!seed.bloomed ? (
-                  <Button onClick={() => handleWater(seed.id)} className="mt-2">Water this seed 💧</Button>
-                ) : (
-                  <p className="text-green-600 font-medium mt-2">This flower has bloomed! 🌟</p>
-                )}
-                <div className="mt-4 flex flex-col gap-2">
-                  <Button onClick={() => handleShare(seed.id)} variant="outline">🔗 Share</Button>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        ))}
+        <AnimatePresence>
+          {planted.map((seed) => (
+            <motion.div
+              key={seed.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              transition={{ duration: 0.5 }}
+            >
+              <Card className="bg-white shadow-xl rounded-2xl p-4">
+                <CardContent>
+                  <h3 className="text-xl font-semibold text-purple-700">
+                    {seed.bloomed ? `${seed.bloomedFlower} ${seed.type}` : '🌱 Seedling'}
+                  </h3>
+                  <p className="text-sm italic text-gray-500 mb-1">— {seed.name || 'Anonymous'} | {seed.color}</p>
+                  {seed.note && <p className="text-sm text-gray-600 mb-2">“{seed.note}”</p>}
+                  <p className="text-sm text-gray-500 mt-2">Watered {seed.waterCount} / 7 times</p>
+                  {!seed.bloomed ? (
+                    <Button onClick={() => handleWater(seed.id)} className="mt-2">Water this seed 💧</Button>
+                  ) : (
+                    <p className="text-green-600 font-medium mt-2">This flower has bloomed! 🌟</p>
+                  )}
+                  <div className="mt-4 flex flex-col gap-2">
+                    <Button onClick={() => handleShare(seed.id)} variant="outline">🔗 Share</Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ))}
+        </AnimatePresence>
       </div>
 
       {shareId && typeof window !== 'undefined' && (
