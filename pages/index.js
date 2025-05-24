@@ -7,8 +7,8 @@ import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
 import { motion } from 'framer-motion';
 import SurpriseReward from '../components/SurpriseReward';
-import { auth, db } from '../lib/firebase';
-import { onAuthStateChanged } from 'firebase/auth';
+import { db } from '../lib/firebase';
+import useUser from '../hooks/useUser';
 import {
   addDoc,
   collection,
@@ -32,7 +32,7 @@ const seedColors = ['Pink', 'Blue', 'Yellow', 'Purple', 'White'];
 
 export default function SharonsGarden() {
   const router = useRouter();
-  const [user, setUser] = useState(null);
+  const { user, loadingUser } = useUser();
   const [showMain, setShowMain] = useState(false);
   const [name, setName] = useState('');
   const [note, setNote] = useState('');
@@ -51,22 +51,18 @@ export default function SharonsGarden() {
   }, []);
 
   useEffect(() => {
-    const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
-      if (!user) {
-        router.push('/auth');
-      } else {
-        setUser(user);
-        setShowMain(true);
-        const q = query(collection(db, 'flowers'), where('userId', '==', user.uid));
-        const unsubscribeSnapshot = onSnapshot(q, (snapshot) => {
-          const flowers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-          setPlanted(flowers);
-        });
-        return () => unsubscribeSnapshot();
-      }
-    });
-    return () => unsubscribeAuth();
-  }, [router]);
+    if (!loadingUser && !user) {
+      router.push('/auth');
+    } else if (user) {
+      const q = query(collection(db, 'flowers'), where('userId', '==', user.uid));
+      const unsubscribeSnapshot = onSnapshot(q, (snapshot) => {
+        const flowers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setPlanted(flowers);
+      });
+      setShowMain(true);
+      return () => unsubscribeSnapshot();
+    }
+  }, [user, loadingUser, router]);
 
   const handlePlant = async () => {
     if (!user) return;
@@ -137,7 +133,7 @@ export default function SharonsGarden() {
   const handleShare = (id) => setShareId(id);
   const closeShare = () => setShareId(null);
 
-  if (!isClient || !showMain) {
+  if (!isClient || loadingUser || !showMain) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black cursor-pointer">
         <Image src="/welcome.png" alt="Welcome" width={600} height={600} className="rounded-lg shadow-xl" />
