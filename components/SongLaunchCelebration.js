@@ -204,67 +204,67 @@ export default function SongLaunchCelebration({ isOpen, onClose }) {
   const daysUntilLaunch = Math.ceil((SONG_LAUNCH_DATE - new Date()) / (1000 * 60 * 60 * 24));
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl max-w-lg w-full shadow-2xl relative overflow-hidden">
+    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4 overflow-y-auto">
+      <div className="bg-white rounded-xl max-w-lg w-full shadow-2xl relative overflow-hidden my-8 max-h-[90vh] flex flex-col">
         
         {/* Animated background */}
         <div className="absolute inset-0 bg-gradient-to-br from-indigo-100 via-purple-100 to-pink-100 opacity-30"></div>
         <div className="absolute -top-10 -right-10 text-9xl opacity-10 animate-pulse">🎵</div>
         <div className="absolute -bottom-10 -left-10 text-9xl opacity-10 animate-pulse animation-delay-500">🎶</div>
         
-        <div className="relative z-10 p-6">
-          {/* Close button - More prominent */}
+        <div className="relative z-10 p-6 overflow-y-auto flex-1">
+          {/* Close button - Fixed position */}
           <button
             onClick={() => {
               setShowModal(false);
               if (onClose) onClose();
             }}
-            className="absolute -top-2 -right-2 bg-white rounded-full w-10 h-10 flex items-center justify-center text-gray-600 hover:text-gray-800 hover:bg-gray-100 shadow-lg text-xl font-bold z-20 transition-all"
+            className="fixed top-6 right-6 bg-white rounded-full w-10 h-10 flex items-center justify-center text-gray-600 hover:text-gray-800 hover:bg-gray-100 shadow-lg text-xl font-bold z-50 transition-all"
             aria-label="Close"
           >
             ×
           </button>
 
           {/* Header */}
-          <div className="text-center mb-6">
-            <div className="text-6xl mb-4 animate-bounce">{MELODY_SEED_DATA.emoji}</div>
-            <h2 className="text-2xl font-bold text-indigo-700 mb-2">
+          <div className="text-center mb-4">
+            <div className="text-5xl mb-3 animate-bounce">{MELODY_SEED_DATA.emoji}</div>
+            <h2 className="text-xl font-bold text-indigo-700 mb-1">
               ✨ Sharon's First Song ✨
             </h2>
-            <p className="text-lg text-gray-600">
+            <p className="text-base text-gray-600">
               Launching May 30th, 2025
             </p>
           </div>
 
           {/* Countdown */}
-          <div className="bg-gradient-to-r from-indigo-100 to-purple-100 p-4 rounded-lg mb-6 text-center border border-indigo-200">
-            <p className="text-sm text-indigo-600 mb-1 font-medium">
+          <div className="bg-gradient-to-r from-indigo-100 to-purple-100 p-3 rounded-lg mb-4 text-center border border-indigo-200">
+            <p className="text-xs text-indigo-600 mb-1 font-medium">
               🕒 Release Countdown
             </p>
-            <p className="text-3xl font-bold text-indigo-700">
+            <p className="text-2xl font-bold text-indigo-700">
               {timeUntilLaunch}
             </p>
             {daysUntilLaunch <= 7 && daysUntilLaunch > 0 && (
-              <p className="text-xs text-indigo-600 mt-2 animate-pulse">
+              <p className="text-xs text-indigo-600 mt-1 animate-pulse">
                 ⏰ Only {daysUntilLaunch} days left!
               </p>
             )}
           </div>
 
           {/* Special Seed Card */}
-          <Card className={`border-2 ${MELODY_SEED_DATA.borderColor} shadow-lg mb-6`}>
-            <CardContent className={`p-6 bg-gradient-to-br ${MELODY_SEED_DATA.bgColor} rounded-lg text-center`}>
-              <h3 className={`text-2xl font-bold ${MELODY_SEED_DATA.textColor} mb-3`}>
+          <Card className={`border-2 ${MELODY_SEED_DATA.borderColor} shadow-lg mb-4`}>
+            <CardContent className={`p-4 bg-gradient-to-br ${MELODY_SEED_DATA.bgColor} rounded-lg text-center`}>
+              <h3 className={`text-xl font-bold ${MELODY_SEED_DATA.textColor} mb-2`}>
                 {MELODY_SEED_DATA.name}
               </h3>
-              <p className={`text-lg ${MELODY_SEED_DATA.textColor} opacity-90 mb-4 italic`}>
+              <p className={`text-sm ${MELODY_SEED_DATA.textColor} opacity-90 mb-3 italic`}>
                 "{MELODY_SEED_DATA.description}"
               </p>
               
               {/* Special Features */}
-              <div className="space-y-2 mb-4">
+              <div className="space-y-1 mb-3">
                 {MELODY_SEED_DATA.specialFeatures.map((feature, index) => (
-                  <div key={index} className="flex items-center justify-center gap-2 bg-white bg-opacity-50 p-2 rounded-lg text-sm">
+                  <div key={index} className="flex items-center justify-center gap-2 bg-white bg-opacity-50 p-1.5 rounded-lg text-xs">
                     <span>✨</span>
                     <span className="text-indigo-700">{feature}</span>
                   </div>
@@ -272,7 +272,7 @@ export default function SongLaunchCelebration({ isOpen, onClose }) {
               </div>
 
               {daysUntilLaunch <= 4 && (
-                <div className="bg-red-100 bg-opacity-70 p-3 rounded-lg animate-pulse">
+                <div className="bg-red-100 bg-opacity-70 p-2 rounded-lg animate-pulse">
                   <p className="text-xs text-red-700 font-bold">
                     ⏰ LAST CHANCE! Disappears when the song launches!
                   </p>
@@ -282,11 +282,11 @@ export default function SongLaunchCelebration({ isOpen, onClose }) {
           </Card>
 
           {/* Sharon's Message */}
-          <div className="bg-purple-50 border border-purple-200 p-4 rounded-lg mb-6">
+          <div className="bg-purple-50 border border-purple-200 p-3 rounded-lg mb-4">
             <p className="text-sm text-purple-700 italic text-center leading-relaxed">
               "{MELODY_SEED_DATA.sharonMessage}"
             </p>
-            <p className="text-xs text-purple-600 text-center mt-2 font-medium">
+            <p className="text-xs text-purple-600 text-center mt-1 font-medium">
               — Sharon 💜
             </p>
           </div>
