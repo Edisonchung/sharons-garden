@@ -3,9 +3,8 @@ import { useRouter } from 'next/router';
 import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import html2canvas from 'html2canvas';
-import { auth, db } from '../../lib/firebase';
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { onAuthStateChanged } from 'firebase/auth';
+import { auth, db, storage } from '../../lib/firebase';
+import { onAuthStateChanged, updateProfile } from 'firebase/auth';
 import {
   getDoc,
   doc,
@@ -16,6 +15,7 @@ import {
   getDocs,
   orderBy
 } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import toast from 'react-hot-toast';
 import debounce from 'lodash.debounce';
 import useAchievements from '../../hooks/useAchievements';
@@ -25,7 +25,6 @@ export default function ProfilePage() {
   const [user, setUser] = useState(null);
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
-  const [photoURL, setPhotoURL] = useState('');
   const [newUsername, setNewUsername] = useState('');
   const [usernameStatus, setUsernameStatus] = useState(null);
   const [notify, setNotify] = useState(true);
@@ -35,7 +34,9 @@ export default function ProfilePage() {
   const [downloading, setDownloading] = useState(false);
   const [rewards, setRewards] = useState([]);
   const [helpedBloomCount, setHelpedBloomCount] = useState(0);
-  const [uploading, setUploading] = useState(false);
+  const [photoURL, setPhotoURL] = useState('');
+  const [selectedFile, setSelectedFile] = useState(null);
+  const fileInputRef = useRef();
 
   const { badges, getBadgeDetails, getAllBadges } = useAchievements();
   const cardRef = useRef();
@@ -50,6 +51,7 @@ export default function ProfilePage() {
       if (currentUser) {
         setUser(currentUser);
         setEmail(currentUser.email);
+        setPhotoURL(currentUser.photoURL || '');
         try {
           const userDoc = doc(db, 'users', currentUser.uid);
           const snap = await getDoc(userDoc);
@@ -57,7 +59,6 @@ export default function ProfilePage() {
             const data = snap.data();
             setNotify(data.notify ?? true);
             setUsername(data.username || '');
-            setPhotoURL(data.photoURL || '');
           }
 
           const rewardQuery = query(
@@ -146,29 +147,6 @@ export default function ProfilePage() {
     }
   };
 
-  const handlePhotoUpload = async (e) => {
-    if (!user) return;
-    const file = e.target.files[0];
-    if (!file) return;
-
-    setUploading(true);
-    try {
-      const storage = getStorage();
-      const storageRef = ref(storage, `profilePics/${user.uid}`);
-      await uploadBytes(storageRef, file);
-      const url = await getDownloadURL(storageRef);
-
-      await setDoc(doc(db, 'users', user.uid), { photoURL: url }, { merge: true });
-      setPhotoURL(url);
-      toast.success('Profile picture updated!');
-    } catch (err) {
-      console.error(err);
-      toast.error('Failed to upload photo.');
-    } finally {
-      setUploading(false);
-    }
-  };
-
   const handleDownload = async () => {
     if (!cardRef.current || !isClient) return;
     try {
@@ -205,6 +183,25 @@ export default function ProfilePage() {
     }
   };
 
+  const handleFileChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file || !user) return;
+    try {
+      const fileRef = ref(storage, `avatars/${user.uid}.jpg`);
+      await uploadBytes(fileRef, file);
+      const downloadURL = await getDownloadURL(fileRef);
+
+      await updateProfile(user, { photoURL: downloadURL });
+      await setDoc(doc(db, 'users', user.uid), { photoURL: downloadURL }, { merge: true });
+
+      setPhotoURL(downloadURL);
+      toast.success('Profile picture updated!');
+    } catch (err) {
+      console.error(err);
+      toast.error('Upload failed');
+    }
+  };
+
   if (!isClient || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-pink-100 to-purple-200 text-center">
@@ -222,12 +219,14 @@ export default function ProfilePage() {
       <Card ref={cardRef} className="bg-white w-full max-w-md shadow-xl rounded-2xl p-6 text-center">
         <CardContent>
           <h1 className="text-2xl font-bold text-purple-700 mb-2">👤 Profile</h1>
-
-          {photoURL && (
-            <img src={photoURL} alt="Profile" className="mx-auto w-24 h-24 rounded-full mb-3 border-2 border-purple-300" />
-          )}
-          <input type="file" accept="image/*" onChange={handlePhotoUpload} disabled={uploading} className="mb-3" />
-
+          {photoURL && <img src={photoURL} alt="Avatar" className="w-24 h-24 mx-auto rounded-full mb-2" />}
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            accept="image/*"
+            className="mb-4"
+          />
           <p className="text-gray-600 mb-1">Signed in as:<br />
             <span className="font-mono">{email}</span>
           </p>
