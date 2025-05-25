@@ -1,10 +1,11 @@
-// pages/index.js - WITH FIREBASE OPTIMIZATION
+// pages/index.js - WITH SONG LAUNCH INTEGRATION
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
 import SeedTypeSelection from '../components/SeedTypeSelection';
-import { useOptimizedSnapshot } from '../hooks/useOptimizedFirebase'; // NEW: Optimized Firebase
+import SongLaunchManager from '../components/SongLaunchSystem'; // NEW: Song Launch
+import { useOptimizedSnapshot } from '../hooks/useOptimizedFirebase';
 import { auth, db } from '../lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import {
@@ -196,6 +197,11 @@ export default function SharonsGarden() {
     setShowSeedSelection(false);
   };
 
+  // NEW: Handle special song seed claimed
+  const handleSongSeedClaimed = (seedData) => {
+    toast.success('🎵 Your Melody Seed is growing! Water it daily until the song launches!');
+  };
+
   const canWaterToday = (seedId) => {
     if (typeof window === 'undefined') return false;
     
@@ -234,7 +240,8 @@ export default function SharonsGarden() {
   const bloomedFlowers = planted?.filter(s => s.bloomed) || [];
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-pink-100 to-purple-200 p-6 relative">
+    <SongLaunchManager onSeedClaimed={handleSongSeedClaimed}>
+      <div className="min-h-screen bg-gradient-to-b from-pink-100 to-purple-200 p-6 relative">
       
       {/* Header */}
       <div className="text-center mb-8">
