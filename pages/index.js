@@ -252,7 +252,14 @@ export default function SharonsGarden() {
     
     const shareUrl = process.env.NEXT_PUBLIC_SHARE_BASE_URL || window.location.origin;
     const url = `${shareUrl}/flower/${seed.id}`;
-    navigator.clipboard.writeText(url);
+    
+    // Also copy the garden link if user has username
+    const username = user?.username || user?.displayName?.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const gardenUrl = username ? `\n\nOr visit my full garden: ${shareUrl}/u/${username}/garden` : '';
+    
+    const fullMessage = `Help water my ${seed.type} seed! 🌱\n${url}${gardenUrl}`;
+    
+    navigator.clipboard.writeText(fullMessage);
     toast.success('📋 Share link copied! Send it to friends so they can help water your seed! 💧');
   };
 
