@@ -213,13 +213,13 @@ export default function SongLaunchCelebration({ isOpen, onClose }) {
         <div className="absolute -bottom-10 -left-10 text-9xl opacity-10 animate-pulse animation-delay-500">🎶</div>
         
         <div className="relative z-10 p-6 overflow-y-auto flex-1">
-          {/* Close button - Fixed position */}
+          {/* Close button - More visible */}
           <button
             onClick={() => {
               setShowModal(false);
               if (onClose) onClose();
             }}
-            className="fixed top-6 right-6 bg-white rounded-full w-10 h-10 flex items-center justify-center text-gray-600 hover:text-gray-800 hover:bg-gray-100 shadow-lg text-xl font-bold z-50 transition-all"
+            className="absolute top-2 right-2 bg-gray-100 hover:bg-gray-200 rounded-full w-10 h-10 flex items-center justify-center text-gray-700 hover:text-gray-900 shadow-md text-2xl font-bold z-50 transition-all"
             aria-label="Close"
           >
             ×
