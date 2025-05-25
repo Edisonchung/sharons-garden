@@ -81,12 +81,23 @@ export default function SongLaunchCelebration({ isOpen, onClose }) {
       const today = new Date().toDateString();
       const lastShown = localStorage.getItem(`songModalShown_${auth.currentUser.uid}`);
       
-      // Show if not shown today and we're within 7 days of launch
+      // Check if song has launched
+      const songHasLaunched = new Date() >= SONG_LAUNCH_DATE;
+      
+      // Show if not shown today and we're within 7 days of launch OR song has launched
       const daysUntilLaunch = Math.ceil((SONG_LAUNCH_DATE - new Date()) / (1000 * 60 * 60 * 24));
       
-      if (lastShown !== today && daysUntilLaunch <= 7 && daysUntilLaunch > 0) {
-        setShowModal(true);
-        localStorage.setItem(`songModalShown_${auth.currentUser.uid}`, today);
+      if (lastShown !== today) {
+        if (songHasLaunched) {
+          // Song has launched - create notification and show modal
+          await createSongLaunchNotification();
+          setShowModal(true);
+          localStorage.setItem(`songModalShown_${auth.currentUser.uid}`, today);
+        } else if (daysUntilLaunch <= 7 && daysUntilLaunch > 0) {
+          // Pre-launch reminder
+          setShowModal(true);
+          localStorage.setItem(`songModalShown_${auth.currentUser.uid}`, today);
+        }
       }
     };
 
@@ -98,6 +109,42 @@ export default function SongLaunchCelebration({ isOpen, onClose }) {
 
     return () => unsubscribe();
   }, []);
+
+  const createSongLaunchNotification = async () => {
+    if (!auth.currentUser) return;
+
+    try {
+      const userRef = doc(db, 'users', auth.currentUser.uid);
+      const userDoc = await getDoc(userRef);
+      const existingNotifications = userDoc.data()?.notifications || [];
+      
+      // Check if we already created this notification
+      const hasLaunchNotification = existingNotifications.some(n => 
+        n.type === 'SONG_LAUNCH' && n.title.includes('Song is Live!')
+      );
+      
+      if (!hasLaunchNotification) {
+        const launchNotification = {
+          id: `song_launch_${Date.now()}`,
+          type: 'SONG_LAUNCH',
+          title: "🎉 Sharon's Song is Live!",
+          message: "The wait is over! Sharon's debut single 'Dream Garden' is now available on all streaming platforms. Thank you for growing with us! 💜",
+          read: false,
+          timestamp: new Date(),
+          createdAt: new Date().toISOString(),
+          actionUrl: 'https://open.spotify.com/track/sharons-dream-garden',
+          actionText: 'Listen Now',
+          priority: 'high'
+        };
+        
+        await updateDoc(userRef, {
+          notifications: [launchNotification, ...existingNotifications]
+        });
+      }
+    } catch (error) {
+      console.error('Error creating song launch notification:', error);
+    }
+  };
 
   const checkClaimStatus = async () => {
     if (!auth.currentUser) return;
@@ -202,7 +249,96 @@ export default function SongLaunchCelebration({ isOpen, onClose }) {
   if (!isOpen && !showModal) return null;
 
   const daysUntilLaunch = Math.ceil((SONG_LAUNCH_DATE - new Date()) / (1000 * 60 * 60 * 24));
+  const songHasLaunched = new Date() >= SONG_LAUNCH_DATE;
 
+  // Show different content based on whether song has launched
+  if (songHasLaunched) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4 overflow-y-auto">
+        <div className="bg-white rounded-xl max-w-lg w-full shadow-2xl relative overflow-hidden my-8">
+          
+          {/* Animated background */}
+          <div className="absolute inset-0 bg-gradient-to-br from-purple-100 via-pink-100 to-indigo-100 opacity-30"></div>
+          <div className="absolute -top-10 -right-10 text-9xl opacity-10 animate-pulse">🎵</div>
+          <div className="absolute -bottom-10 -left-10 text-9xl opacity-10 animate-pulse animation-delay-500">🎉</div>
+          
+          <div className="relative z-10 p-6">
+            {/* Close button */}
+            <button
+              onClick={() => {
+                setShowModal(false);
+                if (onClose) onClose();
+              }}
+              className="absolute top-2 right-2 bg-gray-100 hover:bg-gray-200 rounded-full w-10 h-10 flex items-center justify-center text-gray-700 hover:text-gray-900 shadow-md text-2xl font-bold z-50 transition-all"
+              aria-label="Close"
+            >
+              ×
+            </button>
+
+            {/* Header */}
+            <div className="text-center mb-6">
+              <div className="text-6xl mb-4">🎉</div>
+              <h2 className="text-2xl font-bold text-purple-700 mb-2">
+                Sharon's Song is Live!
+              </h2>
+              <p className="text-lg text-gray-600">
+                The wait is over!
+              </p>
+            </div>
+
+            {/* Launch celebration card */}
+            <div className="bg-gradient-to-r from-green-50 to-blue-50 p-4 rounded-lg mb-6 text-center border border-green-200">
+              <p className="text-xl font-bold text-green-700 mb-2">
+                🎉 The Song is Live!
+              </p>
+              
+              {/* Streaming buttons */}
+              <div className="space-y-3 mt-4">
+                <button
+                  onClick={() => window.open('https://open.spotify.com/track/sharons-dream-garden', '_blank')}
+                  className="w-full bg-green-500 hover:bg-green-600 text-white py-3 px-4 rounded-lg flex items-center justify-center gap-3 transition-all transform hover:scale-105"
+                >
+                  <span className="text-2xl">🎧</span>
+                  <span className="font-medium">Listen on Spotify</span>
+                </button>
+                
+                <button
+                  onClick={() => window.open('https://music.apple.com/track/sharons-dream-garden', '_blank')}
+                  className="w-full bg-gray-800 hover:bg-gray-900 text-white py-3 px-4 rounded-lg flex items-center justify-center gap-3 transition-all transform hover:scale-105"
+                >
+                  <span className="text-2xl">🍎</span>
+                  <span className="font-medium">Listen on Apple Music</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Sharon's Message */}
+            <div className="bg-purple-50 border border-purple-200 p-4 rounded-lg mb-6">
+              <p className="text-sm text-purple-700 italic text-center leading-relaxed">
+                "Thank you for growing with me from the very beginning. This song is for all of you who believed in me. 💜"
+              </p>
+              <p className="text-xs text-purple-600 text-center mt-2 font-medium">
+                — Sharon 💜
+              </p>
+            </div>
+
+            {/* Back to Garden button */}
+            <Button 
+              onClick={() => {
+                setShowModal(false);
+                if (onClose) onClose();
+              }}
+              className="w-full"
+            >
+              🌱 Back to Garden
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Pre-launch content (original code)
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4 overflow-y-auto">
       <div className="bg-white rounded-xl max-w-lg w-full shadow-2xl relative overflow-hidden my-8 max-h-[90vh] flex flex-col">
