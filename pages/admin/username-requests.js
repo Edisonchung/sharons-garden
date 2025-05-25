@@ -7,6 +7,7 @@ import {
   updateDoc,
   deleteDoc,
   doc,
+  getDoc,
   query,
   orderBy
 } from 'firebase/firestore';
@@ -17,6 +18,7 @@ export default function UsernameRequestsPage() {
   const [user, setUser] = useState(null);
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [checkingAdmin, setCheckingAdmin] = useState(true);
   const router = useRouter();
 
   // Admin-only access control
@@ -24,17 +26,24 @@ export default function UsernameRequestsPage() {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (!currentUser) return router.push('/');
 
-      const userDoc = await getDocs(
-        query(collection(db, 'users'), orderBy('joinedAt', 'desc'))
-      );
-      const currentUserData = userDoc.docs.find(doc => doc.id === currentUser.uid)?.data();
+      try {
+        const userRef = doc(db, 'users', currentUser.uid);
+        const userSnap = await getDoc(userRef);
+        const data = userSnap.exists() ? userSnap.data() : null;
 
-      if (!currentUserData || currentUserData.role !== 'admin') {
-        toast.error('Access denied: Admins only');
-        return router.push('/');
+        if (!data || data.role !== 'admin') {
+          toast.error('Access denied: Admins only');
+          return router.push('/');
+        }
+
+        setUser(currentUser);
+      } catch (err) {
+        console.error(err);
+        toast.error('Failed to verify admin role');
+        router.push('/');
+      } finally {
+        setCheckingAdmin(false);
       }
-
-      setUser(currentUser);
     });
 
     return () => unsubscribe();
@@ -55,15 +64,17 @@ export default function UsernameRequestsPage() {
       }
     };
 
-    fetchRequests();
-  }, []);
+    if (!checkingAdmin) fetchRequests();
+  }, [checkingAdmin]);
 
   const handleApprove = async (r) => {
     try {
-      await updateDoc(doc(db, 'users', r.userId), { username: r.newUsername });
+      const userRef = doc(db, 'users', r.userId);
+      await updateDoc(userRef, { username: r.newUsername });
       await deleteDoc(doc(db, 'usernameRequests', r.id));
-      toast.success(`Approved ${r.newUsername}`);
-      setRequests((prev) => prev.filter(req => req.id !== r.id));
+
+      toast.success(`Approved username: ${r.newUsername}`);
+      setRequests(prev => prev.filter(req => req.id !== r.id));
     } catch (err) {
       console.error(err);
       toast.error('Approval failed');
@@ -73,15 +84,15 @@ export default function UsernameRequestsPage() {
   const handleReject = async (r) => {
     try {
       await deleteDoc(doc(db, 'usernameRequests', r.id));
-      toast.success(`Rejected ${r.newUsername}`);
-      setRequests((prev) => prev.filter(req => req.id !== r.id));
+      toast.success(`Rejected request from ${r.oldUsername || 'unknown'}`);
+      setRequests(prev => prev.filter(req => req.id !== r.id));
     } catch (err) {
       console.error(err);
       toast.error('Rejection failed');
     }
   };
 
-  if (loading) {
+  if (checkingAdmin || loading) {
     return <p className="text-center mt-10">Loading requests...</p>;
   }
 
@@ -98,11 +109,10 @@ export default function UsernameRequestsPage() {
           {requests.map((r) => (
             <li key={r.id} className="bg-white shadow rounded-xl p-4 border border-purple-200">
               <p className="text-sm mb-1">
-                <span className="font-semibold text-purple-700">{r.oldUsername || '(none)'}</span>
-                {' → '}
-                <span className="font-semibold text-green-600">{r.newUsername}</span>
+                <strong className="text-purple-700">{r.oldUsername || '(none)'}</strong> →{' '}
+                <strong className="text-green-600">{r.newUsername}</strong>
               </p>
-              <p className="text-xs text-gray-500 mb-2 italic">{r.reason}</p>
+              {r.reason && <p className="text-xs text-gray-500 italic mb-2">{r.reason}</p>}
               <div className="flex gap-2 justify-end">
                 <button
                   onClick={() => handleReject(r)}
