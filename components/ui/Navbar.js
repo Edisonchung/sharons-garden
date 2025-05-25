@@ -135,7 +135,7 @@ export default function Navbar() {
           </div>
 
           <Link href="/garden/profile" className="text-purple-700 dark:text-white hover:underline">👤 Profile</Link>
-          <Link href="/garden/achievements" className="text-purple-700 dark:text-white hover:underline">🏅 Badges</Link>
+          <Link href="/garden/badges" className="text-purple-700 dark:text-white hover:underline">🏅 Badges</Link>
           <Link href="/garden/settings" className="text-purple-700 dark:text-white hover:underline">⚙️ Settings</Link>
 
 
