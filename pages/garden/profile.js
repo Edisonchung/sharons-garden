@@ -4,6 +4,7 @@ import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import html2canvas from 'html2canvas';
 import { auth, db } from '../../lib/firebase';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { onAuthStateChanged } from 'firebase/auth';
 import {
   getDoc,
@@ -24,6 +25,7 @@ export default function ProfilePage() {
   const [user, setUser] = useState(null);
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
+  const [photoURL, setPhotoURL] = useState('');
   const [newUsername, setNewUsername] = useState('');
   const [usernameStatus, setUsernameStatus] = useState(null);
   const [notify, setNotify] = useState(true);
@@ -33,6 +35,7 @@ export default function ProfilePage() {
   const [downloading, setDownloading] = useState(false);
   const [rewards, setRewards] = useState([]);
   const [helpedBloomCount, setHelpedBloomCount] = useState(0);
+  const [uploading, setUploading] = useState(false);
 
   const { badges, getBadgeDetails, getAllBadges } = useAchievements();
   const cardRef = useRef();
@@ -48,17 +51,13 @@ export default function ProfilePage() {
         setUser(currentUser);
         setEmail(currentUser.email);
         try {
-          const userDocRef = doc(db, 'users', currentUser.uid);
-          const snap = await getDoc(userDocRef);
+          const userDoc = doc(db, 'users', currentUser.uid);
+          const snap = await getDoc(userDoc);
           if (snap.exists()) {
             const data = snap.data();
             setNotify(data.notify ?? true);
             setUsername(data.username || '');
-
-            // Ensure public profile is true by default
-            if (data.public === undefined) {
-              await setDoc(userDocRef, { public: true }, { merge: true });
-            }
+            setPhotoURL(data.photoURL || '');
           }
 
           const rewardQuery = query(
@@ -147,6 +146,29 @@ export default function ProfilePage() {
     }
   };
 
+  const handlePhotoUpload = async (e) => {
+    if (!user) return;
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setUploading(true);
+    try {
+      const storage = getStorage();
+      const storageRef = ref(storage, `profilePics/${user.uid}`);
+      await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(storageRef);
+
+      await setDoc(doc(db, 'users', user.uid), { photoURL: url }, { merge: true });
+      setPhotoURL(url);
+      toast.success('Profile picture updated!');
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to upload photo.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const handleDownload = async () => {
     if (!cardRef.current || !isClient) return;
     try {
@@ -170,7 +192,7 @@ export default function ProfilePage() {
 
     setSavingUsername(true);
     try {
-      await setDoc(doc(db, 'users', user.uid), { username: trimmed, public: true }, { merge: true });
+      await setDoc(doc(db, 'users', user.uid), { username: trimmed }, { merge: true });
       setUsername(trimmed);
       setNewUsername('');
       toast.success('Username updated!');
@@ -197,7 +219,126 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-pink-100 to-purple-200 p-6">
-      {/* ... existing Card and sections remain unchanged ... */}
+      <Card ref={cardRef} className="bg-white w-full max-w-md shadow-xl rounded-2xl p-6 text-center">
+        <CardContent>
+          <h1 className="text-2xl font-bold text-purple-700 mb-2">👤 Profile</h1>
+
+          {photoURL && (
+            <img src={photoURL} alt="Profile" className="mx-auto w-24 h-24 rounded-full mb-3 border-2 border-purple-300" />
+          )}
+          <input type="file" accept="image/*" onChange={handlePhotoUpload} disabled={uploading} className="mb-3" />
+
+          <p className="text-gray-600 mb-1">Signed in as:<br />
+            <span className="font-mono">{email}</span>
+          </p>
+          <p className="text-sm text-gray-500 mb-4">
+            Username: <span className="font-semibold text-purple-700">{username || 'Not set'}</span>
+          </p>
+
+          <div className="flex items-center justify-center gap-4 mb-4">
+            <span className="text-sm">🔔 Daily Reminder:</span>
+            <Button onClick={handleToggle} variant={notify ? 'default' : 'outline'}>
+              {notify ? 'On' : 'Off'}
+            </Button>
+          </div>
+
+          <p className="text-sm text-green-600">🌱 You helped {helpedBloomCount} flower{helpedBloomCount !== 1 && 's'} bloom</p>
+
+          {username ? (
+            <p className="mb-4 text-sm text-gray-500 italic">
+              Username is permanent: <span className="font-semibold text-purple-700">{username}</span>
+            </p>
+          ) : (
+            <div className="flex flex-col gap-2 mb-4">
+              <input
+                type="text"
+                value={newUsername}
+                onChange={(e) => {
+                  const value = e.target.value.toLowerCase().replace(/[^a-z0-9]/g, '');
+                  setNewUsername(value);
+                }}
+                placeholder="Choose your username"
+                className="border border-gray-300 rounded px-3 py-2"
+                disabled={savingUsername}
+              />
+              {newUsername && (
+                <p className={`text-sm ${
+                  usernameStatus === 'available' ? 'text-green-600' :
+                  usernameStatus === 'taken' ? 'text-red-500' :
+                  usernameStatus === 'too-short' ? 'text-yellow-600' : ''
+                }`}>
+                  {usernameStatus === 'available' && '✅ Username available'}
+                  {usernameStatus === 'taken' && '❌ Username taken'}
+                  {usernameStatus === 'too-short' && '⚠️ At least 3 characters'}
+                </p>
+              )}
+              <Button
+                onClick={handleUsernameUpdate}
+                disabled={
+                  savingUsername ||
+                  !newUsername ||
+                  usernameStatus !== 'available'
+                }
+              >
+                {savingUsername ? 'Saving...' : 'Set Username'}
+              </Button>
+            </div>
+          )}
+
+          <Button onClick={handleDownload} disabled={downloading} className="w-full">
+            {downloading ? '📥 Downloading...' : '📥 Download Profile Card'}
+          </Button>
+        </CardContent>
+      </Card>
+
+      <div className="mt-6 max-w-md w-full text-center">
+        <h2 className="text-xl font-bold text-purple-700 mb-2">🏅 Your Badges</h2>
+        {badges.length === 0 ? (
+          <p className="text-gray-500 italic">No badges yet. Keep growing!</p>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {badges.map((emoji) => {
+              const badge = getBadgeDetails(emoji);
+              if (!badge) return null;
+              return (
+                <div key={emoji} className="p-3 bg-white rounded-xl shadow border border-purple-200 text-left">
+                  <div className="text-xl mb-1">{badge.emoji} <strong>{badge.name}</strong></div>
+                  <p className="text-sm text-gray-600">{badge.description}</p>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      <div className="mt-6 max-w-md w-full text-center">
+        <h2 className="text-xl font-bold text-purple-700 mb-2">🔓 Badges in Progress</h2>
+        {unearned.length === 0 ? (
+          <p className="text-gray-500 italic">No badge progress yet.</p>
+        ) : (
+          <div className="flex flex-col gap-4">
+            {unearned.map(badge => (
+              <ProgressBadge key={badge.emoji} badge={badge} />
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="mt-6 max-w-md w-full text-center">
+        <h2 className="text-xl font-bold text-purple-700 mb-2">🎁 My Rewards</h2>
+        {rewards.length === 0 ? (
+          <p className="text-gray-500 italic">You haven't unlocked any rewards yet.</p>
+        ) : (
+          <ul className="space-y-3 text-left">
+            {rewards.map((r) => (
+              <li key={r.id} className="p-3 bg-white rounded-xl shadow border border-purple-200">
+                <div className="font-medium text-purple-700">{r.rewardType} • {r.seedType}</div>
+                <div className="text-sm text-gray-600">{r.description}</div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </div>
   );
 }
