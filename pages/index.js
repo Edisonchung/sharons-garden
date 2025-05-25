@@ -23,6 +23,8 @@ import toast from 'react-hot-toast';
 import { NotificationManager } from '../components/NotificationSystem';
 import { SEED_TYPES } from '../components/SeedTypeSelection';
 import { FLOWER_DATABASE } from '../hooks/useSeedTypes';
+import { useWatering } from '../utils/WateringManager';
+import { useErrorHandler } from '../components/LaunchErrorBoundary';
 
 const seedTypes = [
   { type: 'Hope', flower: '🌷' },
@@ -54,6 +56,10 @@ export default function SharonsGarden() {
   const [showBloomAnimation, setShowBloomAnimation] = useState(false);
   const [bloomingFlower, setBloomingFlower] = useState(null);
   const [showFlowerCard, setShowFlowerCard] = useState(null);
+  
+  // Performance optimization hooks
+  const { waterSeed, isWatering: wateringInProgress, error: wateringError } = useWatering();
+  const { logError } = useErrorHandler();
 
   // Optimized Firebase query with caching
   const { data: planted, loading } = useOptimizedSnapshot(
@@ -146,7 +152,7 @@ export default function SharonsGarden() {
   };
 
   const handleWater = async (seed) => {
-    if (!user || isWatering) return;
+    if (!user || wateringInProgress) return;
 
     const today = new Date().toDateString();
     const lastWaterKey = `lastWatered_${seed.id}`;
@@ -157,71 +163,31 @@ export default function SharonsGarden() {
       return;
     }
 
-    setIsWatering(true);
-
     try {
-      const docRef = doc(db, 'flowers', seed.id);
-      const docSnap = await getDoc(docRef);
+      // Use the optimized watering manager
+      const result = await waterSeed(
+        user.uid,
+        seed.id,
+        user.displayName || user.email || 'Anonymous',
+        seed
+      );
       
-      if (!docSnap.exists()) {
-        toast.error('Seed not found');
-        return;
-      }
-
-      const data = docSnap.data();
-      
-      if (data.bloomed) {
-        toast.error('This seed has already bloomed! 🌸');
-        return;
-      }
-
-      const newCount = (data.waterCount || 0) + 1;
-      const bloomed = newCount >= 7;
-      
-      // Get flower data from seed type
-      let flowerData = null;
-      if (bloomed && data.seedTypeData) {
-        const possibleFlowers = data.seedTypeData.flowerTypes || [];
-        const randomFlower = possibleFlowers[Math.floor(Math.random() * possibleFlowers.length)];
-        flowerData = FLOWER_DATABASE[randomFlower] || {};
-      }
-      
-      const flowerIcon = seed.songSeed ? '🎵' : (flowerData?.emoji || seedTypes.find(s => s.type === data.type)?.flower || '🌸');
-
-      const updateData = {
-        waterCount: newCount,
-        bloomed,
-        bloomedFlower: bloomed ? flowerIcon : null,
-        lastWatered: new Date().toISOString(),
-        lastWateredBy: user.displayName || 'Anonymous'
-      };
-      
-      if (bloomed && flowerData) {
-        updateData.flowerName = flowerData.name || data.type;
-        updateData.flowerLanguage = flowerData.flowerLanguage;
-        updateData.sharonMessage = flowerData.sharonMessage;
-        updateData.bloomTime = new Date().toISOString();
-      }
-
-      await updateDoc(docRef, updateData);
-
-      localStorage.setItem(lastWaterKey, new Date().toISOString());
-      
-      if (bloomed && !data.bloomed) {
+      if (result.bloomed) {
         // Show bloom animation
         setBloomingFlower({
           ...seed,
-          ...updateData,
-          ...flowerData,
-          emoji: flowerIcon
+          ...result.flowerData,
+          waterCount: result.newWaterCount,
+          bloomed: true,
+          bloomedFlower: result.flowerData?.emoji || '🌸'
         });
         setShowBloomAnimation(true);
         
         // Create bloom notification
         await NotificationManager.seedBloomedNotification(
           user.uid,
-          data.type,
-          flowerIcon
+          seed.type,
+          result.flowerData?.emoji || '🌸'
         );
         
         // Update unlocked slots if needed
@@ -236,14 +202,13 @@ export default function SharonsGarden() {
           toast.success('🎉 New slot unlocked! You can now grow 3 seeds at once!');
         }
       } else {
-        toast.success(`💧 Watered successfully! ${newCount}/7 waters`);
+        toast.success(`💧 Watered successfully! ${result.newWaterCount}/7 waters`);
       }
 
     } catch (error) {
       console.error('Watering error:', error);
-      toast.error('Failed to water seed. Please try again.');
-    } finally {
-      setIsWatering(false);
+      logError(error, { action: 'watering', seedId: seed.id });
+      toast.error(error.message || 'Failed to water seed. Please try again.');
     }
   };
 
@@ -495,11 +460,11 @@ export default function SharonsGarden() {
                       {!seed.bloomed ? (
                         <Button
                           onClick={() => handleWater(seed)}
-                          disabled={isWatering || !canWater}
+                          disabled={wateringInProgress || !canWater}
                           className="w-full text-sm"
                           variant={canWater ? 'default' : 'outline'}
                         >
-                          {isWatering ? '💧 Watering...' : 
+                          {wateringInProgress ? '💧 Watering...' : 
                            canWater ? '💧 Water' : '⏳ Watered today'}
                         </Button>
                       ) : (
