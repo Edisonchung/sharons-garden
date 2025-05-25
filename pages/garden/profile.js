@@ -223,14 +223,17 @@ export default function ProfilePage() {
       <Card ref={cardRef} className="bg-white w-full max-w-md shadow-xl rounded-2xl p-6 text-center">
         <CardContent>
           <h1 className="text-2xl font-bold text-purple-700 mb-2">👤 Profile</h1>
-          {photoURL && <img src={photoURL} alt="Avatar" className="w-24 h-24 mx-auto rounded-full mb-2" />}
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileChange}
-            accept="image/*"
-            className="mb-4"
-          />
+          {photoURL && <img src={photoURL} alt="Avatar" className="w-24 h-24 mx-auto rounded-full mb-2 object-cover" />}
+          <label className="cursor-pointer text-sm text-purple-600 underline inline-block mb-4">
+            <input
+              type="file"
+              onChange={handleFileChange}
+              accept="image/*"
+              className="hidden"
+            />
+            {uploading ? 'Uploading...' : 'Change profile picture'}
+          </label>
+
           <p className="text-gray-600 mb-1">Signed in as:<br />
             <span className="font-mono">{email}</span>
           </p>
@@ -244,6 +247,18 @@ export default function ProfilePage() {
               {notify ? 'On' : 'Off'}
             </Button>
           </div>
+
+          <p className="text-sm text-green-600">
+            {helpedBloomCount === 0 ? '✨ Start helping flowers bloom!' : `🌱 You helped ${helpedBloomCount} flower${helpedBloomCount !== 1 ? 's' : ''} bloom`}
+          </p>
+
+          <Button onClick={handleDownload} disabled={downloading} className="w-full mt-4">
+            {downloading ? '📥 Downloading...' : '📥 Download Profile Card'}
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
+
 
           <p className="text-sm text-green-600">🌱 You helped {helpedBloomCount} flower{helpedBloomCount !== 1 && 's'} bloom</p>
 
