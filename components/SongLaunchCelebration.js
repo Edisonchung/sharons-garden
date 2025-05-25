@@ -3,222 +3,320 @@ import { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
 import { auth, db } from '../lib/firebase';
-import { doc, getDoc, updateDoc, arrayUnion } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, setDoc, addDoc, collection } from 'firebase/firestore';
 import toast from 'react-hot-toast';
-import confetti from 'canvas-confetti';
 
 const SONG_LAUNCH_DATE = new Date('2025-05-30T00:00:00');
-const SONG_DATA = {
-  title: "Dream Garden",
-  artist: "Sharon",
-  releaseDate: "May 30, 2025",
-  spotifyUrl: "https://open.spotify.com/track/sharons-dream-garden",
-  appleMusicUrl: "https://music.apple.com/track/sharons-dream-garden",
-  youtubeUrl: "https://youtube.com/watch?v=sharons-dream-garden",
-  specialMessage: "Every note was written thinking of you all. Thank you for growing with me! 💜"
-};
 
-export default function SongLaunchCelebration() {
-  const [showCelebration, setShowCelebration] = useState(false);
-  const [hasMelodySeed, setHasMelodySeed] = useState(false);
-  const [specialRewardClaimed, setSpecialRewardClaimed] = useState(false);
-  const [showReward, setShowReward] = useState(false);
+// Auto-show component on main page
+export function SongLaunchTrigger() {
+  const [showModal, setShowModal] = useState(false);
 
   useEffect(() => {
-    checkUserStatus();
+    const checkAndShow = async () => {
+      if (!auth.currentUser) return;
+
+      // Check if we should auto-show (within 7 days of launch)
+      const daysUntil = Math.ceil((SONG_LAUNCH_DATE - new Date()) / (1000 * 60 * 60 * 24));
+      
+      if (daysUntil <= 7 && daysUntil > 0) {
+        const lastShown = sessionStorage.getItem('songModalShownSession');
+        if (!lastShown) {
+          setTimeout(() => {
+            setShowModal(true);
+            sessionStorage.setItem('songModalShownSession', 'true');
+          }, 3000); // Show after 3 seconds
+        }
+      }
+    };
+
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      if (user) checkAndShow();
+    });
+
+    return () => unsubscribe();
   }, []);
 
-  const checkUserStatus = async () => {
+  return <SongLaunchCelebration isOpen={showModal} onClose={() => setShowModal(false)} />;
+}
+const MELODY_SEED_DATA = {
+  id: 'melody-seed-2025',
+  name: 'Melody Seed',
+  emoji: '🎵',
+  type: 'First Song',
+  description: 'A magical seed that holds Sharon\'s first song',
+  rarity: 'legendary',
+  bgColor: 'from-indigo-100 via-purple-100 to-pink-100',
+  textColor: 'text-indigo-700',
+  borderColor: 'border-indigo-400',
+  sharonMessage: "This seed contains the essence of my musical journey. Plant it and water it daily until the song launches!",
+  specialFeatures: [
+    'Will bloom with actual song lyrics',
+    'Unlocks Sharon\'s exclusive voice message',
+    'Limited edition - Only available until launch!'
+  ]
+};
+
+export default function SongLaunchCelebration({ isOpen, onClose }) {
+  const [timeUntilLaunch, setTimeUntilLaunch] = useState('');
+  const [hasClaimed, setHasClaimed] = useState(false);
+  const [claiming, setClaiming] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    checkClaimStatus();
+    updateCountdown();
+    const interval = setInterval(updateCountdown, 60000); // Update every minute
+
+    return () => clearInterval(interval);
+  }, [isOpen]);
+
+  useEffect(() => {
+    // Check if we should show the modal automatically
+    const checkShowModal = async () => {
+      if (!auth.currentUser) return;
+
+      const today = new Date().toDateString();
+      const lastShown = localStorage.getItem(`songModalShown_${auth.currentUser.uid}`);
+      
+      // Show if not shown today and we're within 7 days of launch
+      const daysUntilLaunch = Math.ceil((SONG_LAUNCH_DATE - new Date()) / (1000 * 60 * 60 * 24));
+      
+      if (lastShown !== today && daysUntilLaunch <= 7 && daysUntilLaunch > 0) {
+        setShowModal(true);
+        localStorage.setItem(`songModalShown_${auth.currentUser.uid}`, today);
+      }
+    };
+
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      if (user) {
+        checkShowModal();
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const checkClaimStatus = async () => {
     if (!auth.currentUser) return;
 
     try {
-      // Check if user has melody seed
       const userRef = doc(db, 'users', auth.currentUser.uid);
       const userSnap = await getDoc(userRef);
       
       if (userSnap.exists()) {
         const data = userSnap.data();
-        const claimed = data.melodySeedClaimed || data.firstSongSeedClaimed;
-        setHasMelodySeed(claimed);
-        setSpecialRewardClaimed(data.songLaunchRewardClaimed || false);
-        
-        // Show celebration if not seen today
-        const lastSeen = localStorage.getItem(`songCelebrationSeen_${auth.currentUser.uid}`);
-        const today = new Date().toDateString();
-        
-        if (lastSeen !== today) {
-          setShowCelebration(true);
-          localStorage.setItem(`songCelebrationSeen_${auth.currentUser.uid}`, today);
-          
-          // Trigger confetti
-          setTimeout(() => {
-            confetti({
-              particleCount: 100,
-              spread: 70,
-              origin: { y: 0.6 },
-              colors: ['#9333ea', '#ec4899', '#8b5cf6']
-            });
-          }, 500);
-        }
+        setHasClaimed(!!data.melodySeed2025Claimed);
       }
     } catch (error) {
-      console.error('Error checking user status:', error);
+      console.error('Error checking claim status:', error);
     }
   };
 
-  const handleClaimSpecialReward = async () => {
-    if (!auth.currentUser || !hasMelodySeed || specialRewardClaimed) return;
+  const updateCountdown = () => {
+    const now = new Date();
+    const timeDiff = SONG_LAUNCH_DATE - now;
 
-    try {
-      const userRef = doc(db, 'users', auth.currentUser.uid);
+    if (timeDiff > 0) {
+      const days = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((timeDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
       
-      // Add special reward
-      await updateDoc(userRef, {
-        songLaunchRewardClaimed: true,
-        specialRewards: arrayUnion({
-          type: 'EXCLUSIVE_VOICE_NOTE',
-          name: 'Sharon\'s Personal Thank You',
-          description: 'An exclusive voice message from Sharon for early supporters',
-          claimedAt: new Date().toISOString(),
-          url: '/rewards/sharon-thank-you-voice-note.mp3'
-        }),
-        badges: arrayUnion('🎵 Melody Pioneer')
+      if (days > 0) {
+        setTimeUntilLaunch(`${days}d ${hours}h ${minutes}m`);
+      } else if (hours > 0) {
+        setTimeUntilLaunch(`${hours}h ${minutes}m`);
+      } else {
+        setTimeUntilLaunch(`${minutes} minutes!`);
+      }
+    } else {
+      setTimeUntilLaunch('🎉 Song is LIVE!');
+    }
+  };
+
+  const handleClaimSeed = async () => {
+    if (!auth.currentUser || hasClaimed || claiming) return;
+
+    setClaiming(true);
+    try {
+      // Create the special seed
+      const specialSeed = {
+        userId: auth.currentUser.uid,
+        ...MELODY_SEED_DATA,
+        waterCount: 0,
+        bloomed: false,
+        specialSeed: true,
+        songSeed: true,
+        createdAt: new Date().toISOString(),
+        plantedBy: auth.currentUser.displayName || auth.currentUser.email,
+        launchDate: SONG_LAUNCH_DATE.toISOString()
+      };
+
+      const docRef = await addDoc(collection(db, 'flowers'), specialSeed);
+
+      // Update user document
+      await updateDoc(doc(db, 'users', auth.currentUser.uid), {
+        melodySeed2025Claimed: true,
+        melodySeed2025Id: docRef.id,
+        melodySeed2025ClaimedAt: new Date().toISOString()
       });
 
       // Create notification
-      await updateDoc(userRef, {
-        notifications: arrayUnion({
-          id: `song_reward_${Date.now()}`,
-          type: 'SHARON_MESSAGE',
-          title: '🎵 Exclusive Reward Unlocked!',
-          message: 'Thank you for being part of my journey from the very beginning. Your Melody Seed has unlocked something special! 💜',
-          read: false,
-          timestamp: new Date(),
-          actionUrl: '/garden/badges',
-          actionText: 'View Reward'
-        })
+      await updateDoc(doc(db, 'users', auth.currentUser.uid), {
+        notifications: [
+          {
+            id: `melody_claim_${Date.now()}`,
+            type: 'SONG_LAUNCH',
+            title: '🎵 Melody Seed Claimed!',
+            message: 'Your exclusive First Song seed is growing! Water it daily until May 30th for a special surprise.',
+            read: false,
+            timestamp: new Date(),
+            actionUrl: '/garden/my',
+            actionText: 'View Garden'
+          },
+          ...(await getDoc(doc(db, 'users', auth.currentUser.uid))).data()?.notifications || []
+        ]
       });
 
-      setSpecialRewardClaimed(true);
-      setShowReward(true);
+      setHasClaimed(true);
+      toast.success('🎵 Melody Seed claimed! Check your garden!');
       
-      toast.success('🎵 Special reward unlocked!');
-      
-      // More confetti!
-      confetti({
-        particleCount: 200,
-        spread: 120,
-        origin: { y: 0.4 },
-        colors: ['#9333ea', '#ec4899', '#8b5cf6', '#fbbf24']
-      });
+      // Close after delay
+      setTimeout(() => {
+        onClose();
+      }, 2000);
 
     } catch (error) {
-      console.error('Error claiming reward:', error);
-      toast.error('Failed to claim reward');
+      console.error('Failed to claim seed:', error);
+      toast.error('Failed to claim seed. Please try again.');
+    } finally {
+      setClaiming(false);
     }
   };
 
-  const handleListen = (platform) => {
-    // Track listening action
-    if (auth.currentUser) {
-      const userRef = doc(db, 'users', auth.currentUser.uid);
-      updateDoc(userRef, {
-        songListenedAt: new Date().toISOString(),
-        listenPlatform: platform
-      }).catch(console.error);
-    }
+  if (!isOpen && !showModal) return null;
 
-    // Open platform
-    const urls = {
-      spotify: SONG_DATA.spotifyUrl,
-      apple: SONG_DATA.appleMusicUrl,
-      youtube: SONG_DATA.youtubeUrl
-    };
-
-    window.open(urls[platform], '_blank', 'noopener,noreferrer');
-  };
-
-  if (!showCelebration) return null;
+  const daysUntilLaunch = Math.ceil((SONG_LAUNCH_DATE - new Date()) / (1000 * 60 * 60 * 24));
 
   return (
-    <>
-      {/* Main Celebration Modal */}
-      <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-xl max-w-lg w-full shadow-2xl relative overflow-hidden">
-          
-          {/* Animated Background */}
-          <div className="absolute inset-0 bg-gradient-to-br from-purple-100 via-pink-100 to-indigo-100 opacity-50"></div>
-          <div className="absolute top-0 right-0 text-8xl opacity-10 animate-pulse">🎵</div>
-          <div className="absolute bottom-0 left-0 text-8xl opacity-10 animate-pulse delay-300">🎶</div>
-          
-          <div className="relative z-10 p-6">
-            {/* Header */}
-            <div className="text-center mb-6">
-              <div className="text-6xl mb-4 animate-bounce">🎉</div>
-              <h2 className="text-3xl font-bold text-purple-700 mb-2">
-                Sharon's Song is LIVE!
-              </h2>
-              <p className="text-lg text-gray-600">
-                "{SONG_DATA.title}" is now available everywhere!
+    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl max-w-lg w-full shadow-2xl relative overflow-hidden">
+        
+        {/* Animated background */}
+        <div className="absolute inset-0 bg-gradient-to-br from-indigo-100 via-purple-100 to-pink-100 opacity-30"></div>
+        <div className="absolute -top-10 -right-10 text-9xl opacity-10 animate-pulse">🎵</div>
+        <div className="absolute -bottom-10 -left-10 text-9xl opacity-10 animate-pulse animation-delay-500">🎶</div>
+        
+        <div className="relative z-10 p-6">
+          {/* Close button */}
+          <button
+            onClick={() => {
+              setShowModal(false);
+              if (onClose) onClose();
+            }}
+            className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+          >
+            ✕
+          </button>
+
+          {/* Header */}
+          <div className="text-center mb-6">
+            <div className="text-6xl mb-4 animate-bounce">{MELODY_SEED_DATA.emoji}</div>
+            <h2 className="text-2xl font-bold text-indigo-700 mb-2">
+              ✨ Sharon's First Song ✨
+            </h2>
+            <p className="text-lg text-gray-600">
+              Launching May 30th, 2025
+            </p>
+          </div>
+
+          {/* Countdown */}
+          <div className="bg-gradient-to-r from-indigo-100 to-purple-100 p-4 rounded-lg mb-6 text-center border border-indigo-200">
+            <p className="text-sm text-indigo-600 mb-1 font-medium">
+              🕒 Release Countdown
+            </p>
+            <p className="text-3xl font-bold text-indigo-700">
+              {timeUntilLaunch}
+            </p>
+            {daysUntilLaunch <= 7 && daysUntilLaunch > 0 && (
+              <p className="text-xs text-indigo-600 mt-2 animate-pulse">
+                ⏰ Only {daysUntilLaunch} days left!
               </p>
-            </div>
+            )}
+          </div>
 
-            {/* Sharon's Message */}
-            <Card className="mb-6 border-purple-200 bg-purple-50">
-              <CardContent className="p-4">
-                <p className="text-purple-700 italic text-center">
-                  "{SONG_DATA.specialMessage}"
-                </p>
-                <p className="text-xs text-purple-600 text-center mt-2 font-medium">
-                  — Sharon 💜
-                </p>
-              </CardContent>
-            </Card>
-
-            {/* Listen Now Buttons */}
-            <div className="space-y-3 mb-6">
-              <h3 className="text-sm font-medium text-gray-700 text-center mb-2">
-                🎧 Listen Now
+          {/* Special Seed Card */}
+          <Card className={`border-2 ${MELODY_SEED_DATA.borderColor} shadow-lg mb-6`}>
+            <CardContent className={`p-6 bg-gradient-to-br ${MELODY_SEED_DATA.bgColor} rounded-lg text-center`}>
+              <h3 className={`text-2xl font-bold ${MELODY_SEED_DATA.textColor} mb-3`}>
+                {MELODY_SEED_DATA.name}
               </h3>
+              <p className={`text-lg ${MELODY_SEED_DATA.textColor} opacity-90 mb-4 italic`}>
+                "{MELODY_SEED_DATA.description}"
+              </p>
               
-              <button
-                onClick={() => handleListen('spotify')}
-                className="w-full bg-green-500 hover:bg-green-600 text-white py-3 px-4 rounded-lg flex items-center justify-center gap-3 transition-all transform hover:scale-105"
-              >
-                <span className="text-2xl">🎵</span>
-                <span className="font-medium">Listen on Spotify</span>
-              </button>
-              
-              <button
-                onClick={() => handleListen('apple')}
-                className="w-full bg-gray-800 hover:bg-gray-900 text-white py-3 px-4 rounded-lg flex items-center justify-center gap-3 transition-all transform hover:scale-105"
-              >
-                <span className="text-2xl">🎵</span>
-                <span className="font-medium">Listen on Apple Music</span>
-              </button>
-              
-              <button
-                onClick={() => handleListen('youtube')}
-                className="w-full bg-red-500 hover:bg-red-600 text-white py-3 px-4 rounded-lg flex items-center justify-center gap-3 transition-all transform hover:scale-105"
-              >
-                <span className="text-2xl">📺</span>
-                <span className="font-medium">Watch on YouTube</span>
-              </button>
-            </div>
+              {/* Special Features */}
+              <div className="space-y-2 mb-4">
+                {MELODY_SEED_DATA.specialFeatures.map((feature, index) => (
+                  <div key={index} className="flex items-center justify-center gap-2 bg-white bg-opacity-50 p-2 rounded-lg text-sm">
+                    <span>✨</span>
+                    <span className="text-indigo-700">{feature}</span>
+                  </div>
+                ))}
+              </div>
 
-            {/* Special Reward for Melody Seed Holders */}
-            {hasMelodySeed && (
-              <div className="bg-gradient-to-r from-indigo-100 to-purple-100 p-4 rounded-lg mb-4 border border-indigo-300">
-                <h3 className="font-bold text-indigo-700 mb-2 text-center">
-                  🎵 Melody Seed Holder Exclusive!
-                </h3>
-                {!specialRewardClaimed ? (
-                  <Button 
-                    onClick={handleClaimSpecialReward}
-                    className="w-full bg-gradient-to-r from-indigo-500 to-purple-500 text-white"
-                  >
-                    🎁 Claim Your Special Reward
-                  </Button>
-                ) : (
-                  <p className="text-center text-indigo-700 text-sm">
-                    ✅ Special
+              {daysUntilLaunch <= 4 && (
+                <div className="bg-red-100 bg-opacity-70 p-3 rounded-lg animate-pulse">
+                  <p className="text-xs text-red-700 font-bold">
+                    ⏰ LAST CHANCE! Disappears when the song launches!
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Sharon's Message */}
+          <div className="bg-purple-50 border border-purple-200 p-4 rounded-lg mb-6">
+            <p className="text-sm text-purple-700 italic text-center leading-relaxed">
+              "{MELODY_SEED_DATA.sharonMessage}"
+            </p>
+            <p className="text-xs text-purple-600 text-center mt-2 font-medium">
+              — Sharon 💜
+            </p>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="space-y-3">
+            {!hasClaimed ? (
+              <Button 
+                onClick={handleClaimSeed}
+                disabled={claiming}
+                className="w-full bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-lg py-3 shadow-lg hover:shadow-xl transition-all"
+              >
+                {claiming ? '🌟 Claiming...' : '🎵 Claim Your Melody Seed'}
+              </Button>
+            ) : (
+              <div className="text-center p-4 bg-green-50 border border-green-200 rounded-lg">
+                <p className="text-green-700 font-medium">✅ Melody Seed Claimed!</p>
+                <p className="text-sm text-green-600 mt-1">Water it daily in your garden until launch! 🌱</p>
+              </div>
+            )}
+            
+            <Button 
+              onClick={() => {
+                setShowModal(false);
+                if (onClose) onClose();
+              }}
+              variant="outline" 
+              className="w-full"
+            >
+              {hasClaimed ? 'Go to Garden' : 'Maybe Later'}
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
