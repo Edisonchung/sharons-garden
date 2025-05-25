@@ -1,10 +1,10 @@
-// pages/index.js - COMPLETE WORKING VERSION WITH SONG LAUNCH
+// pages/index.js - With Song Launch Countdown
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
 import SeedTypeSelection from '../components/SeedTypeSelection';
-import SongLaunchManager from '../components/SongLaunchSystem';
+import SongLaunchCelebration, { SongLaunchTrigger } from '../components/SongLaunchCelebration';
 import { useOptimizedSnapshot } from '../hooks/useOptimizedFirebase';
 import { auth, db } from '../lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -43,6 +43,7 @@ export default function SharonsGarden() {
   
   // Garden state
   const [unlockedSlots, setUnlockedSlots] = useState(1);
+  const [showSongModal, setShowSongModal] = useState(false);
 
   // Optimized Firebase query with caching
   const { data: planted, loading } = useOptimizedSnapshot(
@@ -153,7 +154,7 @@ export default function SharonsGarden() {
 
       const newCount = (data.waterCount || 0) + 1;
       const bloomed = newCount >= 7;
-      const flowerIcon = seedTypes.find(s => s.type === data.type)?.flower || '🌸';
+      const flowerIcon = seed.songSeed ? '🎵' : (seedTypes.find(s => s.type === data.type)?.flower || '🌸');
 
       await updateDoc(docRef, {
         waterCount: newCount,
@@ -190,10 +191,6 @@ export default function SharonsGarden() {
   const handleSeedTypeSelected = (seedType) => {
     setSelectedSeedType(seedType);
     setShowSeedSelection(false);
-  };
-
-  const handleSongSeedClaimed = (seedData) => {
-    toast.success('🎵 Your Melody Seed is growing! Water it daily until the song launches!');
   };
 
   const canWaterToday = (seedId) => {
@@ -233,8 +230,18 @@ export default function SharonsGarden() {
   const bloomedFlowers = planted?.filter(s => s.bloomed) || [];
 
   return (
-    <SongLaunchManager onSeedClaimed={handleSongSeedClaimed}>
+    <>
       <div className="min-h-screen bg-gradient-to-b from-pink-100 to-purple-200 p-6 relative">
+        
+        {/* Song Launch Button - Shows countdown */}
+        <div className="absolute top-6 right-6">
+          <Button
+            onClick={() => setShowSongModal(true)}
+            className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-lg hover:shadow-xl transition-all animate-pulse"
+          >
+            🎵 Song Launch: 4 Days!
+          </Button>
+        </div>
         
         {/* Header */}
         <div className="text-center mb-8">
@@ -454,7 +461,16 @@ export default function SharonsGarden() {
           onSelectSeed={handleSeedTypeSelected}
           userName={user?.displayName || 'Gardener'}
         />
+
+        {/* Song Launch Modal */}
+        <SongLaunchCelebration
+          isOpen={showSongModal}
+          onClose={() => setShowSongModal(false)}
+        />
       </div>
-    </SongLaunchManager>
+
+      {/* Auto-show song launch when within 7 days */}
+      <SongLaunchTrigger />
+    </>
   );
 }
