@@ -1,7 +1,8 @@
 // hooks/useOptimizedFirebase.js
 import { useState, useEffect, useRef } from 'react';
-import { onSnapshot, writeBatch } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { onSnapshot, writeBatch, doc } from 'firebase/firestore';
+import { db, auth } from '../lib/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
 
 // Singleton pattern to prevent duplicate listeners across components
 const activeListeners = new Map();
@@ -114,6 +115,35 @@ export function useOptimizedSnapshot(queryKey, firestoreQuery, options = {}) {
   }, [queryKey, firestoreQuery, cacheDuration, maxRetries, retryDelay]);
 
   return { data, loading, error };
+}
+
+// NEW: Hook for notification badge count
+export function useNotificationCount() {
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (!user) {
+        setUnreadCount(0);
+        return;
+      }
+
+      const userRef = doc(db, 'users', user.uid);
+      const unsubscribeNotifications = onSnapshot(userRef, (doc) => {
+        if (doc.exists()) {
+          const notifications = doc.data().notifications || [];
+          const unread = notifications.filter(n => !n.read).length;
+          setUnreadCount(unread);
+        }
+      });
+
+      return () => unsubscribeNotifications();
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  return unreadCount;
 }
 
 // Batched write operations to prevent Firebase quota hits during high traffic
