@@ -1,3 +1,4 @@
+// components/ui/Navbar.js - Latest Version with Enhanced Admin Panel
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Button } from './button';
@@ -15,8 +16,10 @@ import {
   doc,
   getDoc,
   setDoc,
+  serverTimestamp,
 } from 'firebase/firestore';
 import { useNotificationCount } from '../../hooks/useOptimizedFirebase';
+import toast from 'react-hot-toast';
 
 export default function Navbar() {
   const [user, setUser] = useState(null);
@@ -27,7 +30,13 @@ export default function Navbar() {
   const [showCommunity, setShowCommunity] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   
-  // NEW: Get notification count
+  // Admin panel state
+  const [showAdminMenu, setShowAdminMenu] = useState(false);
+  const [pendingUsernameRequests, setPendingUsernameRequests] = useState(0);
+  const [reportedContent, setReportedContent] = useState(0);
+  const [maintenanceMode, setMaintenanceMode] = useState(false);
+  
+  // Get notification count
   const unreadNotifications = useNotificationCount();
 
   useEffect(() => {
@@ -35,6 +44,7 @@ export default function Navbar() {
       setUser(currentUser);
 
       if (currentUser) {
+        // Check for unwatered flowers
         const flowerQuery = query(
           collection(db, 'flowers'),
           where('userId', '==', currentUser.uid),
@@ -49,12 +59,16 @@ export default function Navbar() {
         });
         setHasUnwatered(needsWater);
 
+        // Get user data
         const docRef = doc(db, 'users', currentUser.uid);
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
           const data = docSnap.data();
           setPublicMenuSeen(data.publicMenuSeen || false);
-          if (data.role === 'admin') setIsAdmin(true);
+          if (data.role === 'admin') {
+            setIsAdmin(true);
+            fetchAdminStats(); // Fetch admin stats if admin
+          }
         }
       } else {
         setHasUnwatered(false);
@@ -65,6 +79,45 @@ export default function Navbar() {
     return () => unsubscribe();
   }, []);
 
+  // Fetch admin statistics
+  const fetchAdminStats = async () => {
+    if (!isAdmin) return;
+
+    try {
+      // Username requests
+      const requestsQuery = query(
+        collection(db, 'usernameRequests'),
+        where('status', '==', 'pending')
+      );
+      const requestsSnap = await getDocs(requestsQuery);
+      setPendingUsernameRequests(requestsSnap.size);
+
+      // Reported content (when implemented)
+      const reportsQuery = query(
+        collection(db, 'reports'),
+        where('status', '==', 'pending')
+      );
+      const reportsSnap = await getDocs(reportsQuery);
+      setReportedContent(reportsSnap.size);
+
+      // Check maintenance mode
+      const configDoc = await getDoc(doc(db, 'config', 'system'));
+      if (configDoc.exists()) {
+        setMaintenanceMode(configDoc.data().maintenanceMode || false);
+      }
+    } catch (error) {
+      console.error('Error fetching admin stats:', error);
+    }
+  };
+
+  // Refresh admin stats every 30 seconds
+  useEffect(() => {
+    if (isAdmin && user) {
+      const interval = setInterval(fetchAdminStats, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [isAdmin, user]);
+
   useEffect(() => {
     document.documentElement.classList.toggle('dark', darkMode);
   }, [darkMode]);
@@ -73,15 +126,17 @@ export default function Navbar() {
     try {
       await signInWithPopup(auth, googleProvider);
     } catch (err) {
-      alert("Login failed.");
+      toast.error("Login failed. Please try again.");
     }
   };
 
   const handleLogout = async () => {
     try {
       await signOut(auth);
+      toast.success("Logged out successfully");
     } catch (err) {
       console.error("Logout Error:", err.message);
+      toast.error("Logout failed");
     }
   };
 
@@ -93,8 +148,53 @@ export default function Navbar() {
     }
   };
 
+  // Admin quick actions
+  const handleToggleMaintenanceMode = async () => {
+    try {
+      await setDoc(doc(db, 'config', 'system'), {
+        maintenanceMode: !maintenanceMode,
+        updatedAt: serverTimestamp(),
+        updatedBy: user.uid
+      }, { merge: true });
+      
+      setMaintenanceMode(!maintenanceMode);
+      toast.success(`Maintenance mode ${!maintenanceMode ? 'enabled' : 'disabled'}`);
+    } catch (error) {
+      console.error('Error toggling maintenance mode:', error);
+      toast.error('Failed to toggle maintenance mode');
+    }
+  };
+
+  const handleClearCache = () => {
+    if (confirm('This will clear all cached data. Continue?')) {
+      localStorage.clear();
+      sessionStorage.clear();
+      
+      // Clear Firebase cache if using the optimized hooks
+      if (window.clearFirebaseCache) {
+        window.clearFirebaseCache();
+      }
+      
+      toast.success('Cache cleared successfully');
+      setTimeout(() => window.location.reload(), 1000);
+    }
+  };
+
+  // Close admin menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showAdminMenu && !event.target.closest('.admin-menu-container')) {
+        setShowAdminMenu(false);
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [showAdminMenu]);
+
   return (
     <>
+      {/* Menu Toggle Button */}
       <div className="fixed top-4 left-4 z-50">
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -104,7 +204,7 @@ export default function Navbar() {
         </button>
       </div>
 
-      {/* NEW: Notification Bell - Fixed Position */}
+      {/* Notification Bell - Fixed Position */}
       {user && (
         <div className="fixed top-4 right-4 z-50">
           <Link href="/notifications">
@@ -120,6 +220,7 @@ export default function Navbar() {
         </div>
       )}
 
+      {/* Overlay */}
       {sidebarOpen && (
         <div
           className="fixed inset-0 bg-black bg-opacity-40 z-30"
@@ -127,8 +228,11 @@ export default function Navbar() {
         />
       )}
 
+      {/* Sidebar */}
       <div
-        className={`fixed top-0 left-0 h-full w-64 bg-pink-100 dark:bg-gray-900 shadow-xl p-6 z-40 transform transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
+        className={`fixed top-0 left-0 h-full w-64 bg-pink-100 dark:bg-gray-900 shadow-xl p-6 z-40 transform transition-transform duration-300 ${
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
       >
         <div className="flex justify-between items-center mb-4">
           <h1 className="text-xl font-bold text-purple-700 dark:text-white">🌸 Sharon's Garden</h1>
@@ -141,7 +245,9 @@ export default function Navbar() {
         </div>
 
         <nav className="flex flex-col gap-4 relative">
-          <Link href="/" className="text-purple-700 dark:text-white hover:underline">🏠 Home</Link>
+          <Link href="/" className="text-purple-700 dark:text-white hover:underline">
+            🏠 Home
+          </Link>
 
           <div className="relative">
             <Link href="/garden/my" className="text-purple-700 dark:text-white hover:underline">
@@ -149,7 +255,7 @@ export default function Navbar() {
             </Link>
             {hasUnwatered && (
               <span
-                className="absolute -top-1 -right-3 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center animate-ping-short"
+                className="absolute -top-1 -right-3 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center animate-ping"
                 title="Some seeds need watering"
               >
                 !
@@ -157,7 +263,7 @@ export default function Navbar() {
             )}
           </div>
 
-          {/* NEW: Notifications Link */}
+          {/* Notifications Link */}
           <div className="relative">
             <Link href="/notifications" className="text-purple-700 dark:text-white hover:underline">
               🔔 Notifications
@@ -169,11 +275,17 @@ export default function Navbar() {
             )}
           </div>
 
-          <Link href="/garden/profile" className="text-purple-700 dark:text-white hover:underline">👤 Profile</Link>
-          <Link href="/garden/badges" className="text-purple-700 dark:text-white hover:underline">🏅 Badges</Link>
-          <Link href="/garden/settings" className="text-purple-700 dark:text-white hover:underline">⚙️ Settings</Link>
+          <Link href="/garden/profile" className="text-purple-700 dark:text-white hover:underline">
+            👤 Profile
+          </Link>
+          <Link href="/garden/badges" className="text-purple-700 dark:text-white hover:underline">
+            🏅 Badges
+          </Link>
+          <Link href="/garden/settings" className="text-purple-700 dark:text-white hover:underline">
+            ⚙️ Settings
+          </Link>
 
-          {/* 🌐 Community Dropdown */}
+          {/* Community Dropdown */}
           <div className="relative">
             <button
               onClick={handleOpenCommunity}
@@ -189,21 +301,211 @@ export default function Navbar() {
                 <Link href="/explore" className="hover:underline">🌸 Explore Feed</Link>
                 <Link href="/rankings" className="hover:underline">🏆 Leaderboard</Link>
                 <Link href="/top-badges" className="hover:underline">🎖️ Top Badges</Link>
-                <Link href={`/u/${user?.displayName || 'username'}/badges`} className="hover:underline">📛 My Public Badge Page</Link>
+                <Link href={`/u/${user?.displayName || 'username'}/badges`} className="hover:underline">
+                  📛 My Public Badge Page
+                </Link>
               </div>
             )}
           </div>
 
+          {/* Admin Panel Dropdown */}
           {isAdmin && (
-            <Link href="/admin/username-requests" className="text-purple-700 dark:text-white hover:underline">
-              🛠 Admin Panel
-            </Link>
+            <div className="relative admin-menu-container">
+              <button
+                onClick={() => setShowAdminMenu(!showAdminMenu)}
+                className="text-purple-700 dark:text-white hover:underline flex items-center gap-1"
+              >
+                🛠 Admin Panel
+                <span className="text-xs">▼</span>
+              </button>
+              
+              {showAdminMenu && (
+                <div className="absolute left-0 mt-2 w-64 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-purple-200 dark:border-gray-700 z-50">
+                  <div className="py-2">
+                    {/* Admin Dashboard */}
+                    <Link href="/admin">
+                      <a className="block px-4 py-2 text-sm hover:bg-purple-50 dark:hover:bg-gray-700">
+                        <span className="flex items-center gap-2">
+                          <span>📊</span>
+                          <div>
+                            <div className="font-medium">Dashboard</div>
+                            <div className="text-xs text-gray-500">Overview & stats</div>
+                          </div>
+                        </span>
+                      </a>
+                    </Link>
+
+                    {/* Launch Monitoring */}
+                    <Link href="/admin/launch-monitor">
+                      <a className="block px-4 py-2 text-sm hover:bg-purple-50 dark:hover:bg-gray-700">
+                        <span className="flex items-center gap-2">
+                          <span>🚀</span>
+                          <div>
+                            <div className="font-medium">Launch Monitor</div>
+                            <div className="text-xs text-gray-500">Real-time system metrics</div>
+                          </div>
+                        </span>
+                      </a>
+                    </Link>
+
+                    {/* Username Requests */}
+                    <Link href="/admin/username-requests">
+                      <a className="block px-4 py-2 text-sm hover:bg-purple-50 dark:hover:bg-gray-700">
+                        <span className="flex items-center gap-2">
+                          <span>📝</span>
+                          <div className="flex-1">
+                            <div className="font-medium">Username Requests</div>
+                            <div className="text-xs text-gray-500">Approve/reject changes</div>
+                          </div>
+                          {pendingUsernameRequests > 0 && (
+                            <span className="bg-red-500 text-white text-xs rounded-full px-2 py-0.5">
+                              {pendingUsernameRequests}
+                            </span>
+                          )}
+                        </span>
+                      </a>
+                    </Link>
+
+                    {/* User Management */}
+                    <Link href="/admin/users">
+                      <a className="block px-4 py-2 text-sm hover:bg-purple-50 dark:hover:bg-gray-700">
+                        <span className="flex items-center gap-2">
+                          <span>👥</span>
+                          <div>
+                            <div className="font-medium">User Management</div>
+                            <div className="text-xs text-gray-500">View & manage users</div>
+                          </div>
+                        </span>
+                      </a>
+                    </Link>
+
+                    {/* Garden Statistics */}
+                    <Link href="/admin/statistics">
+                      <a className="block px-4 py-2 text-sm hover:bg-purple-50 dark:hover:bg-gray-700">
+                        <span className="flex items-center gap-2">
+                          <span>📊</span>
+                          <div>
+                            <div className="font-medium">Garden Statistics</div>
+                            <div className="text-xs text-gray-500">Analytics & insights</div>
+                          </div>
+                        </span>
+                      </a>
+                    </Link>
+
+                    {/* Content Moderation */}
+                    <Link href="/admin/moderation">
+                      <a className="block px-4 py-2 text-sm hover:bg-purple-50 dark:hover:bg-gray-700">
+                        <span className="flex items-center gap-2">
+                          <span>🔍</span>
+                          <div className="flex-1">
+                            <div className="font-medium">Content Moderation</div>
+                            <div className="text-xs text-gray-500">Review reported content</div>
+                          </div>
+                          {reportedContent > 0 && (
+                            <span className="bg-orange-500 text-white text-xs rounded-full px-2 py-0.5">
+                              {reportedContent}
+                            </span>
+                          )}
+                        </span>
+                      </a>
+                    </Link>
+
+                    {/* Sharon's Touch */}
+                    <Link href="/admin/touch">
+                      <a className="block px-4 py-2 text-sm hover:bg-purple-50 dark:hover:bg-gray-700">
+                        <span className="flex items-center gap-2">
+                          <span>💜</span>
+                          <div>
+                            <div className="font-medium">Sharon's Touch</div>
+                            <div className="text-xs text-gray-500">Bless special flowers</div>
+                          </div>
+                        </span>
+                      </a>
+                    </Link>
+
+                    {/* Song Launch Manager */}
+                    <Link href="/admin/song-launch">
+                      <a className="block px-4 py-2 text-sm hover:bg-purple-50 dark:hover:bg-gray-700">
+                        <span className="flex items-center gap-2">
+                          <span>🎵</span>
+                          <div>
+                            <div className="font-medium">Song Launch</div>
+                            <div className="text-xs text-gray-500">Manage launch features</div>
+                          </div>
+                        </span>
+                      </a>
+                    </Link>
+
+                    {/* Notifications Manager */}
+                    <Link href="/admin/notifications">
+                      <a className="block px-4 py-2 text-sm hover:bg-purple-50 dark:hover:bg-gray-700">
+                        <span className="flex items-center gap-2">
+                          <span>🔔</span>
+                          <div>
+                            <div className="font-medium">Send Notifications</div>
+                            <div className="text-xs text-gray-500">Broadcast to all users</div>
+                          </div>
+                        </span>
+                      </a>
+                    </Link>
+
+                    {/* Badge Management */}
+                    <Link href="/admin/badges">
+                      <a className="block px-4 py-2 text-sm hover:bg-purple-50 dark:hover:bg-gray-700">
+                        <span className="flex items-center gap-2">
+                          <span>🏅</span>
+                          <div>
+                            <div className="font-medium">Badge Management</div>
+                            <div className="text-xs text-gray-500">Create & assign badges</div>
+                          </div>
+                        </span>
+                      </a>
+                    </Link>
+
+                    {/* Database Tools */}
+                    <Link href="/admin/database">
+                      <a className="block px-4 py-2 text-sm hover:bg-purple-50 dark:hover:bg-gray-700">
+                        <span className="flex items-center gap-2">
+                          <span>🗄️</span>
+                          <div>
+                            <div className="font-medium">Database Tools</div>
+                            <div className="text-xs text-gray-500">Backup & maintenance</div>
+                          </div>
+                        </span>
+                      </a>
+                    </Link>
+
+                    <div className="border-t border-gray-200 dark:border-gray-700 my-2"></div>
+
+                    {/* Quick Actions */}
+                    <div className="px-4 py-2">
+                      <p className="text-xs font-medium text-gray-500 mb-2">Quick Actions</p>
+                      <div className="space-y-1">
+                        <button
+                          onClick={handleToggleMaintenanceMode}
+                          className="w-full text-left text-xs bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 px-2 py-1 rounded hover:bg-yellow-200 dark:hover:bg-yellow-800"
+                        >
+                          🚧 {maintenanceMode ? 'Disable' : 'Enable'} Maintenance Mode
+                        </button>
+                        <button
+                          onClick={handleClearCache}
+                          className="w-full text-left text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-1 rounded hover:bg-blue-200 dark:hover:bg-blue-800"
+                        >
+                          🧹 Clear System Cache
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           )}
 
           <Button onClick={() => setDarkMode(!darkMode)} variant="outline" className="mt-2">
             {darkMode ? '🌞 Light Mode' : '🌙 Dark Mode'}
           </Button>
 
+          {/* User Profile Section */}
           {user ? (
             <div className="mt-4">
               {user.photoURL ? (
@@ -213,7 +515,9 @@ export default function Navbar() {
                   {user.displayName ? user.displayName.charAt(0) : 'U'}
                 </div>
               )}
-              <span className="text-sm text-gray-800 dark:text-gray-200 block mb-2">Hi, {user.displayName || user.email}</span>
+              <span className="text-sm text-gray-800 dark:text-gray-200 block mb-2">
+                Hi, {user.displayName || user.email}
+              </span>
               <Button onClick={handleLogout} variant="outline">Logout</Button>
             </div>
           ) : (
