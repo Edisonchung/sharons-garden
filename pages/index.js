@@ -1,10 +1,12 @@
-// pages/index.js - With Song Launch Countdown
+// pages/index.js - Latest Version with Enhanced Features
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
 import SeedTypeSelection from '../components/SeedTypeSelection';
 import SongLaunchCelebration, { SongLaunchTrigger } from '../components/SongLaunchCelebration';
+import EnhancedFlowerCard from '../components/EnhancedFlowerCard';
+import BloomAnimation from '../components/BloomAnimation';
 import { useOptimizedSnapshot } from '../hooks/useOptimizedFirebase';
 import { auth, db } from '../lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -18,6 +20,9 @@ import {
   where,
 } from 'firebase/firestore';
 import toast from 'react-hot-toast';
+import { NotificationManager } from '../components/NotificationSystem';
+import { SEED_TYPES } from '../components/SeedTypeSelection';
+import { FLOWER_DATABASE } from '../hooks/useSeedTypes';
 
 const seedTypes = [
   { type: 'Hope', flower: '🌷' },
@@ -44,6 +49,11 @@ export default function SharonsGarden() {
   // Garden state
   const [unlockedSlots, setUnlockedSlots] = useState(1);
   const [showSongModal, setShowSongModal] = useState(false);
+  
+  // Enhanced features state
+  const [showBloomAnimation, setShowBloomAnimation] = useState(false);
+  const [bloomingFlower, setBloomingFlower] = useState(null);
+  const [showFlowerCard, setShowFlowerCard] = useState(null);
 
   // Optimized Firebase query with caching
   const { data: planted, loading } = useOptimizedSnapshot(
@@ -96,6 +106,7 @@ export default function SharonsGarden() {
         userId: user.uid,
         type: selectedSeedType.name || selectedSeedType.type || 'Hope',
         seedType: selectedSeedType.id || 'hope',
+        seedTypeData: selectedSeedType,
         name: name.trim() || user.displayName || 'Anonymous',
         note: note.trim() || 'Growing with love 🌱',
         waterCount: 0,
@@ -105,9 +116,21 @@ export default function SharonsGarden() {
         plantedBy: user.displayName || user.email
       };
 
-      await addDoc(collection(db, 'flowers'), newSeed);
+      const docRef = await addDoc(collection(db, 'flowers'), newSeed);
       
-      toast.success(`🌱 Your ${selectedSeedType.name || selectedSeedType.type} seed has been planted!`);
+      // Create notification for planting
+      await NotificationManager.createNotification(
+        user.uid,
+        'SEED_PLANTED',
+        '🌱 New Seed Planted!',
+        `Your ${selectedSeedType.name} seed has been planted. Water it daily to help it bloom!`,
+        {
+          actionUrl: '/garden/my',
+          actionText: 'View Garden'
+        }
+      );
+      
+      toast.success(`🌱 Your ${selectedSeedType.name} seed has been planted!`);
       
       setName('');
       setNote('');
@@ -154,20 +177,64 @@ export default function SharonsGarden() {
 
       const newCount = (data.waterCount || 0) + 1;
       const bloomed = newCount >= 7;
-      const flowerIcon = seed.songSeed ? '🎵' : (seedTypes.find(s => s.type === data.type)?.flower || '🌸');
+      
+      // Get flower data from seed type
+      let flowerData = null;
+      if (bloomed && data.seedTypeData) {
+        const possibleFlowers = data.seedTypeData.flowerTypes || [];
+        const randomFlower = possibleFlowers[Math.floor(Math.random() * possibleFlowers.length)];
+        flowerData = FLOWER_DATABASE[randomFlower] || {};
+      }
+      
+      const flowerIcon = seed.songSeed ? '🎵' : (flowerData?.emoji || seedTypes.find(s => s.type === data.type)?.flower || '🌸');
 
-      await updateDoc(docRef, {
+      const updateData = {
         waterCount: newCount,
         bloomed,
         bloomedFlower: bloomed ? flowerIcon : null,
         lastWatered: new Date().toISOString(),
         lastWateredBy: user.displayName || 'Anonymous'
-      });
+      };
+      
+      if (bloomed && flowerData) {
+        updateData.flowerName = flowerData.name || data.type;
+        updateData.flowerLanguage = flowerData.flowerLanguage;
+        updateData.sharonMessage = flowerData.sharonMessage;
+        updateData.bloomTime = new Date().toISOString();
+      }
+
+      await updateDoc(docRef, updateData);
 
       localStorage.setItem(lastWaterKey, new Date().toISOString());
       
       if (bloomed && !data.bloomed) {
-        toast.success(`🌸 Your ${data.type} seed bloomed into a beautiful ${flowerIcon}!`);
+        // Show bloom animation
+        setBloomingFlower({
+          ...seed,
+          ...updateData,
+          ...flowerData,
+          emoji: flowerIcon
+        });
+        setShowBloomAnimation(true);
+        
+        // Create bloom notification
+        await NotificationManager.seedBloomedNotification(
+          user.uid,
+          data.type,
+          flowerIcon
+        );
+        
+        // Update unlocked slots if needed
+        const bloomedCount = (planted?.filter(s => s.bloomed).length || 0) + 1;
+        if (bloomedCount >= 3 && unlockedSlots < 2) {
+          await updateDoc(doc(db, 'users', user.uid), { unlockedSlots: 2 });
+          setUnlockedSlots(2);
+          toast.success('🎉 New slot unlocked! You can now grow 2 seeds at once!');
+        } else if (bloomedCount >= 5 && unlockedSlots < 3) {
+          await updateDoc(doc(db, 'users', user.uid), { unlockedSlots: 3 });
+          setUnlockedSlots(3);
+          toast.success('🎉 New slot unlocked! You can now grow 3 seeds at once!');
+        }
       } else {
         toast.success(`💧 Watered successfully! ${newCount}/7 waters`);
       }
@@ -180,10 +247,11 @@ export default function SharonsGarden() {
     }
   };
 
-  const handleShare = (id) => {
+  const handleShare = (seed) => {
     if (typeof window === 'undefined') return;
     
-    const url = `${window.location.origin}/flower/${id}`;
+    const shareUrl = process.env.NEXT_PUBLIC_SHARE_BASE_URL || window.location.origin;
+    const url = `${shareUrl}/flower/${seed.id}`;
     navigator.clipboard.writeText(url);
     toast.success('📋 Share link copied! Send it to friends so they can help water your seed! 💧');
   };
@@ -201,6 +269,12 @@ export default function SharonsGarden() {
     const lastWater = localStorage.getItem(lastWaterKey);
     
     return !lastWater || new Date(lastWater).toDateString() !== today;
+  };
+
+  const handleBloomComplete = () => {
+    setShowBloomAnimation(false);
+    setShowFlowerCard(bloomingFlower);
+    setBloomingFlower(null);
   };
 
   if (!isClient || !showMain) {
@@ -422,20 +496,29 @@ export default function SharonsGarden() {
                            canWater ? '💧 Water' : '⏳ Watered today'}
                         </Button>
                       ) : (
-                        <div className="text-green-600 font-medium">
-                          <p>🌸 Bloomed!</p>
-                          {seed.songSeed && (
-                            <p className="text-xs text-indigo-600">🎵 Song Bloom</p>
-                          )}
-                        </div>
+                        <>
+                          <div className="text-green-600 font-medium">
+                            <p>🌸 Bloomed!</p>
+                            {seed.songSeed && (
+                              <p className="text-xs text-indigo-600">🎵 Song Bloom</p>
+                            )}
+                          </div>
+                          <Button
+                            onClick={() => setShowFlowerCard(seed)}
+                            variant="outline"
+                            className="w-full text-xs"
+                          >
+                            📸 View & Share
+                          </Button>
+                        </>
                       )}
                       
                       <Button
-                        onClick={() => handleShare(seed.id)}
+                        onClick={() => handleShare(seed)}
                         variant="outline"
                         className="w-full text-xs"
                       >
-                        🔗 Share
+                        🔗 Get Share Link
                       </Button>
                     </div>
                   </div>
@@ -467,6 +550,29 @@ export default function SharonsGarden() {
           isOpen={showSongModal}
           onClose={() => setShowSongModal(false)}
         />
+        
+        {/* Bloom Animation */}
+        {showBloomAnimation && bloomingFlower && (
+          <BloomAnimation
+            flower={bloomingFlower}
+            seedType={bloomingFlower.seedTypeData}
+            onComplete={handleBloomComplete}
+            userName={user?.displayName || 'Gardener'}
+            personalMessage={bloomingFlower.note}
+          />
+        )}
+        
+        {/* Enhanced Flower Card */}
+        {showFlowerCard && (
+          <EnhancedFlowerCard
+            flower={showFlowerCard}
+            seedType={showFlowerCard.seedTypeData}
+            userName={user?.displayName || 'Gardener'}
+            personalMessage={showFlowerCard.note}
+            isOpen={true}
+            onClose={() => setShowFlowerCard(null)}
+          />
+        )}
       </div>
 
       {/* Auto-show song launch when within 7 days */}
