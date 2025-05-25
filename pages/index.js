@@ -120,7 +120,7 @@ export default function SharonsGarden() {
       if (bloomed && !data.bloomed) {
         setCurrentReward({
           emotion: `${data.type} Seed`,
-          reward: 'Access Sharon's exclusive voice message 🌟',
+          reward: 'Access Sharons exclusive voice message 🌟',
           link: 'https://example.com/sharon-reward',
         });
         setRewardOpen(true);
