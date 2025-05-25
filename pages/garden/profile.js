@@ -13,7 +13,8 @@ import {
   where,
   collection,
   getDocs,
-  orderBy
+  orderBy,
+  addDoc
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import toast from 'react-hot-toast';
@@ -28,6 +29,7 @@ export default function ProfilePage() {
   const [downloading, setDownloading] = useState(false);
   const [helpedBloomCount, setHelpedBloomCount] = useState(0);
   const [photoURL, setPhotoURL] = useState('');
+  const [requesting, setRequesting] = useState(false);
   const fileInputRef = useRef();
   const cardRef = useRef();
   const router = useRouter();
@@ -129,6 +131,26 @@ export default function ProfilePage() {
     }
   };
 
+  const handleUsernameRequest = async () => {
+    if (!user || !username) return;
+    setRequesting(true);
+    try {
+      await addDoc(collection(db, 'usernameRequests'), {
+        userId: user.uid,
+        oldUsername: username,
+        newUsername: username, // Placeholder, replace with input if adding modal later
+        reason: 'I would like to change my username.',
+        timestamp: new Date()
+      });
+      toast.success('Username change request submitted.');
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to request username change.');
+    } finally {
+      setRequesting(false);
+    }
+  };
+
   if (!isClient || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-pink-100 to-purple-200 text-center">
@@ -163,7 +185,14 @@ export default function ProfilePage() {
           <p className="text-sm text-gray-500 mb-2">
             Username: <span className="font-semibold text-purple-700">{username || 'Not set'}</span>
           </p>
-          <Button variant="outline" className="mb-4">✏️ Request Username Change</Button>
+          <Button
+            variant="outline"
+            className="mb-4"
+            onClick={handleUsernameRequest}
+            disabled={requesting}
+          >
+            {requesting ? '⏳ Sending...' : '✏️ Request Username Change'}
+          </Button>
 
           <div className="flex items-center justify-center gap-4 mb-4">
             <span className="text-sm">🔔 Daily Reminder:</span>
