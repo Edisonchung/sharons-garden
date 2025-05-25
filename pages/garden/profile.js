@@ -21,6 +21,10 @@ import debounce from 'lodash.debounce';
 import useAchievements from '../../hooks/useAchievements';
 import ProgressBadge from '../../components/ProgressBadge';
 
+const SkeletonBox = ({ height = 'h-20' }) => (
+  <div className={`bg-gray-300/50 animate-pulse rounded-xl ${height}`}></div>
+);
+
 export default function ProfilePage() {
   const [user, setUser] = useState(null);
   const [email, setEmail] = useState('');
@@ -292,7 +296,12 @@ export default function ProfilePage() {
 
       <div className="mt-6 max-w-md w-full text-center">
         <h2 className="text-xl font-bold text-purple-700 mb-2">🏅 Your Badges</h2>
-        {badges.length === 0 ? (
+        {loading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <SkeletonBox />
+            <SkeletonBox />
+          </div>
+        ) : badges.length === 0 ? (
           <p className="text-gray-500 italic">No badges yet. Keep growing!</p>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -325,7 +334,12 @@ export default function ProfilePage() {
 
       <div className="mt-6 max-w-md w-full text-center">
         <h2 className="text-xl font-bold text-purple-700 mb-2">🎁 My Rewards</h2>
-        {rewards.length === 0 ? (
+        {loading ? (
+          <div className="space-y-3">
+            <SkeletonBox />
+            <SkeletonBox />
+          </div>
+        ) : rewards.length === 0 ? (
           <p className="text-gray-500 italic">You haven't unlocked any rewards yet.</p>
         ) : (
           <ul className="space-y-3 text-left">
