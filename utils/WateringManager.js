@@ -1,4 +1,5 @@
 // utils/WateringManager.js - Enhanced with Rate Limiting & Queue System
+import { useState } from 'react';
 import { doc, runTransaction, serverTimestamp, addDoc, collection } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { NotificationManager } from '../components/NotificationSystem';
