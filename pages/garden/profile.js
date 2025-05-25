@@ -12,7 +12,9 @@ import {
   query,
   where,
   collection,
-  getDocs
+  getDocs,
+  orderBy,
+  addDoc
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import toast from 'react-hot-toast';
@@ -48,6 +50,7 @@ export default function ProfilePage() {
             const data = snap.data();
             setNotify(data.notify ?? true);
             setUsername(data.username || '');
+            if (data.photoURL) setPhotoURL(data.photoURL);
           }
 
           const wateringQuery = query(
@@ -109,13 +112,6 @@ export default function ProfilePage() {
   const handleFileChange = async (e) => {
     const file = e.target.files[0];
     if (!file || !user) return;
-
-    const validTypes = ['image/jpeg', 'image/png', 'image/jpg'];
-    if (!validTypes.includes(file.type)) {
-      toast.error('Only JPG or PNG images allowed.');
-      return;
-    }
-
     try {
       const fileRef = ref(storage, `avatars/${user.uid}`);
       await uploadBytes(fileRef, file);
@@ -125,11 +121,34 @@ export default function ProfilePage() {
       await setDoc(doc(db, 'users', user.uid), { photoURL: downloadURL }, { merge: true });
 
       await auth.currentUser.reload();
-      setPhotoURL(auth.currentUser.photoURL);
+      const updatedUser = auth.currentUser;
+
+      setPhotoURL(updatedUser.photoURL || downloadURL);
       toast.success('Profile picture updated!');
     } catch (err) {
       console.error(err);
       toast.error('Upload failed');
+    }
+  };
+
+  const handleUsernameRequest = async () => {
+    const reason = prompt('Enter a reason for your username change request:');
+    const newUsername = prompt('Enter your desired new username:');
+
+    if (!reason || !newUsername) return toast.error('Please provide both reason and new username.');
+
+    try {
+      await addDoc(collection(db, 'usernameRequests'), {
+        userId: user.uid,
+        oldUsername: username,
+        newUsername,
+        reason,
+        timestamp: new Date()
+      });
+      toast.success('Request submitted!');
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to submit request');
     }
   };
 
@@ -167,7 +186,7 @@ export default function ProfilePage() {
           <p className="text-sm text-gray-500 mb-2">
             Username: <span className="font-semibold text-purple-700">{username || 'Not set'}</span>
           </p>
-          <Button variant="outline" className="mb-4">✏️ Request Username Change</Button>
+          <Button variant="outline" onClick={handleUsernameRequest} className="mb-4">✏️ Request Username Change</Button>
 
           <div className="flex items-center justify-center gap-4 mb-4">
             <span className="text-sm">🔔 Daily Reminder:</span>
