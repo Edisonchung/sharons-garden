@@ -3,7 +3,6 @@ import { useRouter } from 'next/router';
 import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import UsernameChangeModal from '../../components/UsernameChangeModal';
-// Remove the html2canvas import - we'll import it dynamically
 import { auth, db, storage } from '../../lib/firebase';
 import { onAuthStateChanged, updateProfile } from 'firebase/auth';
 import {
@@ -102,20 +101,20 @@ export default function ProfilePage() {
 
     try {
       setDownloading(true);
-      console.log('Starting download process...'); // Debug log
+      console.log('Starting download process...');
       
       // Import html2canvas dynamically to avoid SSR issues
       const html2canvas = (await import('html2canvas')).default;
       
-      console.log('Capturing canvas...'); // Debug log
+      console.log('Capturing canvas...');
       const canvas = await html2canvas(cardRef.current, {
         backgroundColor: '#ffffff',
-        scale: 2, // Higher quality
+        scale: 2,
         useCORS: true,
         allowTaint: true
       });
       
-      console.log('Creating download link...'); // Debug log
+      console.log('Creating download link...');
       const link = document.createElement('a');
       link.download = 'sharon-garden-profile-card.png';
       link.href = canvas.toDataURL('image/png');
@@ -126,7 +125,7 @@ export default function ProfilePage() {
       document.body.removeChild(link);
       
       toast.success('Profile card downloaded!');
-      console.log('Download completed successfully'); // Debug log
+      console.log('Download completed successfully');
     } catch (err) {
       console.error('Download error details:', err);
       toast.error('Download failed: ' + (err.message || 'Unknown error'));
@@ -139,7 +138,7 @@ export default function ProfilePage() {
     const file = e.target.files[0];
     if (!file || !user) return;
 
-    console.log('Starting upload process...'); // Debug log
+    console.log('Starting upload process...', { fileSize: file.size, fileType: file.type });
 
     // Validate file type
     if (!file.type.startsWith('image/')) {
@@ -147,44 +146,88 @@ export default function ProfilePage() {
       return;
     }
 
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('Image size must be less than 5MB');
+    // Validate file size
+    const maxSize = 2 * 1024 * 1024; // 2MB
+    if (file.size > maxSize) {
+      toast.error('Image size must be less than 2MB');
       return;
     }
 
     setUploading(true);
 
     try {
-      console.log('Uploading to Firebase Storage...'); // Debug log
-      const fileRef = ref(storage, `avatars/${user.uid}.jpg`);
-      const uploadResult = await uploadBytes(fileRef, file);
-      console.log('Upload complete, getting download URL...'); // Debug log
+      // Method 1: Try Firebase Storage first
+      console.log('Attempting Firebase Storage upload...');
+      
+      const timestamp = Date.now();
+      const fileName = `${user.uid}_${timestamp}.jpg`;
+      const fileRef = ref(storage, `avatars/${fileName}`);
+      
+      const metadata = {
+        contentType: file.type,
+        customMetadata: {
+          userId: user.uid,
+          uploadedAt: new Date().toISOString()
+        }
+      };
+      
+      const uploadResult = await uploadBytes(fileRef, file, metadata);
+      console.log('Firebase Storage upload successful');
       
       const downloadURL = await getDownloadURL(fileRef);
-      console.log('Download URL received:', downloadURL); // Debug log
+      console.log('Download URL obtained:', downloadURL);
 
       // Update Firebase Auth profile
-      console.log('Updating Firebase Auth profile...'); // Debug log
       await updateProfile(auth.currentUser, { photoURL: downloadURL });
       
       // Update Firestore user document
-      console.log('Updating Firestore document...'); // Debug log
-      await setDoc(doc(db, 'users', user.uid), { photoURL: downloadURL }, { merge: true });
+      await setDoc(doc(db, 'users', user.uid), { 
+        photoURL: downloadURL,
+        avatarType: 'storage',
+        avatarUpdatedAt: new Date().toISOString()
+      }, { merge: true });
 
-      // ✅ Update local state immediately
-      console.log('Updating local state...'); // Debug log
+      // Update local state immediately
       setPhotoURL(downloadURL);
       
       toast.success('Profile picture updated successfully!');
-      console.log('Upload process completed successfully'); // Debug log
-    } catch (err) {
-      console.error('Upload error details:', err);
-      toast.error('Upload failed: ' + (err.message || 'Unknown error'));
+      
+    } catch (storageErr) {
+      console.error('Firebase Storage failed:', storageErr);
+      console.log('Falling back to base64 method...');
+      
+      try {
+        // Method 2: Fallback to base64 storage
+        const base64 = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = (event) => resolve(event.target.result);
+          reader.onerror = (error) => reject(error);
+          reader.readAsDataURL(file);
+        });
+
+        console.log('Base64 conversion complete');
+
+        // Update Firebase Auth profile with base64
+        await updateProfile(auth.currentUser, { photoURL: base64 });
+        
+        // Update Firestore with base64
+        await setDoc(doc(db, 'users', user.uid), { 
+          photoURL: base64,
+          avatarType: 'base64',
+          avatarUpdatedAt: new Date().toISOString()
+        }, { merge: true });
+
+        // Update local state immediately
+        setPhotoURL(base64);
+        
+        toast.success('Profile picture updated (using fallback method)!');
+        
+      } catch (base64Err) {
+        console.error('Base64 fallback also failed:', base64Err);
+        toast.error('All upload methods failed. Please try a smaller image.');
+      }
     } finally {
-      console.log('Cleaning up upload state...'); // Debug log
       setUploading(false);
-      // Clear the file input
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
