@@ -17,8 +17,6 @@ import {
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import toast from 'react-hot-toast';
-import useAchievements from '../../hooks/useAchievements';
-import ProgressBadge from '../../components/ProgressBadge';
 
 export default function ProfilePage() {
   const [user, setUser] = useState(null);
@@ -28,12 +26,9 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [isClient, setIsClient] = useState(false);
   const [downloading, setDownloading] = useState(false);
-  const [rewards, setRewards] = useState([]);
   const [helpedBloomCount, setHelpedBloomCount] = useState(0);
   const [photoURL, setPhotoURL] = useState('');
   const fileInputRef = useRef();
-
-  const { badges, getBadgeDetails, getAllBadges } = useAchievements();
   const cardRef = useRef();
   const router = useRouter();
 
@@ -56,14 +51,6 @@ export default function ProfilePage() {
             setUsername(data.username || '');
           }
 
-          const rewardQuery = query(
-            collection(db, 'rewards'),
-            where('userId', '==', currentUser.uid),
-            orderBy('timestamp', 'desc')
-          );
-          const rewardSnap = await getDocs(rewardQuery);
-          setRewards(rewardSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-
           const wateringQuery = query(
             collection(db, 'waterings'),
             where('fromUserId', '==', currentUser.uid)
@@ -79,20 +66,6 @@ export default function ProfilePage() {
             }
           }
           setHelpedBloomCount(bloomCount);
-
-          if (bloomCount >= 5) {
-            await setDoc(
-              doc(db, 'rewards', `${currentUser.uid}_kindgardener`),
-              {
-                userId: currentUser.uid,
-                rewardType: 'Badge',
-                seedType: 'Support',
-                description: 'You helped 5 flowers bloom 🌼',
-                timestamp: new Date()
-              },
-              { merge: true }
-            );
-          }
         } catch (err) {
           console.error(err);
           toast.error('Failed to load profile data.');
@@ -142,10 +115,13 @@ export default function ProfilePage() {
       await uploadBytes(fileRef, file);
       const downloadURL = await getDownloadURL(fileRef);
 
-      await updateProfile(user, { photoURL: downloadURL });
+      await updateProfile(auth.currentUser, { photoURL: downloadURL });
       await setDoc(doc(db, 'users', user.uid), { photoURL: downloadURL }, { merge: true });
 
-      setPhotoURL(downloadURL);
+      await auth.currentUser.reload();
+      const updatedUser = auth.currentUser;
+
+      setPhotoURL(updatedUser.photoURL || downloadURL);
       toast.success('Profile picture updated!');
     } catch (err) {
       console.error(err);
@@ -165,8 +141,15 @@ export default function ProfilePage() {
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-pink-100 to-purple-200 p-6">
       <Card ref={cardRef} className="bg-white w-full max-w-md shadow-xl rounded-2xl p-6 text-center">
         <CardContent>
-          <h1 className="text-2xl font-bold text-purple-700 mb-2">👤 Profile</h1>
-          {photoURL && <img src={photoURL} alt="Avatar" className="w-24 h-24 mx-auto rounded-full mb-2" />}
+          <h1 className="text-2xl font-bold text-purple-700 mb-4">👤 Profile</h1>
+          {photoURL && (
+            <img
+              src={photoURL}
+              onError={(e) => (e.target.style.display = 'none')}
+              alt="Avatar"
+              className="w-24 h-24 mx-auto rounded-full mb-2 object-cover"
+            />
+          )}
           <input
             type="file"
             ref={fileInputRef}
@@ -180,16 +163,7 @@ export default function ProfilePage() {
           <p className="text-sm text-gray-500 mb-2">
             Username: <span className="font-semibold text-purple-700">{username || 'Not set'}</span>
           </p>
-          <Button
-            onClick={() => {
-              const mailto = `mailto:support@sharonsgarden.app?subject=Username Change Request&body=Hi, I'd like to change my username from \"${username}\" to \"[new name]\"`;
-              window.location.href = mailto;
-            }}
-            variant="outline"
-            className="mb-4"
-          >
-            ✏️ Request Username Change
-          </Button>
+          <Button variant="outline" className="mb-4">✏️ Request Username Change</Button>
 
           <div className="flex items-center justify-center gap-4 mb-4">
             <span className="text-sm">🔔 Daily Reminder:</span>
@@ -198,9 +172,9 @@ export default function ProfilePage() {
             </Button>
           </div>
 
-          <p className="text-sm text-green-600 mb-2">🌱 You helped {helpedBloomCount} flower{helpedBloomCount !== 1 && 's'} bloom</p>
+          <p className="text-sm text-green-600">🌱 You helped {helpedBloomCount} flower{helpedBloomCount !== 1 && 's'} bloom</p>
 
-          <Button onClick={handleDownload} disabled={downloading} className="w-full">
+          <Button onClick={handleDownload} disabled={downloading} className="w-full mt-4">
             {downloading ? '📥 Downloading...' : '📥 Download Profile Card'}
           </Button>
         </CardContent>
