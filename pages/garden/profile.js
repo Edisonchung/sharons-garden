@@ -13,14 +13,11 @@ import {
   where,
   collection,
   getDocs,
-  orderBy
+  orderBy,
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import toast from 'react-hot-toast';
 import debounce from 'lodash.debounce';
-import useAchievements from '../../hooks/useAchievements';
-import ProgressBadge from '../../components/ProgressBadge';
-import Confetti from 'react-confetti';
 
 export default function ProfilePage() {
   const [user, setUser] = useState(null);
@@ -33,16 +30,10 @@ export default function ProfilePage() {
   const [isClient, setIsClient] = useState(false);
   const [savingUsername, setSavingUsername] = useState(false);
   const [downloading, setDownloading] = useState(false);
-  const [rewards, setRewards] = useState([]);
-  const [helpedBloomCount, setHelpedBloomCount] = useState(0);
   const [photoURL, setPhotoURL] = useState('');
-  const [selectedFile, setSelectedFile] = useState(null);
-  const [showConfetti, setShowConfetti] = useState(false);
   const fileInputRef = useRef();
   const cardRef = useRef();
   const router = useRouter();
-
-  const { badges, getBadgeDetails, getAllBadges } = useAchievements();
 
   useEffect(() => setIsClient(true), []);
 
@@ -50,6 +41,7 @@ export default function ProfilePage() {
     if (!isClient) return;
 
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      console.log('Auth state changed:', currentUser);
       if (currentUser) {
         setUser(currentUser);
         setEmail(currentUser.email);
@@ -60,63 +52,16 @@ export default function ProfilePage() {
           const snap = await getDoc(userDoc);
           if (snap.exists()) {
             const data = snap.data();
+            console.log('Fetched Firestore user data:', data);
             setNotify(data.notify ?? true);
             setUsername(data.username || '');
           }
-
-          const rewardQuery = query(
-            collection(db, 'rewards'),
-            where('userId', '==', currentUser.uid),
-            orderBy('timestamp', 'desc')
-          );
-          const rewardSnap = await getDocs(rewardQuery);
-          const rewardData = rewardSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-          setRewards(rewardData);
-
-          const wateringQuery = query(
-            collection(db, 'waterings'),
-            where('fromUserId', '==', currentUser.uid)
-          );
-          const wateringSnap = await getDocs(wateringQuery);
-          const uniqueSeedIds = new Set(wateringSnap.docs.map(doc => doc.data().seedId));
-
-          let bloomCount = 0;
-          for (const seedId of uniqueSeedIds) {
-            const flowerDoc = await getDoc(doc(db, 'flowers', seedId));
-            if (flowerDoc.exists() && flowerDoc.data().bloomed) {
-              bloomCount++;
-            }
-          }
-          setHelpedBloomCount(bloomCount);
-
-          // ✅ Check profile completion
-          const hasUsername = snap.exists() && snap.data().username;
-          const hasPhoto = !!currentUser.photoURL;
-          const profileComplete = hasUsername && hasPhoto;
-
-          if (profileComplete) {
-            setShowConfetti(true);
-
-            // 🏅 Award Profile Master badge
-            if (!rewardData.some(r => r.id === `${currentUser.uid}_profilemaster`)) {
-              await setDoc(
-                doc(db, 'rewards', `${currentUser.uid}_profilemaster`),
-                {
-                  userId: currentUser.uid,
-                  rewardType: 'Badge',
-                  seedType: 'Profile',
-                  description: 'Completed your profile 🎉',
-                  timestamp: new Date()
-                },
-                { merge: true }
-              );
-            }
-          }
-
         } catch (err) {
-          console.error(err);
+          console.error('🔥 Error fetching user doc:', err);
           toast.error('Failed to load profile data.');
         }
+      } else {
+        console.warn('❌ No authenticated user found.');
       }
       setLoading(false);
     });
@@ -126,6 +71,7 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (!newUsername) return setUsernameStatus(null);
+
     const checkUsername = debounce(async () => {
       const trimmed = newUsername.toLowerCase().replace(/[^a-z0-9]/g, '');
       if (trimmed.length < 3) {
@@ -178,6 +124,25 @@ export default function ProfilePage() {
     }
   };
 
+  const handleFileChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file || !user) return;
+    try {
+      const fileRef = ref(storage, `avatars/${user.uid}.jpg`);
+      await uploadBytes(fileRef, file);
+      const downloadURL = await getDownloadURL(fileRef);
+
+      await updateProfile(user, { photoURL: downloadURL });
+      await setDoc(doc(db, 'users', user.uid), { photoURL: downloadURL }, { merge: true });
+
+      setPhotoURL(downloadURL);
+      toast.success('Profile picture updated!');
+    } catch (err) {
+      console.error(err);
+      toast.error('Upload failed');
+    }
+  };
+
   const handleUsernameUpdate = async () => {
     if (!user || !newUsername || usernameStatus !== 'available') return;
     const trimmed = newUsername.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -199,28 +164,64 @@ export default function ProfilePage() {
 
   if (!isClient || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-pink-100 to-purple-200 text-center">
+      <div className="min-h-screen flex items-center justify-center bg-pink-100 text-center">
         <p className="text-purple-600 text-lg">🔄 Loading profile…</p>
       </div>
     );
   }
 
-  const earned = badges;
-  const all = getAllBadges();
-  const unearned = all.filter(b => b.progress && !earned.includes(b.emoji));
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-pink-100 text-center">
+        <p className="text-red-500 text-lg">❌ No user session found. Please log in again.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-pink-100 to-purple-200 p-6">
-      {showConfetti && <Confetti recycle={false} numberOfPieces={250} />}
-
       <Card ref={cardRef} className="bg-white w-full max-w-md shadow-xl rounded-2xl p-6 text-center">
         <CardContent>
           <h1 className="text-2xl font-bold text-purple-700 mb-2">👤 Profile</h1>
-          {/* rest of profile display code... */}
+
+          {photoURL && (
+            <img
+              src={photoURL}
+              alt="Avatar"
+              className="w-24 h-24 rounded-full mx-auto mb-3"
+            />
+          )}
+
+          <input
+            type="file"
+            onChange={handleFileChange}
+            ref={fileInputRef}
+            accept="image/*"
+            className="mb-4"
+          />
+
+          <p className="text-gray-600 mb-1">
+            Signed in as:
+            <br />
+            <span className="font-mono">{email}</span>
+          </p>
+
+          <p className="text-sm text-gray-500 mb-4">
+            Username: <span className="font-semibold text-purple-700">{username || 'Not set'}</span>
+          </p>
+
+          <div className="flex items-center justify-center gap-4 mb-4">
+            <span className="text-sm">🔔 Daily Reminder:</span>
+            <Button onClick={handleToggle} variant={notify ? 'default' : 'outline'}>
+              {notify ? 'On' : 'Off'}
+            </Button>
+          </div>
+
+          <Button onClick={handleDownload} disabled={downloading} className="w-full">
+            {downloading ? '📥 Downloading...' : '📥 Download Profile Card'}
+          </Button>
         </CardContent>
       </Card>
-
-      {/* rest of page layout... */}
     </div>
   );
 }
