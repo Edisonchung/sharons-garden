@@ -1,8 +1,4 @@
-'use client';
-
-import { useEffect, useState } from 'react';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import React, { useEffect, useState } from 'react';
 import { Button } from './button';
 import { auth, googleProvider, db } from '../../lib/firebase';
 import {
@@ -19,15 +15,16 @@ import {
   getDoc,
   setDoc,
 } from 'firebase/firestore';
+import Link from 'next/link';
 
 export default function Navbar() {
-  const pathname = usePathname();
   const [user, setUser] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [hasUnwatered, setHasUnwatered] = useState(false);
   const [publicMenuSeen, setPublicMenuSeen] = useState(false);
   const [showCommunity, setShowCommunity] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -48,12 +45,16 @@ export default function Navbar() {
         });
         setHasUnwatered(needsWater);
 
-        const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
-        if (userDoc.exists()) {
-          setPublicMenuSeen(userDoc.data().publicMenuSeen || false);
+        const docRef = doc(db, 'users', currentUser.uid);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          setPublicMenuSeen(data.publicMenuSeen || false);
+          if (data.role === 'admin') setIsAdmin(true);
         }
       } else {
         setHasUnwatered(false);
+        setIsAdmin(false);
       }
     });
 
@@ -67,8 +68,8 @@ export default function Navbar() {
   const handleLogin = async () => {
     try {
       await signInWithPopup(auth, googleProvider);
-    } catch {
-      alert('Login failed.');
+    } catch (err) {
+      alert("Login failed.");
     }
   };
 
@@ -76,7 +77,7 @@ export default function Navbar() {
     try {
       await signOut(auth);
     } catch (err) {
-      console.error('Logout Error:', err.message);
+      console.error("Logout Error:", err.message);
     }
   };
 
@@ -87,13 +88,6 @@ export default function Navbar() {
       setPublicMenuSeen(true);
     }
   };
-
-  const linkClass = (href) =>
-    `hover:underline ${
-      pathname === href
-        ? 'font-bold text-purple-900 dark:text-white'
-        : 'text-purple-700 dark:text-white'
-    }`;
 
   return (
     <>
@@ -114,9 +108,7 @@ export default function Navbar() {
       )}
 
       <div
-        className={`fixed top-0 left-0 h-full w-64 bg-pink-100 dark:bg-gray-900 shadow-xl p-6 z-40 transform transition-transform duration-300 ${
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
+        className={`fixed top-0 left-0 h-full w-64 bg-pink-100 dark:bg-gray-900 shadow-xl p-6 z-40 transform transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
       >
         <div className="flex justify-between items-center mb-4">
           <h1 className="text-xl font-bold text-purple-700 dark:text-white">🌸 Sharon's Garden</h1>
@@ -129,10 +121,10 @@ export default function Navbar() {
         </div>
 
         <nav className="flex flex-col gap-4 relative">
-          <Link href="/" className={linkClass('/')}>🏠 Home</Link>
+          <Link href="/" className="text-purple-700 dark:text-white hover:underline">🏠 Home</Link>
 
           <div className="relative">
-            <Link href="/garden/my" className={linkClass('/garden/my')}>
+            <Link href="/garden/my" className="text-purple-700 dark:text-white hover:underline">
               🌱 My Garden
             </Link>
             {hasUnwatered && (
@@ -145,14 +137,15 @@ export default function Navbar() {
             )}
           </div>
 
-          <Link href="/garden/profile" className={linkClass('/garden/profile')}>👤 Profile</Link>
-          <Link href="/garden/badges" className={linkClass('/garden/badges')}>🏅 Badges</Link>
-          <Link href="/garden/settings" className={linkClass('/garden/settings')}>⚙️ Settings</Link>
+          <Link href="/garden/profile" className="text-purple-700 dark:text-white hover:underline">👤 Profile</Link>
+          <Link href="/garden/badges" className="text-purple-700 dark:text-white hover:underline">🏅 Badges</Link>
+          <Link href="/garden/settings" className="text-purple-700 dark:text-white hover:underline">⚙️ Settings</Link>
 
+          {/* 🌐 Community Dropdown */}
           <div className="relative">
             <button
               onClick={handleOpenCommunity}
-              className="flex items-center gap-1 hover:underline text-purple-700 dark:text-white"
+              className="text-purple-700 dark:text-white hover:underline flex items-center gap-1"
             >
               🌐 Community
               {!publicMenuSeen && (
@@ -164,40 +157,31 @@ export default function Navbar() {
                 <Link href="/explore" className="hover:underline">🌸 Explore Feed</Link>
                 <Link href="/rankings" className="hover:underline">🏆 Leaderboard</Link>
                 <Link href="/top-badges" className="hover:underline">🎖️ Top Badges</Link>
-                <Link
-                  href={`/u/${user?.displayName || 'username'}/badges`}
-                  className="hover:underline"
-                >
-                  📛 My Public Badge Page
-                </Link>
+                <Link href={`/u/${user?.displayName || 'username'}/badges`} className="hover:underline">📛 My Public Badge Page</Link>
               </div>
             )}
           </div>
 
-          <Button
-            onClick={() => setDarkMode(!darkMode)}
-            variant="outline"
-            className="mt-2"
-          >
+          {isAdmin && (
+            <Link href="/garden/username-requests" className="text-purple-700 dark:text-white hover:underline">
+              🛠 Admin Panel
+            </Link>
+          )}
+
+          <Button onClick={() => setDarkMode(!darkMode)} variant="outline" className="mt-2">
             {darkMode ? '🌞 Light Mode' : '🌙 Dark Mode'}
           </Button>
 
           {user ? (
             <div className="mt-4">
               {user.photoURL ? (
-                <img
-                  src={user.photoURL}
-                  alt="Profile"
-                  className="w-12 h-12 rounded-full mb-2 object-cover"
-                />
+                <img src={user.photoURL} alt="Profile" className="w-12 h-12 rounded-full mb-2" />
               ) : (
                 <div className="w-12 h-12 rounded-full mb-2 bg-gray-500 text-white flex items-center justify-center text-xl">
-                  {user.displayName?.[0] || 'U'}
+                  {user.displayName ? user.displayName.charAt(0) : 'U'}
                 </div>
               )}
-              <span className="text-sm text-gray-800 dark:text-gray-200 block mb-2">
-                Hi, {user.displayName || user.email}
-              </span>
+              <span className="text-sm text-gray-800 dark:text-gray-200 block mb-2">Hi, {user.displayName || user.email}</span>
               <Button onClick={handleLogout} variant="outline">Logout</Button>
             </div>
           ) : (
