@@ -22,6 +22,12 @@ import EnhancedFlowerCard from '../../components/EnhancedFlowerCard';
 import BloomAnimation from '../../components/BloomAnimation';
 import { NotificationManager } from '../../components/NotificationSystem';
 import { FLOWER_DATABASE } from '../../hooks/useSeedTypes';
+import { 
+  ShareGardenLink, 
+  FriendActivityFeed, 
+  FriendGardenStats,
+  WateringHelpers 
+} from '../../components/FriendWateringSystem';
 import toast from 'react-hot-toast';
 
 const STREAK_REWARDS = [
@@ -47,11 +53,22 @@ export default function MyGardenPage() {
   const [bloomingFlower, setBloomingFlower] = useState(null);
   const [showFlowerCard, setShowFlowerCard] = useState(null);
   const [isWatering, setIsWatering] = useState(false);
+  const [userProfile, setUserProfile] = useState(null);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
         setUser(currentUser);
+        
+        // Fetch user profile data
+        try {
+          const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+          if (userDoc.exists()) {
+            setUserProfile(userDoc.data());
+          }
+        } catch (err) {
+          console.error('Failed to fetch user profile:', err);
+        }
       } else {
         window.location.href = '/auth';
       }
@@ -256,6 +273,26 @@ export default function MyGardenPage() {
         >
           {audioOn ? '🔊 Sound On' : '🔇 Sound Off'}
         </Button>
+      </div>
+
+      {/* Friend Features Section */}
+      <div className="max-w-6xl mx-auto mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Share Garden Link */}
+        <div className="md:col-span-1">
+          {userProfile?.username && (
+            <ShareGardenLink username={userProfile.username} />
+          )}
+        </div>
+        
+        {/* Friend Stats */}
+        <div className="md:col-span-1">
+          <FriendGardenStats userId={user?.uid} />
+        </div>
+        
+        {/* Recent Activity */}
+        <div className="md:col-span-1">
+          <FriendActivityFeed userId={user?.uid} />
+        </div>
       </div>
 
       {/* Seeds Grid */}
