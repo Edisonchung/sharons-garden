@@ -1,7 +1,10 @@
+// Updated pages/garden/profile.js
+
 import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/router';
 import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
+import UsernameChangeModal from '../../components/UsernameChangeModal';
 import html2canvas from 'html2canvas';
 import { auth, db, storage } from '../../lib/firebase';
 import { onAuthStateChanged, updateProfile } from 'firebase/auth';
@@ -13,7 +16,6 @@ import {
   where,
   collection,
   getDocs,
-  addDoc,
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import toast from 'react-hot-toast';
@@ -28,6 +30,7 @@ export default function ProfilePage() {
   const [downloading, setDownloading] = useState(false);
   const [helpedBloomCount, setHelpedBloomCount] = useState(0);
   const [photoURL, setPhotoURL] = useState('');
+  const [showUsernameModal, setShowUsernameModal] = useState(false);
   const fileInputRef = useRef();
   const cardRef = useRef();
   const router = useRouter();
@@ -120,35 +123,13 @@ export default function ProfilePage() {
       await updateProfile(auth.currentUser, { photoURL: downloadURL });
       await setDoc(doc(db, 'users', user.uid), { photoURL: downloadURL }, { merge: true });
 
-      await auth.currentUser.reload();
-      setPhotoURL(auth.currentUser.photoURL);
+      // ✅ FIX: Update local state immediately
+      setPhotoURL(downloadURL);
+      
       toast.success('Profile picture updated!');
     } catch (err) {
       console.error(err);
       toast.error('Upload failed');
-    }
-  };
-
-  const handleUsernameRequest = async () => {
-    const newUsername = prompt('Enter your desired new username:');
-    const reason = prompt('Why do you want to change your username?');
-
-    if (!newUsername || !reason) {
-      return toast.error('Username and reason are required.');
-    }
-
-    try {
-      await addDoc(collection(db, 'usernameRequests'), {
-        userId: user.uid,
-        oldUsername: username,
-        newUsername,
-        reason,
-        timestamp: new Date()
-      });
-      toast.success('Request submitted for review!');
-    } catch (err) {
-      console.error(err);
-      toast.error('Failed to submit request');
     }
   };
 
@@ -171,7 +152,7 @@ export default function ProfilePage() {
               src={photoURL}
               onError={(e) => (e.target.style.display = 'none')}
               alt="Avatar"
-              className="w-24 h-24 mx-auto rounded-full mb-2 object-cover"
+              className="w-24 h-24 mx-auto rounded-full mb-2 object-cover border-2 border-purple-200"
             />
           )}
 
@@ -180,18 +161,24 @@ export default function ProfilePage() {
             ref={fileInputRef}
             onChange={handleFileChange}
             accept="image/*"
-            className="mb-4"
+            className="mb-4 text-sm"
           />
 
           <p className="text-gray-600 mb-1">Signed in as:<br />
-            <span className="font-mono">{email}</span>
+            <span className="font-mono text-sm">{email}</span>
           </p>
 
           <p className="text-sm text-gray-500 mb-2">
             Username: <span className="font-semibold text-purple-700">{username || 'Not set'}</span>
           </p>
 
-          <Button onClick={handleUsernameRequest} variant="outline" className="mb-4">✏️ Request Username Change</Button>
+          <Button 
+            onClick={() => setShowUsernameModal(true)} 
+            variant="outline" 
+            className="mb-4"
+          >
+            ✏️ Request Username Change
+          </Button>
 
           <div className="flex items-center justify-center gap-4 mb-4">
             <span className="text-sm">🔔 Daily Reminder:</span>
@@ -207,6 +194,13 @@ export default function ProfilePage() {
           </Button>
         </CardContent>
       </Card>
+
+      {/* Username Change Modal */}
+      <UsernameChangeModal
+        isOpen={showUsernameModal}
+        onClose={() => setShowUsernameModal(false)}
+        currentUsername={username}
+      />
     </div>
   );
 }
