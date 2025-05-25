@@ -163,21 +163,24 @@ export default function SongLaunchCelebration({ isOpen, onClose }) {
         melodySeed2025ClaimedAt: new Date().toISOString()
       });
 
-      // Create notification
+      // Create notification using proper notification structure
+      const userDocSnap = await getDoc(doc(db, 'users', auth.currentUser.uid));
+      const existingNotifications = userDocSnap.data()?.notifications || [];
+      
+      const newNotification = {
+        id: `melody_claim_${Date.now()}`,
+        type: 'SONG_LAUNCH',
+        title: '🎵 Melody Seed Claimed!',
+        message: 'Your exclusive First Song seed is growing! Water it daily until May 30th for a special surprise.',
+        read: false,
+        timestamp: new Date(),
+        createdAt: new Date().toISOString(),
+        actionUrl: '/garden/my',
+        actionText: 'View Garden'
+      };
+      
       await updateDoc(doc(db, 'users', auth.currentUser.uid), {
-        notifications: [
-          {
-            id: `melody_claim_${Date.now()}`,
-            type: 'SONG_LAUNCH',
-            title: '🎵 Melody Seed Claimed!',
-            message: 'Your exclusive First Song seed is growing! Water it daily until May 30th for a special surprise.',
-            read: false,
-            timestamp: new Date(),
-            actionUrl: '/garden/my',
-            actionText: 'View Garden'
-          },
-          ...(await getDoc(doc(db, 'users', auth.currentUser.uid))).data()?.notifications || []
-        ]
+        notifications: [newNotification, ...existingNotifications]
       });
 
       setHasClaimed(true);
@@ -210,15 +213,16 @@ export default function SongLaunchCelebration({ isOpen, onClose }) {
         <div className="absolute -bottom-10 -left-10 text-9xl opacity-10 animate-pulse animation-delay-500">🎶</div>
         
         <div className="relative z-10 p-6">
-          {/* Close button */}
+          {/* Close button - More prominent */}
           <button
             onClick={() => {
               setShowModal(false);
               if (onClose) onClose();
             }}
-            className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+            className="absolute -top-2 -right-2 bg-white rounded-full w-10 h-10 flex items-center justify-center text-gray-600 hover:text-gray-800 hover:bg-gray-100 shadow-lg text-xl font-bold z-20 transition-all"
+            aria-label="Close"
           >
-            ✕
+            ×
           </button>
 
           {/* Header */}
