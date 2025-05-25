@@ -1,150 +1,125 @@
 import { useEffect, useState } from 'react';
-import { db, auth } from '../../lib/firebase';
+import { useRouter } from 'next/router';
+import { auth, db } from '../../lib/firebase';
 import {
   collection,
   getDocs,
   updateDoc,
+  deleteDoc,
   doc,
   query,
   orderBy
 } from 'firebase/firestore';
-import toast from 'react-hot-toast';
 import { onAuthStateChanged } from 'firebase/auth';
-import { Button } from '../../components/ui/button';
+import toast from 'react-hot-toast';
 
-const ADMIN_EMAILS = ['edisonchung612@gmail.com']; // Customize this list
-
-export default function UsernameRequestsAdmin() {
-  const [pending, setPending] = useState([]);
-  const [history, setHistory] = useState([]);
+export default function UsernameRequestsPage() {
+  const [user, setUser] = useState(null);
+  const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [currentAdminEmail, setCurrentAdminEmail] = useState('');
+  const router = useRouter();
 
+  // Admin-only access control
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user && ADMIN_EMAILS.includes(user.email)) {
-        setIsAdmin(true);
-        setCurrentAdminEmail(user.email);
-        fetchRequests();
-      } else {
-        toast.error('Access denied');
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      if (!currentUser) return router.push('/');
+
+      const userDoc = await getDocs(
+        query(collection(db, 'users'), orderBy('joinedAt', 'desc'))
+      );
+      const currentUserData = userDoc.docs.find(doc => doc.id === currentUser.uid)?.data();
+
+      if (!currentUserData || currentUserData.role !== 'admin') {
+        toast.error('Access denied: Admins only');
+        return router.push('/');
       }
+
+      setUser(currentUser);
     });
+
     return () => unsubscribe();
   }, []);
 
-  const fetchRequests = async () => {
-    try {
-      const snap = await getDocs(query(collection(db, 'usernameRequests'), orderBy('timestamp', 'desc')));
-      const all = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setPending(all.filter(r => r.status === 'pending'));
-      setHistory(all.filter(r => r.status !== 'pending'));
-    } catch (err) {
-      console.error(err);
-      toast.error('Failed to load requests');
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Fetch username requests
+  useEffect(() => {
+    const fetchRequests = async () => {
+      try {
+        const q = query(collection(db, 'usernameRequests'), orderBy('timestamp', 'desc'));
+        const snap = await getDocs(q);
+        setRequests(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      } catch (err) {
+        console.error(err);
+        toast.error('Failed to fetch requests');
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const handleApprove = async (req) => {
+    fetchRequests();
+  }, []);
+
+  const handleApprove = async (r) => {
     try {
-      await updateDoc(doc(db, 'users', req.userId), {
-        username: req.requestedUsername
-      });
-      await updateDoc(doc(db, 'usernameRequests', req.id), {
-        status: 'approved',
-        handledAt: new Date().toISOString(),
-        handledBy: currentAdminEmail
-      });
-      toast.success(`✅ Approved ${req.requestedUsername}`);
-      fetchRequests();
+      await updateDoc(doc(db, 'users', r.userId), { username: r.newUsername });
+      await deleteDoc(doc(db, 'usernameRequests', r.id));
+      toast.success(`Approved ${r.newUsername}`);
+      setRequests((prev) => prev.filter(req => req.id !== r.id));
     } catch (err) {
       console.error(err);
       toast.error('Approval failed');
     }
   };
 
-  const handleReject = async (req) => {
+  const handleReject = async (r) => {
     try {
-      await updateDoc(doc(db, 'usernameRequests', req.id), {
-        status: 'rejected',
-        handledAt: new Date().toISOString(),
-        handledBy: currentAdminEmail
-      });
-      toast('❌ Rejected');
-      fetchRequests();
+      await deleteDoc(doc(db, 'usernameRequests', r.id));
+      toast.success(`Rejected ${r.newUsername}`);
+      setRequests((prev) => prev.filter(req => req.id !== r.id));
     } catch (err) {
       console.error(err);
       toast.error('Rejection failed');
     }
   };
 
-  if (!isAdmin) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-red-50 text-red-600">
-        <p>Access denied. Admins only.</p>
-      </div>
-    );
+  if (loading) {
+    return <p className="text-center mt-10">Loading requests...</p>;
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
-      <h1 className="text-2xl font-bold text-purple-700 mb-6">🛠️ Username Change Requests</h1>
+    <div className="min-h-screen bg-gradient-to-b from-pink-50 to-purple-100 p-6">
+      <h1 className="text-3xl font-bold text-purple-700 mb-6 text-center">
+        🛠 Username Change Requests
+      </h1>
 
-      {loading ? (
-        <p className="text-gray-500">Loading...</p>
+      {requests.length === 0 ? (
+        <p className="text-center text-gray-500">No pending requests</p>
       ) : (
-        <>
-          <section className="mb-10">
-            <h2 className="text-lg font-semibold mb-2 text-purple-700">🟡 Pending Requests</h2>
-            {pending.length === 0 ? (
-              <p className="text-gray-500 italic">No pending requests.</p>
-            ) : (
-              <ul className="space-y-4">
-                {pending.map((r) => (
-                  <li key={r.id} className="bg-white p-4 rounded shadow flex flex-col gap-1">
-                    <div><strong>From:</strong> {r.currentEmail}</div>
-                    <div><strong>Current Username:</strong> {r.currentUsername || 'N/A'}</div>
-                    <div><strong>Requested:</strong> {r.requestedUsername}</div>
-                    <div className="flex gap-3 mt-2">
-                      <Button onClick={() => handleApprove(r)}>✅ Approve</Button>
-                      <Button onClick={() => handleReject(r)} variant="outline">❌ Reject</Button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-
-          <section>
-            <h2 className="text-lg font-semibold mb-2 text-purple-700">📜 History</h2>
-            {history.length === 0 ? (
-              <p className="text-gray-500 italic">No handled requests yet.</p>
-            ) : (
-              <ul className="space-y-4">
-                {history.map((r) => (
-                  <li key={r.id} className="bg-white p-4 rounded shadow flex flex-col gap-1">
-                    <div><strong>From:</strong> {r.currentEmail}</div>
-                    <div><strong>Requested:</strong> {r.requestedUsername}</div>
-                    <div className="text-sm italic text-gray-600">
-                      <span
-                        className={`inline-block px-2 py-0.5 rounded text-white ${
-                          r.status === 'approved' ? 'bg-green-600' : 'bg-red-500'
-                        }`}
-                      >
-                        {r.status.toUpperCase()}
-                      </span>{' '}
-                      by {r.handledBy || 'Unknown'} on{' '}
-                      {new Date(r.handledAt).toLocaleString()}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-        </>
+        <ul className="space-y-4 max-w-xl mx-auto">
+          {requests.map((r) => (
+            <li key={r.id} className="bg-white shadow rounded-xl p-4 border border-purple-200">
+              <p className="text-sm mb-1">
+                <span className="font-semibold text-purple-700">{r.oldUsername || '(none)'}</span>
+                {' → '}
+                <span className="font-semibold text-green-600">{r.newUsername}</span>
+              </p>
+              <p className="text-xs text-gray-500 mb-2 italic">{r.reason}</p>
+              <div className="flex gap-2 justify-end">
+                <button
+                  onClick={() => handleReject(r)}
+                  className="px-3 py-1 rounded bg-gray-200 hover:bg-gray-300 text-sm"
+                >
+                  Reject
+                </button>
+                <button
+                  onClick={() => handleApprove(r)}
+                  className="px-3 py-1 rounded bg-purple-600 hover:bg-purple-700 text-white text-sm"
+                >
+                  Approve
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   );
