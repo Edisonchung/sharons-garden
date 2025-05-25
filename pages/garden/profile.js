@@ -13,8 +13,7 @@ import {
   where,
   collection,
   getDocs,
-  orderBy,
-  addDoc
+  addDoc,
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import toast from 'react-hot-toast';
@@ -43,6 +42,7 @@ export default function ProfilePage() {
         setUser(currentUser);
         setEmail(currentUser.email);
         setPhotoURL(currentUser.photoURL || '');
+
         try {
           const userDoc = doc(db, 'users', currentUser.uid);
           const snap = await getDoc(userDoc);
@@ -50,7 +50,6 @@ export default function ProfilePage() {
             const data = snap.data();
             setNotify(data.notify ?? true);
             setUsername(data.username || '');
-            if (data.photoURL) setPhotoURL(data.photoURL);
           }
 
           const wateringQuery = query(
@@ -112,6 +111,7 @@ export default function ProfilePage() {
   const handleFileChange = async (e) => {
     const file = e.target.files[0];
     if (!file || !user) return;
+
     try {
       const fileRef = ref(storage, `avatars/${user.uid}`);
       await uploadBytes(fileRef, file);
@@ -121,9 +121,7 @@ export default function ProfilePage() {
       await setDoc(doc(db, 'users', user.uid), { photoURL: downloadURL }, { merge: true });
 
       await auth.currentUser.reload();
-      const updatedUser = auth.currentUser;
-
-      setPhotoURL(updatedUser.photoURL || downloadURL);
+      setPhotoURL(auth.currentUser.photoURL);
       toast.success('Profile picture updated!');
     } catch (err) {
       console.error(err);
@@ -132,10 +130,12 @@ export default function ProfilePage() {
   };
 
   const handleUsernameRequest = async () => {
-    const reason = prompt('Enter a reason for your username change request:');
     const newUsername = prompt('Enter your desired new username:');
+    const reason = prompt('Why do you want to change your username?');
 
-    if (!reason || !newUsername) return toast.error('Please provide both reason and new username.');
+    if (!newUsername || !reason) {
+      return toast.error('Username and reason are required.');
+    }
 
     try {
       await addDoc(collection(db, 'usernameRequests'), {
@@ -145,7 +145,7 @@ export default function ProfilePage() {
         reason,
         timestamp: new Date()
       });
-      toast.success('Request submitted!');
+      toast.success('Request submitted for review!');
     } catch (err) {
       console.error(err);
       toast.error('Failed to submit request');
@@ -165,6 +165,7 @@ export default function ProfilePage() {
       <Card ref={cardRef} className="bg-white w-full max-w-md shadow-xl rounded-2xl p-6 text-center">
         <CardContent>
           <h1 className="text-2xl font-bold text-purple-700 mb-4">👤 Profile</h1>
+
           {photoURL && (
             <img
               src={photoURL}
@@ -173,6 +174,7 @@ export default function ProfilePage() {
               className="w-24 h-24 mx-auto rounded-full mb-2 object-cover"
             />
           )}
+
           <input
             type="file"
             ref={fileInputRef}
@@ -180,13 +182,16 @@ export default function ProfilePage() {
             accept="image/*"
             className="mb-4"
           />
+
           <p className="text-gray-600 mb-1">Signed in as:<br />
             <span className="font-mono">{email}</span>
           </p>
+
           <p className="text-sm text-gray-500 mb-2">
             Username: <span className="font-semibold text-purple-700">{username || 'Not set'}</span>
           </p>
-          <Button variant="outline" onClick={handleUsernameRequest} className="mb-4">✏️ Request Username Change</Button>
+
+          <Button onClick={handleUsernameRequest} variant="outline" className="mb-4">✏️ Request Username Change</Button>
 
           <div className="flex items-center justify-center gap-4 mb-4">
             <span className="text-sm">🔔 Daily Reminder:</span>
