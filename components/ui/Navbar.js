@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { Button } from './button';
 import { auth, googleProvider, db } from '../../lib/firebase';
 import {
@@ -15,7 +16,7 @@ import {
   getDoc,
   setDoc,
 } from 'firebase/firestore';
-import Link from 'next/link';
+import { useNotificationCount } from '../../hooks/useOptimizedFirebase';
 
 export default function Navbar() {
   const [user, setUser] = useState(null);
@@ -25,6 +26,9 @@ export default function Navbar() {
   const [publicMenuSeen, setPublicMenuSeen] = useState(false);
   const [showCommunity, setShowCommunity] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  
+  // NEW: Get notification count
+  const unreadNotifications = useNotificationCount();
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -100,6 +104,22 @@ export default function Navbar() {
         </button>
       </div>
 
+      {/* NEW: Notification Bell - Fixed Position */}
+      {user && (
+        <div className="fixed top-4 right-4 z-50">
+          <Link href="/notifications">
+            <button className="bg-white text-purple-600 p-2 rounded-full shadow-lg hover:shadow-xl transition-all relative border border-purple-200">
+              <span className="text-xl">🔔</span>
+              {unreadNotifications > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center animate-pulse">
+                  {unreadNotifications > 9 ? '9+' : unreadNotifications}
+                </span>
+              )}
+            </button>
+          </Link>
+        </div>
+      )}
+
       {sidebarOpen && (
         <div
           className="fixed inset-0 bg-black bg-opacity-40 z-30"
@@ -133,6 +153,18 @@ export default function Navbar() {
                 title="Some seeds need watering"
               >
                 !
+              </span>
+            )}
+          </div>
+
+          {/* NEW: Notifications Link */}
+          <div className="relative">
+            <Link href="/notifications" className="text-purple-700 dark:text-white hover:underline">
+              🔔 Notifications
+            </Link>
+            {unreadNotifications > 0 && (
+              <span className="absolute -top-1 -right-3 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center animate-pulse">
+                {unreadNotifications > 9 ? '9+' : unreadNotifications}
               </span>
             )}
           </div>
