@@ -1,3 +1,4 @@
+// pages/garden/my.js - Latest Version with Enhanced Features
 import { useEffect, useRef, useState } from 'react';
 import { auth, db } from '../../lib/firebase';
 import {
@@ -17,6 +18,11 @@ import { Button } from '../../components/ui/button';
 import { Card, CardContent } from '../../components/ui/card';
 import WateringHistoryModal from '../../components/WateringHistoryModal';
 import SurpriseDrawModal from '../../components/SurpriseDrawModal';
+import EnhancedFlowerCard from '../../components/EnhancedFlowerCard';
+import BloomAnimation from '../../components/BloomAnimation';
+import { NotificationManager } from '../../components/NotificationSystem';
+import { FLOWER_DATABASE } from '../../hooks/useSeedTypes';
+import toast from 'react-hot-toast';
 
 const STREAK_REWARDS = [
   { day: 3, reward: 'Sticker Pack', description: '3-Day Watering Champion 🎖️' },
@@ -35,10 +41,20 @@ export default function MyGardenPage() {
   const [streakCount, setStreakCount] = useState(0);
   const [rewardToShow, setRewardToShow] = useState(null);
   const audioRef = useRef(null);
+  
+  // Enhanced features state
+  const [showBloomAnimation, setShowBloomAnimation] = useState(false);
+  const [bloomingFlower, setBloomingFlower] = useState(null);
+  const [showFlowerCard, setShowFlowerCard] = useState(null);
+  const [isWatering, setIsWatering] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      if (currentUser) setUser(currentUser);
+      if (currentUser) {
+        setUser(currentUser);
+      } else {
+        window.location.href = '/auth';
+      }
     });
     return () => unsubscribe();
   }, []);
@@ -89,42 +105,95 @@ export default function MyGardenPage() {
   }, [user]);
 
   const handleWater = async (seed) => {
+    if (isWatering) return;
+    
     const today = new Date().toDateString();
     const lastKey = `lastWatered_${seed.id}`;
     const last = localStorage.getItem(lastKey);
 
     if (last && new Date(last).toDateString() === today) {
-      alert('💧 Already watered today!');
+      toast.error('💧 Already watered today! Come back tomorrow 🌙');
       return;
     }
 
-    const ref = doc(db, 'flowers', seed.id);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) return;
+    setIsWatering(true);
 
-    const data = snap.data();
-    const newCount = (data.waterCount || 0) + 1;
-    const bloomed = newCount >= 7;
+    try {
+      const ref = doc(db, 'flowers', seed.id);
+      const snap = await getDoc(ref);
+      if (!snap.exists()) return;
 
-    await updateDoc(ref, {
-      waterCount: newCount,
-      bloomed,
-      bloomedFlower: bloomed ? data.bloomedFlower || '🌸' : null,
-      lastWatered: new Date().toISOString()
-    });
+      const data = snap.data();
+      const newCount = (data.waterCount || 0) + 1;
+      const bloomed = newCount >= 7;
+      
+      // Get flower data if blooming
+      let flowerData = null;
+      let flowerEmoji = data.bloomedFlower || '🌸';
+      
+      if (bloomed && !data.bloomed && data.seedTypeData) {
+        const possibleFlowers = data.seedTypeData.flowerTypes || [];
+        const randomFlower = possibleFlowers[Math.floor(Math.random() * possibleFlowers.length)];
+        flowerData = FLOWER_DATABASE[randomFlower] || {};
+        flowerEmoji = flowerData.emoji || '🌸';
+      }
 
-    await addDoc(collection(db, 'waterings'), {
-      seedId: seed.id,
-      userId: user.uid,
-      fromUsername: user.displayName || user.email || 'Anonymous',
-      timestamp: serverTimestamp(),
-    });
+      const updateData = {
+        waterCount: newCount,
+        lastWatered: new Date().toISOString(),
+        lastWateredBy: user.displayName || user.email || 'Anonymous'
+      };
+      
+      if (bloomed && !data.bloomed) {
+        updateData.bloomed = true;
+        updateData.bloomedFlower = flowerEmoji;
+        updateData.bloomTime = serverTimestamp();
+        updateData.bloomedBy = user.displayName || user.email;
+        
+        if (flowerData) {
+          updateData.flowerName = flowerData.name || data.type;
+          updateData.flowerLanguage = flowerData.flowerLanguage;
+          updateData.sharonMessage = flowerData.sharonMessage;
+        }
+      }
 
-    localStorage.setItem(lastKey, new Date().toISOString());
+      await updateDoc(ref, updateData);
 
-    if (bloomed && !data.bloomed) {
-      setShowDraw(true);
-      if (audioOn && audioRef.current) audioRef.current.play();
+      await addDoc(collection(db, 'waterings'), {
+        seedId: seed.id,
+        userId: user.uid,
+        fromUsername: user.displayName || user.email || 'Anonymous',
+        timestamp: serverTimestamp(),
+      });
+
+      localStorage.setItem(lastKey, new Date().toISOString());
+
+      if (bloomed && !data.bloomed) {
+        // Show bloom animation
+        setBloomingFlower({
+          ...seed,
+          ...updateData,
+          ...flowerData,
+          emoji: flowerEmoji
+        });
+        setShowBloomAnimation(true);
+        
+        // Create notification
+        await NotificationManager.seedBloomedNotification(
+          user.uid,
+          data.type,
+          flowerEmoji
+        );
+        
+        if (audioOn && audioRef.current) audioRef.current.play();
+      } else {
+        toast.success(`💧 Watered successfully! ${newCount}/7 waters`);
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to water this flower.');
+    } finally {
+      setIsWatering(false);
     }
   };
 
@@ -133,41 +202,221 @@ export default function MyGardenPage() {
     setShowHistory(true);
   };
 
+  const handleShare = (seed) => {
+    const shareUrl = process.env.NEXT_PUBLIC_SHARE_BASE_URL || window.location.origin;
+    const url = `${shareUrl}/flower/${seed.id}`;
+    navigator.clipboard.writeText(url);
+    toast.success('📋 Share link copied! Send it to friends so they can help water your seed! 💧');
+  };
+
+  const handleBloomComplete = () => {
+    setShowBloomAnimation(false);
+    setShowFlowerCard(bloomingFlower);
+    setBloomingFlower(null);
+  };
+
+  const canWaterToday = (seedId) => {
+    const today = new Date().toDateString();
+    const lastKey = `lastWatered_${seedId}`;
+    const last = localStorage.getItem(lastKey);
+    
+    return !last || new Date(last).toDateString() !== today;
+  };
+
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-pink-100 to-purple-200">
+        <p className="text-purple-700">Loading your garden...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-pink-100 to-purple-200 p-6 relative">
       <audio ref={audioRef} src="/audio/bloom.mp3" preload="auto" />
-      <h1 className="text-3xl font-bold text-purple-700 mb-4">🌱 My Garden</h1>
+      
+      {/* Header */}
+      <div className="text-center mb-6">
+        <h1 className="text-3xl font-bold text-purple-700 mb-2">🌱 My Garden</h1>
+        <p className="text-gray-600">Welcome back, {user.displayName || 'Gardener'}!</p>
+      </div>
 
-      <div className="flex items-center justify-between mb-4">
-        <p className="text-gray-700">🌸 Blooms: {bloomCount} • 🔥 Streak: {streakCount} days</p>
-        <Button onClick={() => setAudioOn(!audioOn)} variant="outline">
+      {/* Stats Bar */}
+      <div className="flex items-center justify-center gap-4 mb-6 flex-wrap">
+        <div className="bg-white px-4 py-2 rounded-full shadow">
+          🌸 Blooms: <strong>{bloomCount}</strong>
+        </div>
+        <div className="bg-white px-4 py-2 rounded-full shadow">
+          🔥 Streak: <strong>{streakCount}</strong> days
+        </div>
+        <Button 
+          onClick={() => setAudioOn(!audioOn)} 
+          variant="outline"
+          className="rounded-full"
+        >
           {audioOn ? '🔊 Sound On' : '🔇 Sound Off'}
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-        {seeds.map(seed => (
-          <Card key={seed.id} className="bg-white shadow-xl rounded-xl p-4 relative">
-            <CardContent>
-              <h3 className={`text-xl font-semibold ${seed.bloomed ? 'animate-bounce text-green-700' : 'text-purple-700'}`}>
-                {seed.bloomed ? `${seed.bloomedFlower} ${seed.type}` : '🌱 Seedling'}
-              </h3>
-              <p className="text-sm text-gray-600 italic">— {seed.name || 'Anonymous'} | {seed.color}</p>
-              {seed.note && <p className="text-sm text-gray-500 mt-1">“{seed.note}”</p>}
-              <p className="text-sm text-gray-500 mt-2">Watered {seed.waterCount} / 7 times</p>
-              <div className="mt-2 flex flex-col gap-2">
-                {!seed.bloomed ? (
-                  <Button onClick={() => handleWater(seed)}>💧 Water</Button>
-                ) : (
-                  <p className="text-green-600 font-medium">Bloomed! 🌟</p>
+      {/* Seeds Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 max-w-6xl mx-auto">
+        {seeds.map(seed => {
+          const canWater = canWaterToday(seed.id);
+          const seedType = seed.seedTypeData || {};
+          
+          return (
+            <Card 
+              key={seed.id} 
+              className={`bg-white shadow-xl rounded-xl p-4 relative transition-all hover:shadow-2xl ${
+                seed.bloomed ? 'ring-2 ring-green-400' : ''
+              }`}
+            >
+              <CardContent className="p-0">
+                {/* Special Badge */}
+                {seed.songSeed && (
+                  <div className="absolute -top-2 -right-2 bg-indigo-500 text-white text-xs px-2 py-1 rounded-full">
+                    ✨ Special
+                  </div>
                 )}
-                <Button onClick={() => handleViewHistory(seed)} variant="outline">📜 View History</Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+                
+                {/* Flower/Seed Display */}
+                <div className="text-center mb-3">
+                  <div className={`text-5xl mb-2 ${seed.bloomed ? 'animate-pulse' : ''}`}>
+                    {seed.bloomed ? seed.bloomedFlower : seed.songSeed ? '🎵' : seedType.emoji || '🌱'}
+                  </div>
+                  
+                  <h3 className={`text-lg font-semibold ${
+                    seed.bloomed ? 'text-green-700' : 
+                    seed.songSeed ? 'text-indigo-700' : 
+                    'text-purple-700'
+                  }`}>
+                    {seed.bloomed ? 
+                      (seed.flowerName || `${seed.type} Bloom`) : 
+                      `${seed.type} Seed`
+                    }
+                  </h3>
+                  
+                  <p className="text-xs text-gray-500">
+                    by {seed.name || 'Anonymous'}
+                  </p>
+                  
+                  {seedType.name && (
+                    <p className="text-xs text-gray-400 mt-1">
+                      {seedType.name}
+                    </p>
+                  )}
+                </div>
+                
+                {/* Note */}
+                {seed.note && (
+                  <p className="text-sm text-gray-600 italic mb-3 px-2">
+                    "{seed.note}"
+                  </p>
+                )}
+                
+                {/* Water Progress */}
+                {!seed.bloomed && (
+                  <div className="mb-3">
+                    <div className="w-full bg-gray-200 rounded-full h-2.5">
+                      <div 
+                        className={`h-2.5 rounded-full transition-all ${
+                          seed.songSeed ? 'bg-indigo-400' : 'bg-blue-400'
+                        }`}
+                        style={{ width: `${((seed.waterCount || 0) / 7) * 100}%` }}
+                      />
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1 text-center">
+                      {seed.waterCount || 0} / 7 waters
+                    </p>
+                  </div>
+                )}
+                
+                {/* Bloom Info */}
+                {seed.bloomed && seed.flowerLanguage && (
+                  <div className="bg-purple-50 p-2 rounded-lg mb-3">
+                    <p className="text-xs text-purple-700 italic text-center">
+                      "{seed.flowerLanguage}"
+                    </p>
+                  </div>
+                )}
+                
+                {/* Action Buttons */}
+                <div className="space-y-2">
+                  {!seed.bloomed ? (
+                    <Button 
+                      onClick={() => handleWater(seed)}
+                      disabled={isWatering || !canWater}
+                      className="w-full"
+                      variant={canWater ? 'default' : 'outline'}
+                    >
+                      {isWatering ? '💧 Watering...' : 
+                       canWater ? '💧 Water' : '⏳ Watered today'}
+                    </Button>
+                  ) : (
+                    <>
+                      <div className="text-center p-2 bg-green-50 rounded-lg">
+                        <p className="text-green-600 font-medium">🌸 Bloomed!</p>
+                        {seed.bloomTime && (
+                          <p className="text-xs text-green-500">
+                            {new Date(seed.bloomTime?.toDate?.() || seed.bloomTime).toLocaleDateString()}
+                          </p>
+                        )}
+                      </div>
+                      <Button 
+                        onClick={() => setShowFlowerCard(seed)}
+                        className="w-full"
+                        variant="outline"
+                      >
+                        📸 View & Share
+                      </Button>
+                    </>
+                  )}
+                  
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button 
+                      onClick={() => handleViewHistory(seed)} 
+                      variant="outline" 
+                      className="text-xs"
+                    >
+                      📜 History
+                    </Button>
+                    <Button 
+                      onClick={() => handleShare(seed)} 
+                      variant="outline" 
+                      className="text-xs"
+                    >
+                      🔗 Share
+                    </Button>
+                  </div>
+                </div>
+                
+                {/* Special Seed Info */}
+                {seed.songSeed && (
+                  <div className="mt-2 text-center">
+                    <p className="text-xs text-indigo-600">
+                      🎵 Blooms on song launch day!
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
 
+      {/* Empty State */}
+      {seeds.length === 0 && (
+        <div className="text-center py-12">
+          <div className="text-6xl mb-4">🌱</div>
+          <h2 className="text-2xl font-bold text-purple-700 mb-2">No seeds yet!</h2>
+          <p className="text-gray-600 mb-4">Go to the main garden to plant your first seed.</p>
+          <Button onClick={() => window.location.href = '/'}>
+            🌸 Visit Main Garden
+          </Button>
+        </div>
+      )}
+
+      {/* Watering History Modal */}
       {showHistory && selectedSeed && (
         <WateringHistoryModal
           seedId={selectedSeed.id}
@@ -176,12 +425,35 @@ export default function MyGardenPage() {
         />
       )}
 
+      {/* Surprise Draw Modal */}
       {showDraw && rewardToShow && (
         <SurpriseDrawModal
           isOpen={showDraw}
           onClose={() => setShowDraw(false)}
-          seedType={rewardToShow.seedType}
-          rewardLabel={rewardToShow.reward}
+          reward={rewardToShow}
+        />
+      )}
+      
+      {/* Bloom Animation */}
+      {showBloomAnimation && bloomingFlower && (
+        <BloomAnimation
+          flower={bloomingFlower}
+          seedType={bloomingFlower.seedTypeData}
+          onComplete={handleBloomComplete}
+          userName={user?.displayName || 'Gardener'}
+          personalMessage={bloomingFlower.note}
+        />
+      )}
+      
+      {/* Enhanced Flower Card */}
+      {showFlowerCard && (
+        <EnhancedFlowerCard
+          flower={showFlowerCard}
+          seedType={showFlowerCard.seedTypeData}
+          userName={user?.displayName || 'Gardener'}
+          personalMessage={showFlowerCard.note}
+          isOpen={true}
+          onClose={() => setShowFlowerCard(null)}
         />
       )}
     </div>
