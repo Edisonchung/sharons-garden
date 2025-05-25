@@ -93,9 +93,33 @@ export default function ProfilePage() {
   };
 
   const handleDownload = async () => {
-    if (!cardRef.current || !isClient) {
-      console.log('Download failed: cardRef or isClient not ready');
-      toast.error('Download not ready. Please try again.');
+    console.log('Download clicked - checking refs...', { 
+      cardRef: cardRef.current, 
+      isClient 
+    });
+
+    if (!isClient) {
+      console.log('Client not ready yet');
+      toast.error('Page not fully loaded. Please try again.');
+      return;
+    }
+
+    if (!cardRef.current) {
+      console.log('Card ref not found, searching for element...');
+      // Try to find the card element directly
+      const cardElement = document.querySelector('[data-download-card]');
+      if (!cardElement) {
+        console.log('No card element found');
+        toast.error('Profile card not found. Please refresh the page.');
+        return;
+      }
+      console.log('Found card element directly:', cardElement);
+    }
+
+    const elementToCapture = cardRef.current || document.querySelector('[data-download-card]');
+    
+    if (!elementToCapture) {
+      toast.error('Could not find profile card to download');
       return;
     }
 
@@ -103,31 +127,44 @@ export default function ProfilePage() {
       setDownloading(true);
       console.log('Starting download process...');
       
-      // Import html2canvas dynamically to avoid SSR issues
+      // Import html2canvas dynamically
       const html2canvas = (await import('html2canvas')).default;
       
-      console.log('Capturing canvas...');
-      const canvas = await html2canvas(cardRef.current, {
+      console.log('Capturing element...', elementToCapture);
+      
+      // Wait a moment for any animations to settle
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      const canvas = await html2canvas(elementToCapture, {
         backgroundColor: '#ffffff',
         scale: 2,
         useCORS: true,
-        allowTaint: true
+        allowTaint: true,
+        logging: true, // Enable logging for debugging
+        width: elementToCapture.offsetWidth,
+        height: elementToCapture.offsetHeight
       });
       
-      console.log('Creating download link...');
-      const link = document.createElement('a');
-      link.download = 'sharon-garden-profile-card.png';
-      link.href = canvas.toDataURL('image/png');
+      console.log('Canvas created:', { 
+        width: canvas.width, 
+        height: canvas.height 
+      });
       
-      // Trigger download
+      // Create and trigger download
+      const link = document.createElement('a');
+      link.download = `sharon-garden-profile-${Date.now()}.png`;
+      link.href = canvas.toDataURL('image/png', 1.0);
+      
+      // Add to DOM, click, then remove
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       
-      toast.success('Profile card downloaded!');
-      console.log('Download completed successfully');
+      toast.success('Profile card downloaded successfully!');
+      console.log('Download completed');
+      
     } catch (err) {
-      console.error('Download error details:', err);
+      console.error('Download error:', err);
       toast.error('Download failed: ' + (err.message || 'Unknown error'));
     } finally {
       setDownloading(false);
@@ -244,7 +281,11 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-pink-100 to-purple-200 p-6">
-      <Card ref={cardRef} className="bg-white w-full max-w-md shadow-xl rounded-2xl p-6 text-center">
+      <Card 
+        ref={cardRef} 
+        data-download-card="true"
+        className="bg-white w-full max-w-md shadow-xl rounded-2xl p-6 text-center"
+      >
         <CardContent>
           <h1 className="text-2xl font-bold text-purple-700 mb-4">👤 Profile</h1>
 
