@@ -3,7 +3,7 @@ import { useRouter } from 'next/router';
 import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import UsernameChangeModal from '../../components/UsernameChangeModal';
-import html2canvas from 'html2canvas';
+// Remove the html2canvas import - we'll import it dynamically
 import { auth, db, storage } from '../../lib/firebase';
 import { onAuthStateChanged, updateProfile } from 'firebase/auth';
 import {
@@ -94,17 +94,42 @@ export default function ProfilePage() {
   };
 
   const handleDownload = async () => {
-    if (!cardRef.current || !isClient) return;
+    if (!cardRef.current || !isClient) {
+      console.log('Download failed: cardRef or isClient not ready');
+      toast.error('Download not ready. Please try again.');
+      return;
+    }
+
     try {
       setDownloading(true);
-      const canvas = await html2canvas(cardRef.current);
+      console.log('Starting download process...'); // Debug log
+      
+      // Import html2canvas dynamically to avoid SSR issues
+      const html2canvas = (await import('html2canvas')).default;
+      
+      console.log('Capturing canvas...'); // Debug log
+      const canvas = await html2canvas(cardRef.current, {
+        backgroundColor: '#ffffff',
+        scale: 2, // Higher quality
+        useCORS: true,
+        allowTaint: true
+      });
+      
+      console.log('Creating download link...'); // Debug log
       const link = document.createElement('a');
-      link.download = 'profile-card.png';
-      link.href = canvas.toDataURL();
+      link.download = 'sharon-garden-profile-card.png';
+      link.href = canvas.toDataURL('image/png');
+      
+      // Trigger download
+      document.body.appendChild(link);
       link.click();
+      document.body.removeChild(link);
+      
+      toast.success('Profile card downloaded!');
+      console.log('Download completed successfully'); // Debug log
     } catch (err) {
-      console.error(err);
-      toast.error('Failed to download.');
+      console.error('Download error details:', err);
+      toast.error('Download failed: ' + (err.message || 'Unknown error'));
     } finally {
       setDownloading(false);
     }
@@ -113,6 +138,8 @@ export default function ProfilePage() {
   const handleFileChange = async (e) => {
     const file = e.target.files[0];
     if (!file || !user) return;
+
+    console.log('Starting upload process...'); // Debug log
 
     // Validate file type
     if (!file.type.startsWith('image/')) {
@@ -129,24 +156,33 @@ export default function ProfilePage() {
     setUploading(true);
 
     try {
+      console.log('Uploading to Firebase Storage...'); // Debug log
       const fileRef = ref(storage, `avatars/${user.uid}.jpg`);
-      await uploadBytes(fileRef, file);
+      const uploadResult = await uploadBytes(fileRef, file);
+      console.log('Upload complete, getting download URL...'); // Debug log
+      
       const downloadURL = await getDownloadURL(fileRef);
+      console.log('Download URL received:', downloadURL); // Debug log
 
       // Update Firebase Auth profile
+      console.log('Updating Firebase Auth profile...'); // Debug log
       await updateProfile(auth.currentUser, { photoURL: downloadURL });
       
       // Update Firestore user document
+      console.log('Updating Firestore document...'); // Debug log
       await setDoc(doc(db, 'users', user.uid), { photoURL: downloadURL }, { merge: true });
 
       // ✅ Update local state immediately
+      console.log('Updating local state...'); // Debug log
       setPhotoURL(downloadURL);
       
-      toast.success('Profile picture updated!');
+      toast.success('Profile picture updated successfully!');
+      console.log('Upload process completed successfully'); // Debug log
     } catch (err) {
-      console.error('Upload error:', err);
-      toast.error('Upload failed: ' + err.message);
+      console.error('Upload error details:', err);
+      toast.error('Upload failed: ' + (err.message || 'Unknown error'));
     } finally {
+      console.log('Cleaning up upload state...'); // Debug log
       setUploading(false);
       // Clear the file input
       if (fileInputRef.current) {
@@ -212,7 +248,7 @@ export default function ProfilePage() {
             >
               {uploading ? 'Uploading...' : '📷 Change Profile Picture'}
             </Button>
-            {photoURL && (
+            {photoURL && !uploading && (
               <p className="text-xs text-gray-500">Current picture loaded successfully</p>
             )}
           </div>
@@ -242,7 +278,11 @@ export default function ProfilePage() {
 
           <p className="text-sm text-green-600">🌱 You helped {helpedBloomCount} flower{helpedBloomCount !== 1 && 's'} bloom</p>
 
-          <Button onClick={handleDownload} disabled={downloading} className="w-full mt-4">
+          <Button 
+            onClick={handleDownload} 
+            disabled={downloading} 
+            className="w-full mt-4"
+          >
             {downloading ? '📥 Downloading...' : '📥 Download Profile Card'}
           </Button>
         </CardContent>
