@@ -1,5 +1,6 @@
 // components/LaunchErrorBoundary.js - Robust Error Handling for Launch Day
-import React from 'react';
+//import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
 
