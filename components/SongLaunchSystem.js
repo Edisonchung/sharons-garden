@@ -109,6 +109,19 @@ export function SongLaunchAnnouncement({ isOpen, onClose, onClaimSeed }) {
         melodySeedClaimedAt: new Date().toISOString()
       });
 
+      // NEW: Create notification for claiming special seed
+      const { NotificationManager } = await import('./NotificationSystem');
+      await NotificationManager.createNotification(
+        auth.currentUser.uid,
+        'SONG_LAUNCH',
+        '🎵 Melody Seed Claimed!',
+        'Your exclusive First Song seed is now growing in your garden. Water it daily until May 30th!',
+        {
+          actionUrl: '/garden/my',
+          actionText: 'View Garden'
+        }
+      );
+
       setAlreadyClaimed(true);
       onClaimSeed({ ...specialSeed, id: docRef.id });
       toast.success('🎵 Melody Seed claimed! Check your garden!');
@@ -343,6 +356,17 @@ export default function SongLaunchManager({ onSeedClaimed, children }) {
       
       return () => clearTimeout(timer);
     }
+
+    // DEVELOPER TESTING: Add keyboard shortcut to force show modal
+    const handleKeyPress = (e) => {
+      if (e.ctrlKey && e.shiftKey && e.key === 'S') {
+        console.log('🎵 Developer override: Forcing song modal');
+        setShowModal(true);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
   }, [shouldShowAnnouncement]);
 
   const handleClaimSeed = (seedData) => {
