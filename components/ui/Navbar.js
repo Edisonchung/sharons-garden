@@ -163,7 +163,7 @@ export default function Navbar() {
           </div>
 
           {isAdmin && (
-            <Link href="/garden/username-requests" className="text-purple-700 dark:text-white hover:underline">
+            <Link href="/admin/username-requests" className="text-purple-700 dark:text-white hover:underline">
               🛠 Admin Panel
             </Link>
           )}
