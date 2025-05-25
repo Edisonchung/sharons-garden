@@ -1,9 +1,10 @@
-// pages/index.js - SIMPLIFIED WORKING VERSION
+// pages/index.js - WITH FIREBASE OPTIMIZATION
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
 import SeedTypeSelection from '../components/SeedTypeSelection';
+import { useOptimizedSnapshot } from '../hooks/useOptimizedFirebase'; // NEW: Optimized Firebase
 import { auth, db } from '../lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import {
@@ -12,7 +13,6 @@ import {
   doc,
   getDoc,
   updateDoc,
-  onSnapshot,
   query,
   where,
 } from 'firebase/firestore';
@@ -41,16 +41,20 @@ export default function SharonsGarden() {
   const [isWatering, setIsWatering] = useState(false);
   
   // Garden state
-  const [planted, setPlanted] = useState([]);
   const [unlockedSlots, setUnlockedSlots] = useState(1);
+
+  // NEW: Optimized Firebase query with caching
+  const { data: planted, loading } = useOptimizedSnapshot(
+    `user-flowers-${user?.uid}`,
+    user ? query(collection(db, 'flowers'), where('userId', '==', user.uid)) : null,
+    { cacheDuration: 8000 } // 8 second cache
+  );
 
   useEffect(() => {
     setIsClient(true);
   }, []);
 
   useEffect(() => {
-    let unsubscribeSnapshot = null;
-    
     const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
       if (!currentUser) {
         router.push('/auth');
@@ -66,24 +70,13 @@ export default function SharonsGarden() {
             const userData = userSnap.data();
             setUnlockedSlots(userData.unlockedSlots || 1);
           }
-          
-          // Set up flowers listener
-          const q = query(collection(db, 'flowers'), where('userId', '==', currentUser.uid));
-          unsubscribeSnapshot = onSnapshot(q, (snapshot) => {
-            const flowers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            setPlanted(flowers);
-          });
-          
         } catch (error) {
-          console.error('Error loading data:', error);
+          console.error('Error loading user settings:', error);
         }
       }
     });
     
-    return () => {
-      unsubscribeAuth();
-      if (unsubscribeSnapshot) unsubscribeSnapshot();
-    };
+    return () => unsubscribeAuth();
   }, [router]);
 
   const handlePlant = async () => {
@@ -129,6 +122,7 @@ export default function SharonsGarden() {
     }
   };
 
+  // NEW: Improved watering with better error handling
   const handleWater = async (seed) => {
     if (!user || isWatering) return;
 
@@ -138,7 +132,7 @@ export default function SharonsGarden() {
     const lastWater = localStorage.getItem(lastWaterKey);
     
     if (lastWater && new Date(lastWater).toDateString() === today) {
-      toast.error("You've already watered this seed today! 💧");
+      toast.error("You've already watered this seed today! Come back tomorrow 🌙");
       return;
     }
 
@@ -154,6 +148,13 @@ export default function SharonsGarden() {
       }
 
       const data = docSnap.data();
+      
+      // Prevent over-watering
+      if (data.bloomed) {
+        toast.error('This seed has already bloomed! 🌸');
+        return;
+      }
+
       const newCount = (data.waterCount || 0) + 1;
       const bloomed = newCount >= 7;
       const flowerIcon = seedTypes.find(s => s.type === data.type)?.flower || '🌸';
@@ -162,20 +163,21 @@ export default function SharonsGarden() {
         waterCount: newCount,
         bloomed,
         bloomedFlower: bloomed ? flowerIcon : null,
-        lastWatered: new Date().toISOString()
+        lastWatered: new Date().toISOString(),
+        lastWateredBy: user.displayName || 'Anonymous'
       });
 
       localStorage.setItem(lastWaterKey, new Date().toISOString());
       
       if (bloomed && !data.bloomed) {
-        toast.success('🌸 Your flower bloomed!');
+        toast.success(`🌸 Your ${data.type} seed bloomed into a beautiful ${flowerIcon}!`);
       } else {
-        toast.success(`💧 Watered! ${newCount}/7`);
+        toast.success(`💧 Watered successfully! ${newCount}/7 waters`);
       }
 
     } catch (error) {
       console.error('Watering error:', error);
-      toast.error('Failed to water seed');
+      toast.error('Failed to water seed. Please try again.');
     } finally {
       setIsWatering(false);
     }
@@ -186,7 +188,7 @@ export default function SharonsGarden() {
     
     const url = `${window.location.origin}/flower/${id}`;
     navigator.clipboard.writeText(url);
-    toast.success('📋 Share link copied!');
+    toast.success('📋 Share link copied! Send it to friends so they can help water your seed! 💧');
   };
 
   const handleSeedTypeSelected = (seedType) => {
@@ -210,6 +212,18 @@ export default function SharonsGarden() {
         <div className="text-center">
           <div className="text-6xl animate-bounce mb-4">🌸</div>
           <p className="text-purple-700 text-xl">Loading Sharon's Garden...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // NEW: Better loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-pink-100 to-purple-200">
+        <div className="text-center">
+          <div className="text-4xl animate-pulse mb-4">🌱</div>
+          <p className="text-purple-700">Loading your garden...</p>
         </div>
       </div>
     );
@@ -263,7 +277,7 @@ export default function SharonsGarden() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder={user?.displayName || "Anonymous gardener"}
-                className="w-full border border-gray-300 rounded px-3 py-2"
+                className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                 maxLength={30}
               />
             </div>
@@ -276,7 +290,7 @@ export default function SharonsGarden() {
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 placeholder="Share your feelings, a memory, or what you hope for..."
-                className="w-full border border-gray-300 rounded px-3 py-2"
+                className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                 rows={3}
                 maxLength={200}
               />
@@ -306,7 +320,7 @@ export default function SharonsGarden() {
               ) : (
                 <button
                   onClick={() => setShowSeedSelection(true)}
-                  className="w-full border-2 border-dashed border-purple-300 rounded-lg p-4 text-purple-600 hover:border-purple-500 hover:bg-purple-50"
+                  className="w-full border-2 border-dashed border-purple-300 rounded-lg p-4 text-purple-600 hover:border-purple-500 hover:bg-purple-50 transition-colors"
                 >
                   ✨ Choose Your Emotional Seed Type
                 </button>
@@ -402,6 +416,9 @@ export default function SharonsGarden() {
                     ) : (
                       <div className="text-green-600 font-medium">
                         <p>🌸 Bloomed!</p>
+                        {seed.specialSeed && (
+                          <p className="text-xs text-purple-600">✨ Special</p>
+                        )}
                       </div>
                     )}
                     
