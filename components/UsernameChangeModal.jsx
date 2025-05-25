@@ -1,54 +1,63 @@
-// components/UsernameChangeModal.jsx
-import { Dialog } from '@headlessui/react';
 import { useState } from 'react';
-import { Button } from './ui/button';
-import { Textarea } from './ui/textarea';
+import { Dialog } from '@headlessui/react';
+import { auth, db } from '../lib/firebase';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 
-export default function UsernameChangeModal({ isOpen, onClose, onSubmit }) {
-  const [reason, setReason] = useState('');
+export default function UsernameChangeModal({ isOpen, onClose }) {
+  const [requestedUsername, setRequestedUsername] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async () => {
-    if (!reason.trim()) {
-      toast.error('Please provide a reason.');
+    const trimmed = requestedUsername.toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (trimmed.length < 3) {
+      toast.error('Username too short');
       return;
     }
+
+    const user = auth.currentUser;
+    if (!user) return;
+
     setSubmitting(true);
     try {
-      await onSubmit(reason);
+      await addDoc(collection(db, 'usernameRequests'), {
+        userId: user.uid,
+        currentEmail: user.email,
+        currentUsername: user.displayName || '',
+        requestedUsername: trimmed,
+        status: 'pending',
+        createdAt: serverTimestamp()
+      });
+
       toast.success('Request submitted!');
-      setReason('');
+      setRequestedUsername('');
       onClose();
     } catch (err) {
-      toast.error('Failed to submit request.');
+      console.error(err);
+      toast.error('Submission failed.');
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <Dialog open={isOpen} onClose={onClose} className="fixed z-50 inset-0 overflow-y-auto">
-      <div className="flex items-center justify-center min-h-screen p-4">
-        <Dialog.Panel className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
-          <Dialog.Title className="text-lg font-bold text-purple-700 mb-2">
-            Request Username Change
-          </Dialog.Title>
-          <Textarea
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            placeholder="Why do you need to change your username?"
-            rows={4}
-            className="mb-4"
-          />
-          <div className="flex justify-end gap-2">
-            <Button onClick={onClose} variant="outline">Cancel</Button>
-            <Button onClick={handleSubmit} disabled={submitting}>
-              {submitting ? 'Submitting...' : 'Submit'}
-            </Button>
-          </div>
-        </Dialog.Panel>
-      </div>
+    <Dialog open={isOpen} onClose={onClose} className="fixed z-50 inset-0 p-4 flex items-center justify-center">
+      <Dialog.Panel className="bg-white dark:bg-gray-900 p-6 rounded-xl shadow-xl max-w-md w-full">
+        <Dialog.Title className="text-lg font-bold mb-4 text-purple-700">Request Username Change</Dialog.Title>
+        <input
+          type="text"
+          placeholder="Enter new username"
+          value={requestedUsername}
+          onChange={(e) => setRequestedUsername(e.target.value)}
+          className="w-full border border-gray-300 rounded px-3 py-2 mb-3"
+        />
+        <div className="flex justify-end gap-2">
+          <Button onClick={onClose} variant="outline">Cancel</Button>
+          <Button onClick={handleSubmit} disabled={submitting}>
+            {submitting ? 'Sending...' : 'Submit'}
+          </Button>
+        </div>
+      </Dialog.Panel>
     </Dialog>
   );
 }
