@@ -1,5 +1,3 @@
-// Updated pages/garden/profile.js
-
 import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/router';
 import { Card, CardContent } from '../../components/ui/card';
@@ -28,6 +26,7 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [isClient, setIsClient] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [helpedBloomCount, setHelpedBloomCount] = useState(0);
   const [photoURL, setPhotoURL] = useState('');
   const [showUsernameModal, setShowUsernameModal] = useState(false);
@@ -115,21 +114,44 @@ export default function ProfilePage() {
     const file = e.target.files[0];
     if (!file || !user) return;
 
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image size must be less than 5MB');
+      return;
+    }
+
+    setUploading(true);
+
     try {
-      const fileRef = ref(storage, `avatars/${user.uid}`);
+      const fileRef = ref(storage, `avatars/${user.uid}.jpg`);
       await uploadBytes(fileRef, file);
       const downloadURL = await getDownloadURL(fileRef);
 
+      // Update Firebase Auth profile
       await updateProfile(auth.currentUser, { photoURL: downloadURL });
+      
+      // Update Firestore user document
       await setDoc(doc(db, 'users', user.uid), { photoURL: downloadURL }, { merge: true });
 
-      // ✅ FIX: Update local state immediately
+      // ✅ Update local state immediately
       setPhotoURL(downloadURL);
       
       toast.success('Profile picture updated!');
     } catch (err) {
-      console.error(err);
-      toast.error('Upload failed');
+      console.error('Upload error:', err);
+      toast.error('Upload failed: ' + err.message);
+    } finally {
+      setUploading(false);
+      // Clear the file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
 
@@ -147,22 +169,53 @@ export default function ProfilePage() {
         <CardContent>
           <h1 className="text-2xl font-bold text-purple-700 mb-4">👤 Profile</h1>
 
-          {photoURL && (
-            <img
-              src={photoURL}
-              onError={(e) => (e.target.style.display = 'none')}
-              alt="Avatar"
-              className="w-24 h-24 mx-auto rounded-full mb-2 object-cover border-2 border-purple-200"
-            />
-          )}
+          {/* Profile Picture Display */}
+          <div className="relative mb-4">
+            {photoURL ? (
+              <img
+                src={photoURL}
+                alt="Profile Picture"
+                className="w-24 h-24 mx-auto rounded-full object-cover border-4 border-purple-200 shadow-lg"
+                onError={(e) => {
+                  console.log('Image failed to load:', photoURL);
+                  e.target.style.display = 'none';
+                }}
+              />
+            ) : (
+              <div className="w-24 h-24 mx-auto rounded-full bg-gray-200 border-4 border-purple-200 flex items-center justify-center">
+                <span className="text-2xl text-gray-500">👤</span>
+              </div>
+            )}
+            
+            {uploading && (
+              <div className="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center">
+                <div className="text-white text-sm">Uploading...</div>
+              </div>
+            )}
+          </div>
 
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileChange}
-            accept="image/*"
-            className="mb-4 text-sm"
-          />
+          {/* File Upload Button */}
+          <div className="mb-4">
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              accept="image/*"
+              className="hidden"
+              disabled={uploading}
+            />
+            <Button
+              onClick={() => fileInputRef.current?.click()}
+              variant="outline"
+              disabled={uploading}
+              className="mb-2"
+            >
+              {uploading ? 'Uploading...' : '📷 Change Profile Picture'}
+            </Button>
+            {photoURL && (
+              <p className="text-xs text-gray-500">Current picture loaded successfully</p>
+            )}
+          </div>
 
           <p className="text-gray-600 mb-1">Signed in as:<br />
             <span className="font-mono text-sm">{email}</span>
