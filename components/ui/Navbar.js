@@ -324,7 +324,7 @@ export default function Navbar() {
                   <div className="py-2">
                     {/* Admin Dashboard */}
                     <Link href="/admin">
-                      <a className="block px-4 py-2 text-sm hover:bg-purple-50 dark:hover:bg-gray-700">
+                      <div className="block px-4 py-2 text-sm hover:bg-purple-50 dark:hover:bg-gray-700 cursor-pointer">
                         <span className="flex items-center gap-2">
                           <span>📊</span>
                           <div>
@@ -332,12 +332,12 @@ export default function Navbar() {
                             <div className="text-xs text-gray-500">Overview & stats</div>
                           </div>
                         </span>
-                      </a>
+                      </div>
                     </Link>
 
                     {/* Launch Monitoring */}
                     <Link href="/admin/launch-monitor">
-                      <a className="block px-4 py-2 text-sm hover:bg-purple-50 dark:hover:bg-gray-700">
+                      <div className="block px-4 py-2 text-sm hover:bg-purple-50 dark:hover:bg-gray-700 cursor-pointer">
                         <span className="flex items-center gap-2">
                           <span>🚀</span>
                           <div>
@@ -345,12 +345,12 @@ export default function Navbar() {
                             <div className="text-xs text-gray-500">Real-time system metrics</div>
                           </div>
                         </span>
-                      </a>
+                      </div>
                     </Link>
 
                     {/* Username Requests */}
                     <Link href="/admin/username-requests">
-                      <a className="block px-4 py-2 text-sm hover:bg-purple-50 dark:hover:bg-gray-700">
+                      <div className="block px-4 py-2 text-sm hover:bg-purple-50 dark:hover:bg-gray-700 cursor-pointer">
                         <span className="flex items-center gap-2">
                           <span>📝</span>
                           <div className="flex-1">
@@ -363,12 +363,12 @@ export default function Navbar() {
                             </span>
                           )}
                         </span>
-                      </a>
+                      </div>
                     </Link>
 
                     {/* User Management */}
                     <Link href="/admin/users">
-                      <a className="block px-4 py-2 text-sm hover:bg-purple-50 dark:hover:bg-gray-700">
+                      <div className="block px-4 py-2 text-sm hover:bg-purple-50 dark:hover:bg-gray-700 cursor-pointer">
                         <span className="flex items-center gap-2">
                           <span>👥</span>
                           <div>
@@ -376,12 +376,12 @@ export default function Navbar() {
                             <div className="text-xs text-gray-500">View & manage users</div>
                           </div>
                         </span>
-                      </a>
+                      </div>
                     </Link>
 
                     {/* Garden Statistics */}
                     <Link href="/admin/statistics">
-                      <a className="block px-4 py-2 text-sm hover:bg-purple-50 dark:hover:bg-gray-700">
+                      <div className="block px-4 py-2 text-sm hover:bg-purple-50 dark:hover:bg-gray-700 cursor-pointer">
                         <span className="flex items-center gap-2">
                           <span>📊</span>
                           <div>
@@ -389,12 +389,12 @@ export default function Navbar() {
                             <div className="text-xs text-gray-500">Analytics & insights</div>
                           </div>
                         </span>
-                      </a>
+                      </div>
                     </Link>
 
                     {/* Content Moderation */}
                     <Link href="/admin/moderation">
-                      <a className="block px-4 py-2 text-sm hover:bg-purple-50 dark:hover:bg-gray-700">
+                      <div className="block px-4 py-2 text-sm hover:bg-purple-50 dark:hover:bg-gray-700 cursor-pointer">
                         <span className="flex items-center gap-2">
                           <span>🔍</span>
                           <div className="flex-1">
@@ -407,12 +407,12 @@ export default function Navbar() {
                             </span>
                           )}
                         </span>
-                      </a>
+                      </div>
                     </Link>
 
                     {/* Sharon's Touch */}
                     <Link href="/admin/touch">
-                      <a className="block px-4 py-2 text-sm hover:bg-purple-50 dark:hover:bg-gray-700">
+                      <div className="block px-4 py-2 text-sm hover:bg-purple-50 dark:hover:bg-gray-700 cursor-pointer">
                         <span className="flex items-center gap-2">
                           <span>💜</span>
                           <div>
@@ -420,12 +420,12 @@ export default function Navbar() {
                             <div className="text-xs text-gray-500">Bless special flowers</div>
                           </div>
                         </span>
-                      </a>
+                      </div>
                     </Link>
 
                     {/* Song Launch Manager */}
                     <Link href="/admin/song-launch">
-                      <a className="block px-4 py-2 text-sm hover:bg-purple-50 dark:hover:bg-gray-700">
+                      <div className="block px-4 py-2 text-sm hover:bg-purple-50 dark:hover:bg-gray-700 cursor-pointer">
                         <span className="flex items-center gap-2">
                           <span>🎵</span>
                           <div>
@@ -433,12 +433,12 @@ export default function Navbar() {
                             <div className="text-xs text-gray-500">Manage launch features</div>
                           </div>
                         </span>
-                      </a>
+                      </div>
                     </Link>
 
                     {/* Notifications Manager */}
                     <Link href="/admin/notifications">
-                      <a className="block px-4 py-2 text-sm hover:bg-purple-50 dark:hover:bg-gray-700">
+                      <div className="block px-4 py-2 text-sm hover:bg-purple-50 dark:hover:bg-gray-700 cursor-pointer">
                         <span className="flex items-center gap-2">
                           <span>🔔</span>
                           <div>
@@ -446,12 +446,12 @@ export default function Navbar() {
                             <div className="text-xs text-gray-500">Broadcast to all users</div>
                           </div>
                         </span>
-                      </a>
+                      </div>
                     </Link>
 
                     {/* Badge Management */}
                     <Link href="/admin/badges">
-                      <a className="block px-4 py-2 text-sm hover:bg-purple-50 dark:hover:bg-gray-700">
+                      <div className="block px-4 py-2 text-sm hover:bg-purple-50 dark:hover:bg-gray-700 cursor-pointer">
                         <span className="flex items-center gap-2">
                           <span>🏅</span>
                           <div>
@@ -459,12 +459,12 @@ export default function Navbar() {
                             <div className="text-xs text-gray-500">Create & assign badges</div>
                           </div>
                         </span>
-                      </a>
+                      </div>
                     </Link>
 
                     {/* Database Tools */}
                     <Link href="/admin/database">
-                      <a className="block px-4 py-2 text-sm hover:bg-purple-50 dark:hover:bg-gray-700">
+                      <div className="block px-4 py-2 text-sm hover:bg-purple-50 dark:hover:bg-gray-700 cursor-pointer">
                         <span className="flex items-center gap-2">
                           <span>🗄️</span>
                           <div>
@@ -472,7 +472,7 @@ export default function Navbar() {
                             <div className="text-xs text-gray-500">Backup & maintenance</div>
                           </div>
                         </span>
-                      </a>
+                      </div>
                     </Link>
 
                     <div className="border-t border-gray-200 dark:border-gray-700 my-2"></div>
