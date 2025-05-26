@@ -18,7 +18,7 @@ export const BADGE_CATALOG = {
     id: 'green-thumb',
     emoji: '🌿',
     name: 'Green Thumb',
-    description: 'You’ve bloomed at least 5 flowers!',
+    description: 'You've bloomed at least 5 flowers!',
     progress: { type: 'blooms', target: 5 }
   },
   '🌱 First Seed': {
@@ -31,7 +31,7 @@ export const BADGE_CATALOG = {
     id: 'bloom-master',
     emoji: '🌸',
     name: 'Bloom Master',
-    description: 'You’ve bloomed 10 flowers!',
+    description: 'You've bloomed 10 flowers!',
     progress: { type: 'blooms', target: 10 }
   },
   '⭐ Streak Star': {
@@ -58,7 +58,7 @@ export const BADGE_CATALOG = {
     id: 'social-butterfly',
     emoji: '🦋',
     name: 'Social Butterfly',
-    description: 'You’ve shared 3 blooms with the world!',
+    description: 'You've shared 3 blooms with the world!',
     progress: { type: 'shares', target: 3 }
   }
 };
@@ -83,11 +83,19 @@ export default function useAchievements() {
         if (userSnap.exists()) {
           setBadges(userSnap.data().badges || []);
         } else {
-          await setDoc(userRef, { badges: [] });
+          // Create user document if it doesn't exist
+          await setDoc(userRef, { 
+            badges: [],
+            joinedAt: new Date(),
+            displayName: user.displayName || '',
+            email: user.email || '',
+            photoURL: user.photoURL || ''
+          }, { merge: true });
           setBadges([]);
         }
       } catch (err) {
         console.error('Error loading achievements:', err);
+        setBadges([]);
       } finally {
         setLoading(false);
       }
@@ -119,10 +127,14 @@ export default function useAchievements() {
 
   // 🦋 Triggered when bloom is shared
   const checkShareBadge = async (userId) => {
+    if (!userId) return;
+    
     try {
       const sharesRef = collection(db, 'users', userId, 'bloomShares');
       const snap = await getDocs(sharesRef);
-      if (snap.size >= 3) await unlockBadge('🦋 Social Butterfly');
+      if (snap.size >= 3) {
+        await unlockBadge('🦋 Social Butterfly');
+      }
     } catch (err) {
       console.error('Failed to check share badge:', err);
     }
@@ -136,7 +148,7 @@ export default function useAchievements() {
 
   const hasBadge = (emoji) => badges.includes(emoji);
 
-  // 📊 Calculate badge progress
+  // 📊 Calculate badge progress - UPDATED METHOD
   const getBadgeProgress = async (badge) => {
     const user = auth.currentUser;
     if (!user || !badge.progress) return null;
@@ -145,32 +157,110 @@ export default function useAchievements() {
 
     try {
       if (type === 'blooms') {
-        const q = query(collection(db, 'flowers'), where('userId', '==', user.uid), where('bloomed', '==', true));
+        const q = query(
+          collection(db, 'flowers'), 
+          where('userId', '==', user.uid), 
+          where('bloomed', '==', true)
+        );
         const snap = await getDocs(q);
         return { current: snap.size, target };
       }
 
       if (type === 'reflections') {
-        const q = query(collection(db, 'flowers'), where('userId', '==', user.uid), where('reflection', '!=', ''));
+        // Fixed: Fetch all user flowers and count reflections client-side
+        const q = query(
+          collection(db, 'flowers'), 
+          where('userId', '==', user.uid)
+        );
         const snap = await getDocs(q);
-        return { current: snap.size, target };
+        
+        let count = 0;
+        snap.docs.forEach(doc => {
+          const data = doc.data();
+          if (data.reflection && data.reflection.trim() !== '') {
+            count++;
+          }
+        });
+        
+        return { current: count, target };
       }
 
       if (type === 'shares') {
-        const snap = await getDocs(collection(db, 'users', user.uid, 'bloomShares'));
-        return { current: snap.size, target };
+        try {
+          const sharesRef = collection(db, 'users', user.uid, 'bloomShares');
+          const snap = await getDocs(sharesRef);
+          return { current: snap.size, target };
+        } catch (err) {
+          // If subcollection doesn't exist or has permission issues
+          console.log('Shares collection not accessible, returning 0');
+          return { current: 0, target };
+        }
       }
 
       if (type === 'streak') {
-        const snap = await getDoc(doc(db, 'users', user.uid));
-        const streak = snap.exists() ? snap.data().wateringStreak || 0 : 0;
-        return { current: streak, target };
+        try {
+          const userSnap = await getDoc(doc(db, 'users', user.uid));
+          const streak = userSnap.exists() ? (userSnap.data().wateringStreak || 0) : 0;
+          return { current: streak, target };
+        } catch (err) {
+          console.log('Could not fetch streak data');
+          return { current: 0, target };
+        }
       }
     } catch (err) {
-      console.error(`Failed to get progress for ${badge.name}`, err);
+      console.error(`Failed to get progress for ${badge.name}:`, err);
+      return { current: 0, target };
     }
 
     return null;
+  };
+
+  // Check and unlock badges based on current progress
+  const checkAndUnlockBadges = async () => {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    try {
+      // Check First Seed badge
+      const seedsQuery = query(
+        collection(db, 'flowers'),
+        where('userId', '==', user.uid)
+      );
+      const seedsSnap = await getDocs(seedsQuery);
+      
+      if (seedsSnap.size > 0 && !hasBadge('🌱')) {
+        await unlockBadge('🌱 First Seed');
+      }
+
+      // Check bloom-based badges
+      const bloomsQuery = query(
+        collection(db, 'flowers'),
+        where('userId', '==', user.uid),
+        where('bloomed', '==', true)
+      );
+      const bloomsSnap = await getDocs(bloomsQuery);
+      const bloomCount = bloomsSnap.size;
+
+      if (bloomCount >= 5 && !hasBadge('🌿')) {
+        await unlockBadge('🌿 Green Thumb');
+      }
+
+      if (bloomCount >= 10 && !hasBadge('🌸')) {
+        await unlockBadge('🌸 Bloom Master');
+      }
+
+      // Check for Sharon's touch
+      const touchedFlowers = bloomsSnap.docs.filter(doc => 
+        doc.data().touchedBySharon !== null && doc.data().touchedBySharon !== undefined
+      );
+      
+      if (touchedFlowers.length > 0 && !hasBadge('💜')) {
+        await unlockBadge('💜 Touched by Sharon');
+      }
+
+    } catch (err) {
+      console.error('Error checking badges:', err);
+    }
   };
 
   return {
@@ -182,6 +272,8 @@ export default function useAchievements() {
     getBadgeDetails,
     getAllBadges,
     getBadgeProgress,
-    hasBadge
+    hasBadge,
+    checkAndUnlockBadges,
+    BADGE_CATALOG
   };
 }
