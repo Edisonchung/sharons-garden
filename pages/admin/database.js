@@ -353,7 +353,7 @@ export default function AdminDatabaseTools() {
         throw new Error('Invalid backup file format');
       }
 
-      const batch = writeBatch(db);
+      let batch = writeBatch(db);
       let importCount = 0;
 
       // Import each collection
