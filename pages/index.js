@@ -1,4 +1,4 @@
-// pages/index.js - Latest Version with Enhanced Features
+// pages/index.js - Latest Version with Enhanced WateringManager Integration
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { Button } from '../components/ui/button';
@@ -23,7 +23,7 @@ import toast from 'react-hot-toast';
 import { NotificationManager } from '../components/NotificationSystem';
 import { SEED_TYPES } from '../components/SeedTypeSelection';
 import { FLOWER_DATABASE } from '../hooks/useSeedTypes';
-import { useWatering } from '../utils/WateringManager';
+import { useWatering, wateringManager } from '../utils/WateringManager'; // Updated import
 import { useErrorHandler } from '../components/LaunchErrorBoundary';
 
 const seedTypes = [
@@ -46,7 +46,6 @@ export default function SharonsGarden() {
   const [selectedSeedType, setSelectedSeedType] = useState(null);
   const [showSeedSelection, setShowSeedSelection] = useState(false);
   const [isPlanting, setIsPlanting] = useState(false);
-  const [isWatering, setIsWatering] = useState(false);
   
   // Garden state
   const [unlockedSlots, setUnlockedSlots] = useState(1);
@@ -57,8 +56,8 @@ export default function SharonsGarden() {
   const [bloomingFlower, setBloomingFlower] = useState(null);
   const [showFlowerCard, setShowFlowerCard] = useState(null);
   
-  // Performance optimization hooks
-  const { waterSeed, isWatering: wateringInProgress, error: wateringError } = useWatering();
+  // Performance optimization hooks - Updated with enhanced watering
+  const { waterSeed, isWatering, error: wateringError, canWaterToday } = useWatering();
   const { logError } = useErrorHandler();
 
   // Optimized Firebase query with caching
@@ -152,7 +151,7 @@ export default function SharonsGarden() {
   };
 
   const handleWater = async (seed) => {
-    if (!user || wateringInProgress) return;
+    if (!user || isWatering) return;
 
     // Make sure we have a valid seed object
     if (!seed || !seed.id) {
@@ -160,12 +159,16 @@ export default function SharonsGarden() {
       return;
     }
 
-    const today = new Date().toDateString();
-    const lastWaterKey = `lastWatered_${seed.id}`;
-    const lastWater = localStorage.getItem(lastWaterKey);
-    
-    if (lastWater && new Date(lastWater).toDateString() === today) {
-      toast.error("You've already watered this seed today! Come back tomorrow 🌙");
+    // Enhanced daily water check using WateringManager
+    try {
+      const canWater = await canWaterToday(user.uid, seed.id);
+      if (!canWater) {
+        toast.error("💧 You already watered this seed today! Come back tomorrow 🌙");
+        return;
+      }
+    } catch (checkError) {
+      console.error('Error checking daily watering:', checkError);
+      toast.error('Error checking watering status. Please try again.');
       return;
     }
 
@@ -183,7 +186,7 @@ export default function SharonsGarden() {
         } : null)
       };
       
-      // Use the optimized watering manager
+      // Use the enhanced watering manager
       const result = await waterSeed(
         user.uid,
         seed.id,
@@ -220,15 +223,45 @@ export default function SharonsGarden() {
           setUnlockedSlots(3);
           toast.success('🎉 New slot unlocked! You can now grow 3 seeds at once!');
         }
+        
+        // Special handling for friend watering notifications
+        if (!result.isOwner && result.wateredBy) {
+          await NotificationManager.friendWateredNotification(
+            seed.userId, // Seed owner
+            result.wateredBy,
+            seed.type
+          );
+        }
       } else {
-        toast.success(`💧 Watered successfully! ${result.newWaterCount}/7 waters`);
+        // Different messages for owner vs friend watering
+        if (result.isOwner) {
+          toast.success(`💧 Watered successfully! ${result.newWaterCount}/7 waters`);
+        } else {
+          toast.success(`💧 You helped water ${seed.name || 'someone'}'s seed! ${result.newWaterCount}/7 waters`);
+        }
       }
 
     } catch (error) {
       console.error('Watering error:', error);
       console.error('Seed data that failed:', seed);
       logError(error, { action: 'watering', seedId: seed.id, seedData: seed });
-      toast.error(error.message || 'Failed to water seed. Please try again.');
+      
+      // Enhanced error handling based on WateringManager error messages
+      if (error.message.includes('already watered')) {
+        toast.error(error.message);
+      } else if (error.message.includes('rate limit') || error.message.includes('Too many actions')) {
+        toast.error('⏳ Please wait a moment before watering again.');
+      } else if (error.message.includes('daily limit')) {
+        toast.error('🚫 You\'ve reached your daily watering limit. Come back tomorrow!');
+      } else if (error.message.includes('timeout')) {
+        toast.error('⏱️ Watering took too long. Please try again.');
+      } else if (error.message.includes('already bloomed')) {
+        toast.error('🌸 This seed has already bloomed!');
+      } else if (error.message.includes('water limit')) {
+        toast.error('💧 This seed has reached its water limit!');
+      } else {
+        toast.error(error.message || 'Failed to water seed. Please try again.');
+      }
     }
   };
 
@@ -253,9 +286,12 @@ export default function SharonsGarden() {
     setShowSeedSelection(false);
   };
 
-  const canWaterToday = (seedId) => {
-    if (typeof window === 'undefined') return false;
+  // Enhanced daily water check using WateringManager
+  const canWaterTodaySync = (seedId) => {
+    if (!user || !seedId) return false;
     
+    // For sync check, we'll use a simplified approach
+    // The actual async check happens in handleWater
     const today = new Date().toDateString();
     const lastWaterKey = `lastWatered_${seedId}`;
     const lastWater = localStorage.getItem(lastWaterKey);
@@ -267,6 +303,14 @@ export default function SharonsGarden() {
     setShowBloomAnimation(false);
     setShowFlowerCard(bloomingFlower);
     setBloomingFlower(null);
+  };
+
+  // Get watering manager metrics for debugging (only in development)
+  const getSystemMetrics = () => {
+    if (process.env.NODE_ENV === 'development') {
+      return wateringManager.getMetrics();
+    }
+    return null;
   };
 
   if (!isClient || !showMain) {
@@ -294,6 +338,7 @@ export default function SharonsGarden() {
   const totalSlots = 6;
   const activeSeeds = planted?.filter(s => !s.bloomed) || [];
   const bloomedFlowers = planted?.filter(s => s.bloomed) || [];
+  const systemMetrics = getSystemMetrics();
 
   return (
     <>
@@ -308,6 +353,19 @@ export default function SharonsGarden() {
             🎵 Song Launch: 4 Days!
           </Button>
         </div>
+        
+        {/* Development System Metrics */}
+        {systemMetrics && process.env.NODE_ENV === 'development' && (
+          <div className="absolute top-6 left-6 bg-white rounded-lg shadow-lg p-3 text-xs max-w-xs">
+            <h3 className="font-bold text-purple-700 mb-2">🔧 System Status</h3>
+            <div className="space-y-1">
+              <div>Queue: {systemMetrics.queueLength}</div>
+              <div>Success Rate: {systemMetrics.successRate}</div>
+              <div>Avg Response: {Math.round(parseFloat(systemMetrics.averageResponseTime))}ms</div>
+              <div>Concurrent: {systemMetrics.pendingOperations}</div>
+            </div>
+          </div>
+        )}
         
         {/* Header */}
         <div className="text-center mb-8">
@@ -331,6 +389,12 @@ export default function SharonsGarden() {
           <div className="bg-white px-4 py-2 rounded-full shadow">
             🔓 Slots: {unlockedSlots}/{totalSlots}
           </div>
+          {/* Show watering status indicator */}
+          {isWatering && (
+            <div className="bg-blue-100 px-4 py-2 rounded-full shadow">
+              💧 Watering...
+            </div>
+          )}
         </div>
 
         {/* Planting Form */}
@@ -440,7 +504,7 @@ export default function SharonsGarden() {
               );
             }
 
-            const canWater = canWaterToday(seed.id);
+            const canWater = canWaterTodaySync(seed.id);
             
             return (
               <Card key={seed.id} className="bg-white shadow-lg hover:shadow-xl transition-all">
@@ -481,11 +545,12 @@ export default function SharonsGarden() {
                       {!seed.bloomed ? (
                         <Button
                           onClick={() => handleWater(seed)}
-                          disabled={wateringInProgress || !canWater}
+                          disabled={isWatering || !canWater || (seed.waterCount >= 7)}
                           className="w-full text-sm"
-                          variant={canWater ? 'default' : 'outline'}
+                          variant={canWater && seed.waterCount < 7 ? 'default' : 'outline'}
                         >
-                          {wateringInProgress ? '💧 Watering...' : 
+                          {isWatering ? '💧 Watering...' : 
+                           seed.waterCount >= 7 ? '✅ Fully Watered' :
                            canWater ? '💧 Water' : '⏳ Watered today'}
                         </Button>
                       ) : (
@@ -527,6 +592,13 @@ export default function SharonsGarden() {
             <div className="text-6xl mb-4">🌱</div>
             <h2 className="text-2xl font-bold text-purple-700 mb-2">Your garden awaits</h2>
             <p className="text-gray-600 mb-4">Plant your first seed to start your emotional journey with Sharon!</p>
+          </div>
+        )}
+
+        {/* Enhanced error display */}
+        {wateringError && (
+          <div className="fixed bottom-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded z-50">
+            <p className="text-sm">{wateringError}</p>
           </div>
         )}
 
