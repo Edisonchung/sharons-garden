@@ -1,6 +1,6 @@
-// utils/WateringManager.js - Enhanced with Rate Limiting & Queue System
+// utils/WateringManager.js - Enhanced with Rate Limiting & Queue System + Undefined Field Prevention
 import { useState } from 'react';
-import { doc, runTransaction, serverTimestamp, addDoc, collection } from 'firebase/firestore';
+import { doc, runTransaction, serverTimestamp, addDoc, collection, increment } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { NotificationManager } from '../components/NotificationSystem';
 
@@ -35,6 +35,17 @@ class WateringManager {
 
     // Start queue processor
     this.startQueueProcessor();
+  }
+
+  // Helper function to clean update objects - prevents undefined field errors
+  cleanUpdateObject(updateObj) {
+    const cleaned = {};
+    Object.keys(updateObj).forEach(key => {
+      if (updateObj[key] !== undefined && updateObj[key] !== null) {
+        cleaned[key] = updateObj[key];
+      }
+    });
+    return cleaned;
   }
 
   // Main watering method with queue system
@@ -138,7 +149,7 @@ class WateringManager {
       console.error(`❌ Operation failed for ${operation.seedId}:`, error);
       
       // Retry logic
-      if (operation.retries < this.config.RETRY_ATTEMPTS) {
+      if (operation.retries < this.config.RETRY_ATTEMPTS && !error.message.includes('already watered')) {
         operation.retries++;
         console.log(`🔄 Retrying operation (attempt ${operation.retries}/${this.config.RETRY_ATTEMPTS})`);
         
@@ -176,7 +187,7 @@ class WateringManager {
       }
 
       if (currentSeedData.waterCount >= 7) {
-        throw new Error('💧 This seed is already fully watered');
+        throw new Error('💧 This seed has reached its water limit and cannot be watered anymore!');
       }
 
       // Check ownership and permissions
@@ -193,7 +204,7 @@ class WateringManager {
         const wateringDoc = await transaction.get(wateringRef);
         
         if (wateringDoc.exists()) {
-          throw new Error('💧 You already watered this seed today!');
+          throw new Error('💧 You already watered this seed today! Come back tomorrow 🌙');
         }
         
         // Mark as watered for today
@@ -208,26 +219,34 @@ class WateringManager {
       const newWaterCount = (currentSeedData.waterCount || 0) + 1;
       const nowBloomed = newWaterCount >= 7;
       
-      // Get flower data
+      // Get flower data with proper undefined checking
       let flowerData = {};
-      if (nowBloomed) {
-        if (currentSeedData.songSeed) {
-          // Special handling for song seeds
-          flowerData = {
-            emoji: '🎵',
-            name: 'Melody Bloom',
-            flowerLanguage: 'The song of your heart',
-            sharonMessage: 'Your melody has bloomed beautifully!'
-          };
-        } else if (seedData.seedTypeData) {
+      if (nowBloomed && seedData.seedTypeData && seedData.seedTypeData.flowerTypes) {
+        try {
           const { FLOWER_DATABASE } = await import('../hooks/useSeedTypes');
           const possibleFlowers = seedData.seedTypeData.flowerTypes || [];
-          const randomFlower = possibleFlowers[Math.floor(Math.random() * possibleFlowers.length)];
-          flowerData = FLOWER_DATABASE[randomFlower] || {};
+          
+          if (possibleFlowers.length > 0) {
+            const randomFlower = possibleFlowers[Math.floor(Math.random() * possibleFlowers.length)];
+            const rawFlowerData = FLOWER_DATABASE[randomFlower];
+            
+            if (rawFlowerData) {
+              // Only include defined fields to prevent undefined errors
+              if (rawFlowerData.emoji) flowerData.emoji = rawFlowerData.emoji;
+              if (rawFlowerData.name) flowerData.name = rawFlowerData.name;
+              if (rawFlowerData.flowerLanguage) flowerData.flowerLanguage = rawFlowerData.flowerLanguage;
+              if (rawFlowerData.sharonMessage) flowerData.sharonMessage = rawFlowerData.sharonMessage;
+              if (rawFlowerData.rarity) flowerData.rarity = rawFlowerData.rarity;
+              if (rawFlowerData.seedType) flowerData.seedType = rawFlowerData.seedType;
+            }
+          }
+        } catch (flowerError) {
+          console.warn('Error loading flower data:', flowerError);
+          // Continue with empty flowerData object
         }
       }
 
-      // Prepare update
+      // Prepare update - ONLY include fields that are NOT undefined
       const updateData = {
         waterCount: newWaterCount,
         lastWatered: serverTimestamp(),
@@ -237,11 +256,34 @@ class WateringManager {
 
       if (nowBloomed) {
         updateData.bloomed = true;
-        updateData.bloomedFlower = flowerData.emoji || currentSeedData.bloomedFlower || '🌸';
         updateData.bloomTime = serverTimestamp();
-        updateData.flowerName = flowerData.name || currentSeedData.type;
-        updateData.flowerLanguage = flowerData.flowerLanguage;
-        updateData.sharonMessage = flowerData.sharonMessage;
+        
+        // Safe flower emoji assignment
+        if (flowerData.emoji) {
+          updateData.bloomedFlower = flowerData.emoji;
+        } else {
+          updateData.bloomedFlower = currentSeedData.bloomedFlower || '🌸';
+        }
+        
+        // Safe flower name assignment
+        if (flowerData.name) {
+          updateData.flowerName = flowerData.name;
+        } else {
+          updateData.flowerName = currentSeedData.type || 'Beautiful Flower';
+        }
+        
+        // Only set these fields if they have actual values
+        if (flowerData.flowerLanguage) {
+          updateData.flowerLanguage = flowerData.flowerLanguage;
+        }
+        
+        if (flowerData.sharonMessage) {
+          updateData.sharonMessage = flowerData.sharonMessage;
+        }
+        
+        if (flowerData.rarity) {
+          updateData.rarity = flowerData.rarity;
+        }
         
         if (isFriendWatering) {
           updateData.friendHelped = true;
@@ -249,12 +291,15 @@ class WateringManager {
         }
       }
 
+      // Clean the update object to remove any undefined values
+      const cleanedUpdateData = this.cleanUpdateObject(updateData);
+      
       // Update seed
-      transaction.update(seedRef, updateData);
+      transaction.update(seedRef, cleanedUpdateData);
 
       // Log watering event
       const wateringLogRef = doc(collection(db, 'waterings'));
-      transaction.set(wateringLogRef, {
+      const wateringLogData = this.cleanUpdateObject({
         seedId,
         seedOwnerId: currentSeedData.userId,
         seedOwnerName: currentSeedData.name || 'Anonymous',
@@ -266,22 +311,26 @@ class WateringManager {
         isOwnerWatering: isOwner,
         resultedInBloom: nowBloomed
       });
+      
+      transaction.set(wateringLogRef, wateringLogData);
 
       // Update user stats
       if (isOwner) {
         const userRef = doc(db, 'users', userId);
-        transaction.update(userRef, {
+        const userUpdateData = this.cleanUpdateObject({
           lastWateringDate: serverTimestamp(),
-          totalWaterings: (currentSeedData.totalWaterings || 0) + 1,
-          totalBlooms: nowBloomed ? (currentSeedData.totalBlooms || 0) + 1 : (currentSeedData.totalBlooms || 0)
+          totalWaterings: increment(1),
+          totalBlooms: nowBloomed ? increment(1) : increment(0)
         });
+        transaction.update(userRef, userUpdateData);
       } else {
         const helperRef = doc(db, 'users', userId);
-        transaction.update(helperRef, {
-          helpedWaterCount: (currentSeedData.helpedWaterCount || 0) + 1,
+        const helperUpdateData = this.cleanUpdateObject({
+          helpedWaterCount: increment(1),
           lastHelpedDate: serverTimestamp(),
-          friendsBloomed: nowBloomed ? (currentSeedData.friendsBloomed || 0) + 1 : (currentSeedData.friendsBloomed || 0)
+          friendsBloomed: nowBloomed ? increment(1) : increment(0)
         });
+        transaction.update(helperRef, helperUpdateData);
       }
 
       return {
@@ -321,6 +370,8 @@ class WateringManager {
 
   // Daily limit check
   checkDailyLimit(userId) {
+    if (typeof window === 'undefined') return true;
+    
     const today = new Date().toDateString();
     const dailyKey = `daily_${userId}_${today}`;
     const count = parseInt(localStorage.getItem(dailyKey) || '0');
@@ -336,8 +387,12 @@ class WateringManager {
   // Metrics
   updateAverageResponseTime(responseTime) {
     const total = this.metrics.successfulOperations;
-    this.metrics.averageResponseTime = 
-      (this.metrics.averageResponseTime * (total - 1) + responseTime) / total;
+    if (total === 0) {
+      this.metrics.averageResponseTime = responseTime;
+    } else {
+      this.metrics.averageResponseTime = 
+        (this.metrics.averageResponseTime * (total - 1) + responseTime) / total;
+    }
   }
 
   getMetrics() {
