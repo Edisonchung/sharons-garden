@@ -53,9 +53,17 @@ function NotificationItem({ notification, onMarkRead, onDelete }) {
   const config = NOTIFICATION_TYPES[notification.type] || NOTIFICATION_TYPES.SYSTEM_UPDATE;
   const isUnread = !notification.read;
   
-  const timeAgo = notification.timestamp?.toDate ? 
-    formatDistanceToNow(notification.timestamp.toDate(), { addSuffix: true }) :
-    'Recently';
+  // Handle both timestamp formats
+  const getTimeAgo = () => {
+    if (notification.timestamp?.toDate) {
+      return formatDistanceToNow(notification.timestamp.toDate(), { addSuffix: true });
+    } else if (notification.timestamp) {
+      return formatDistanceToNow(new Date(notification.timestamp), { addSuffix: true });
+    } else if (notification.createdAt) {
+      return formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true });
+    }
+    return 'Recently';
+  };
 
   return (
     <Card className={`transition-all hover:shadow-md ${isUnread ? 'border-l-4 border-purple-500 bg-purple-50' : ''}`}>
@@ -86,7 +94,7 @@ function NotificationItem({ notification, onMarkRead, onDelete }) {
             )}
             
             <div className="flex items-center justify-between mt-3">
-              <span className="text-xs text-gray-500">{timeAgo}</span>
+              <span className="text-xs text-gray-500">{getTimeAgo()}</span>
               <div className="flex gap-2">
                 {isUnread && (
                   <button
@@ -132,13 +140,26 @@ export default function NotificationsPage() {
             
             // Sort by timestamp (newest first)
             const sortedNotifications = userNotifications.sort((a, b) => {
-              const aTime = a.timestamp?.toDate?.() || new Date(a.createdAt || 0);
-              const bTime = b.timestamp?.toDate?.() || new Date(b.createdAt || 0);
-              return bTime - aTime;
+              // Handle both timestamp formats
+              const getTime = (notif) => {
+                if (notif.timestamp?.toDate) {
+                  return notif.timestamp.toDate().getTime();
+                } else if (notif.timestamp) {
+                  return new Date(notif.timestamp).getTime();
+                } else if (notif.createdAt) {
+                  return new Date(notif.createdAt).getTime();
+                }
+                return 0;
+              };
+              
+              return getTime(b) - getTime(a);
             });
             
             setNotifications(sortedNotifications);
           }
+          setLoading(false);
+        }, (error) => {
+          console.error('Error listening to notifications:', error);
           setLoading(false);
         });
 
@@ -238,6 +259,23 @@ export default function NotificationsPage() {
           <div className="text-center py-12">
             <div className="text-4xl animate-spin mb-4">🔔</div>
             <p className="text-purple-700">Loading notifications...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-pink-100 to-purple-200 p-6">
+        <div className="max-w-2xl mx-auto">
+          <div className="text-center py-12">
+            <div className="text-6xl mb-4">🔔</div>
+            <h2 className="text-2xl font-bold text-purple-700 mb-2">Sign in to view notifications</h2>
+            <p className="text-gray-600 mb-4">You need to be signed in to see your notifications.</p>
+            <Button onClick={() => window.location.href = '/auth'}>
+              Sign In
+            </Button>
           </div>
         </div>
       </div>
@@ -347,7 +385,7 @@ export default function NotificationsPage() {
   );
 }
 
-// Notification creation utilities
+// Notification creation utilities - FIXED
 export const NotificationManager = {
   async createNotification(userId, type, title, message, options = {}) {
     if (!userId) return;
@@ -358,7 +396,7 @@ export const NotificationManager = {
       title,
       message,
       read: false,
-      timestamp: serverTimestamp(),
+      timestamp: new Date().toISOString(), // Changed from serverTimestamp()
       createdAt: new Date().toISOString(),
       ...options
     };
@@ -373,6 +411,7 @@ export const NotificationManager = {
       return notification;
     } catch (error) {
       console.error('❌ Failed to create notification:', error);
+      throw error;
     }
   },
 
@@ -385,7 +424,8 @@ export const NotificationManager = {
       'The moment we\'ve all been waiting for! Sharon\'s debut single is now available everywhere.',
       {
         actionUrl: 'https://open.spotify.com/artist/sharon',
-        actionText: 'Listen Now'
+        actionText: 'Listen Now',
+        priority: 'high'
       }
     );
   },
@@ -398,7 +438,8 @@ export const NotificationManager = {
       `Congratulations! Your ${seedType} seed has grown into a beautiful ${flowerEmoji}. Check out Sharon's special message for you.`,
       {
         actionUrl: '/garden/my',
-        actionText: 'View Garden'
+        actionText: 'View Garden',
+        priority: 'medium'
       }
     );
   },
@@ -411,7 +452,8 @@ export const NotificationManager = {
       `${friendName} helped water your ${seedType} seed. It's now one step closer to blooming!`,
       {
         actionUrl: '/garden/my',
-        actionText: 'Check Progress'
+        actionText: 'Check Progress',
+        priority: 'medium'
       }
     );
   },
@@ -424,7 +466,8 @@ export const NotificationManager = {
       description,
       {
         actionUrl: '/garden/badges',
-        actionText: 'View Badge'
+        actionText: 'View Badge',
+        priority: 'medium'
       }
     );
   },
@@ -437,7 +480,8 @@ export const NotificationManager = {
       message,
       {
         actionUrl: '/garden/my',
-        actionText: 'Read Full Message'
+        actionText: 'Read Full Message',
+        priority: 'high'
       }
     );
   }
@@ -455,13 +499,17 @@ export function useNotificationCount() {
       }
 
       const userRef = doc(db, 'users', user.uid);
-      return onSnapshot(userRef, (doc) => {
+      const unsubscribeNotifications = onSnapshot(userRef, (doc) => {
         if (doc.exists()) {
           const notifications = doc.data().notifications || [];
           const unread = notifications.filter(n => !n.read).length;
           setUnreadCount(unread);
         }
+      }, (error) => {
+        console.error('Error listening to notification count:', error);
       });
+
+      return () => unsubscribeNotifications();
     });
 
     return () => unsubscribe();
