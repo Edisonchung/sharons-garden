@@ -154,6 +154,12 @@ export default function SharonsGarden() {
   const handleWater = async (seed) => {
     if (!user || wateringInProgress) return;
 
+    // Make sure we have a valid seed object
+    if (!seed || !seed.id) {
+      toast.error("Invalid seed data. Please refresh the page.");
+      return;
+    }
+
     const today = new Date().toDateString();
     const lastWaterKey = `lastWatered_${seed.id}`;
     const lastWater = localStorage.getItem(lastWaterKey);
@@ -164,6 +170,8 @@ export default function SharonsGarden() {
     }
 
     try {
+      console.log('Watering seed:', seed.id, seed); // Debug log
+      
       // Ensure seed has proper data structure
       const seedDataToPass = {
         ...seed,
@@ -218,7 +226,8 @@ export default function SharonsGarden() {
 
     } catch (error) {
       console.error('Watering error:', error);
-      logError(error, { action: 'watering', seedId: seed.id });
+      console.error('Seed data that failed:', seed);
+      logError(error, { action: 'watering', seedId: seed.id, seedData: seed });
       toast.error(error.message || 'Failed to water seed. Please try again.');
     }
   };
@@ -405,7 +414,8 @@ export default function SharonsGarden() {
         {/* Garden Grid */}
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4 max-w-4xl mx-auto">
           {Array.from({ length: totalSlots }, (_, index) => {
-            const seed = planted?.[index];
+            // Get seeds in the order they were planted
+            const seed = activeSeeds[index] || bloomedFlowers[index - activeSeeds.length];
             
             if (index >= unlockedSlots) {
               return (
