@@ -320,7 +320,7 @@ export default function Navbar() {
               </button>
               
               {showAdminMenu && (
-                <div className="absolute left-0 mt-2 w-64 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-purple-200 dark:border-gray-700 z-50">
+                <div className="absolute left-0 mt-2 w-64 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-purple-200 dark:border-gray-700 z-50 max-h-[70vh] overflow-y-auto">
                   <div className="py-2">
                     {/* Admin Dashboard */}
                     <Link href="/admin">
