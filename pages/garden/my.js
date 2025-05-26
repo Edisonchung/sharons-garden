@@ -1,4 +1,4 @@
-// pages/garden/my.js - Latest Version with Enhanced Features
+// pages/garden/my.js - Latest Version with Enhanced Features and Fixed Watering Logic
 import { useEffect, useRef, useState } from 'react';
 import { auth, db } from '../../lib/firebase';
 import {
@@ -12,6 +12,7 @@ import {
   addDoc,
   serverTimestamp,
   getDocs,
+  increment
 } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import { Button } from '../../components/ui/button';
@@ -54,6 +55,17 @@ export default function MyGardenPage() {
   const [showFlowerCard, setShowFlowerCard] = useState(null);
   const [isWatering, setIsWatering] = useState(false);
   const [userProfile, setUserProfile] = useState(null);
+
+  // Helper function to clean update objects - prevents undefined field errors
+  const cleanUpdateObject = (updateObj) => {
+    const cleaned = {};
+    Object.keys(updateObj).forEach(key => {
+      if (updateObj[key] !== undefined && updateObj[key] !== null) {
+        cleaned[key] = updateObj[key];
+      }
+    });
+    return cleaned;
+  };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -128,8 +140,9 @@ export default function MyGardenPage() {
     const lastKey = `lastWatered_${seed.id}`;
     const last = localStorage.getItem(lastKey);
 
+    // Better error message for daily limit
     if (last && new Date(last).toDateString() === today) {
-      toast.error('💧 Already watered today! Come back tomorrow 🌙');
+      toast.error('💧 You already watered this seed today! Come back tomorrow for more watering 🌙');
       return;
     }
 
@@ -139,25 +152,59 @@ export default function MyGardenPage() {
       const ref = doc(db, 'flowers', seed.id);
       const snap = await getDoc(ref);
       if (!snap.exists()) {
-        toast.error('Seed not found');
+        toast.error('🌱 Seed not found!');
         return;
       }
 
       const data = snap.data();
       const newCount = (data.waterCount || 0) + 1;
+      
+      // Check if already fully watered
+      if (data.waterCount >= 7) {
+        toast.error('💧 This seed has reached its water limit and cannot be watered anymore!');
+        return;
+      }
+      
+      // Check if already bloomed
+      if (data.bloomed) {
+        toast.error('🌸 This seed has already bloomed!');
+        return;
+      }
+      
       const bloomed = newCount >= 7;
       
-      // Get flower data if blooming
-      let flowerData = null;
+      // Safe flower data retrieval
+      let flowerData = {};
       let flowerEmoji = data.bloomedFlower || '🌸';
       
-      if (bloomed && !data.bloomed && data.seedTypeData) {
-        const possibleFlowers = data.seedTypeData.flowerTypes || [];
-        const randomFlower = possibleFlowers[Math.floor(Math.random() * possibleFlowers.length)];
-        flowerData = FLOWER_DATABASE[randomFlower] || {};
-        flowerEmoji = flowerData.emoji || '🌸';
+      if (bloomed && !data.bloomed && data.seedTypeData && data.seedTypeData.flowerTypes) {
+        try {
+          const possibleFlowers = data.seedTypeData.flowerTypes;
+          if (possibleFlowers && possibleFlowers.length > 0) {
+            const randomFlower = possibleFlowers[Math.floor(Math.random() * possibleFlowers.length)];
+            const rawData = FLOWER_DATABASE[randomFlower];
+            
+            if (rawData) {
+              // Only assign defined values
+              if (rawData.emoji) flowerData.emoji = rawData.emoji;
+              if (rawData.name) flowerData.name = rawData.name;
+              if (rawData.flowerLanguage) flowerData.flowerLanguage = rawData.flowerLanguage;
+              if (rawData.sharonMessage) flowerData.sharonMessage = rawData.sharonMessage;
+              if (rawData.rarity) flowerData.rarity = rawData.rarity;
+              if (rawData.seedType) flowerData.seedType = rawData.seedType;
+              
+              if (flowerData.emoji) {
+                flowerEmoji = flowerData.emoji;
+              }
+            }
+          }
+        } catch (flowerError) {
+          console.warn('Error getting flower data:', flowerError);
+          // Continue with default values
+        }
       }
 
+      // Build update object carefully - no undefined values
       const updateData = {
         waterCount: newCount,
         lastWatered: new Date().toISOString(),
@@ -168,34 +215,43 @@ export default function MyGardenPage() {
         updateData.bloomed = true;
         updateData.bloomedFlower = flowerEmoji;
         updateData.bloomTime = serverTimestamp();
-        updateData.bloomedBy = user.displayName || user.email;
+        updateData.bloomedBy = user.displayName || user.email || 'Anonymous';
         
-        if (flowerData) {
-          updateData.flowerName = flowerData.name || data.type;
+        // Only add defined flower data fields
+        if (flowerData.name) {
+          updateData.flowerName = flowerData.name;
+        } else {
+          updateData.flowerName = data.type || 'Beautiful Flower';
+        }
+        
+        if (flowerData.flowerLanguage) {
           updateData.flowerLanguage = flowerData.flowerLanguage;
+        }
+        
+        if (flowerData.sharonMessage) {
           updateData.sharonMessage = flowerData.sharonMessage;
+        }
+        
+        if (flowerData.rarity) {
+          updateData.rarity = flowerData.rarity;
         }
       }
 
-      await updateDoc(ref, updateData);
+      // Clean the update object to prevent undefined field errors
+      const cleanedUpdateData = cleanUpdateObject(updateData);
+      
+      await updateDoc(ref, cleanedUpdateData);
 
-      // Add watering record - wrap in try/catch to not break if it fails
-      try {
-        await addDoc(collection(db, 'waterings'), {
-          seedId: seed.id,
-          userId: user.uid,
-          seedOwnerId: user.uid,
-          wateredByUserId: user.uid,
-          wateredByUsername: user.displayName || user.email || 'Anonymous',
-          fromUsername: user.displayName || user.email || 'Anonymous',
-          timestamp: serverTimestamp(),
-          isOwnerWatering: true,
-          resultedInBloom: bloomed && !data.bloomed
-        });
-      } catch (wateringErr) {
-        console.log('Watering log failed (non-critical):', wateringErr);
-        // Don't throw - this is non-critical
-      }
+      // Log watering event
+      const wateringLogData = cleanUpdateObject({
+        seedId: seed.id,
+        userId: user.uid,
+        fromUsername: user.displayName || user.email || 'Anonymous',
+        timestamp: serverTimestamp(),
+        resultedInBloom: bloomed && !data.bloomed
+      });
+      
+      await addDoc(collection(db, 'waterings'), wateringLogData);
 
       localStorage.setItem(lastKey, new Date().toISOString());
 
@@ -209,40 +265,44 @@ export default function MyGardenPage() {
         });
         setShowBloomAnimation(true);
         
-        // Create notification - wrap in try/catch as it might fail
+        // Create notification
         try {
           await NotificationManager.seedBloomedNotification(
             user.uid,
             data.type,
             flowerEmoji
           );
-        } catch (notifErr) {
-          console.log('Notification failed (non-critical):', notifErr);
+        } catch (notifError) {
+          console.warn('Notification failed:', notifError);
         }
         
+        // Play audio if available
         if (audioOn && audioRef.current) {
-          audioRef.current.play().catch(e => console.log('Audio play failed:', e));
+          try {
+            audioRef.current.play();
+          } catch (audioError) {
+            console.warn('Audio playback failed:', audioError);
+          }
         }
+        
+        toast.success(`🌸 Amazing! Your ${data.type} seed has bloomed!`);
       } else {
-        toast.success(`💧 Watered successfully! ${newCount}/7 waters`);
+        toast.success(`💧 Watered successfully! ${newCount}/7 waters complete`);
       }
-
-      // Update local state to reflect the change immediately
-      setSeeds(prevSeeds => 
-        prevSeeds.map(s => 
-          s.id === seed.id 
-            ? { ...s, ...updateData, waterCount: newCount }
-            : s
-        )
-      );
-
     } catch (err) {
       console.error('Watering error:', err);
-      // Only show error if it's the main operation failing
-      if (err.code === 'permission-denied') {
-        toast.error('Permission denied. Please refresh and try again.');
+      
+      // Better error messages
+      if (err.message.includes('undefined')) {
+        toast.error('💧 There was an issue with the flower data. Please try again.');
+      } else if (err.message.includes('permission')) {
+        toast.error('🔒 You don\'t have permission to water this seed.');
+      } else if (err.message.includes('already watered')) {
+        toast.error('💧 You already watered this seed today!');
+      } else if (err.message.includes('water limit')) {
+        toast.error('💧 This seed has reached its water limit!');
       } else {
-        toast.error('Failed to water this flower.');
+        toast.error('💧 Failed to water this seed. Please try again.');
       }
     } finally {
       setIsWatering(false);
@@ -268,6 +328,8 @@ export default function MyGardenPage() {
   };
 
   const canWaterToday = (seedId) => {
+    if (typeof window === 'undefined') return false;
+    
     const today = new Date().toDateString();
     const lastKey = `lastWatered_${seedId}`;
     const last = localStorage.getItem(lastKey);
@@ -412,16 +474,26 @@ export default function MyGardenPage() {
                   </div>
                 )}
                 
+                {/* Sharon's Message */}
+                {seed.bloomed && seed.sharonMessage && (
+                  <div className="bg-pink-50 p-2 rounded-lg mb-3 border-l-4 border-pink-400">
+                    <p className="text-xs text-pink-700 italic">
+                      💜 "{seed.sharonMessage}" - Sharon
+                    </p>
+                  </div>
+                )}
+                
                 {/* Action Buttons */}
                 <div className="space-y-2">
                   {!seed.bloomed ? (
                     <Button 
                       onClick={() => handleWater(seed)}
-                      disabled={isWatering || !canWater}
+                      disabled={isWatering || !canWater || (seed.waterCount >= 7)}
                       className="w-full"
-                      variant={canWater ? 'default' : 'outline'}
+                      variant={canWater && seed.waterCount < 7 ? 'default' : 'outline'}
                     >
                       {isWatering ? '💧 Watering...' : 
+                       seed.waterCount >= 7 ? '✅ Fully Watered' :
                        canWater ? '💧 Water' : '⏳ Watered today'}
                     </Button>
                   ) : (
@@ -431,6 +503,12 @@ export default function MyGardenPage() {
                         {seed.bloomTime && (
                           <p className="text-xs text-green-500">
                             {new Date(seed.bloomTime?.toDate?.() || seed.bloomTime).toLocaleDateString()}
+                          </p>
+                        )}
+                        {seed.rarity && (
+                          <p className="text-xs mt-1">
+                            {seed.rarity === 'rare' && '💎 Rare Flower'}
+                            {seed.rarity === 'rainbow' && '🌈 Rainbow Grade'}
                           </p>
                         )}
                       </div>
