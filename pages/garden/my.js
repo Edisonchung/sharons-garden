@@ -1,4 +1,4 @@
-// pages/garden/my.js - Latest Version with Enhanced Features and Permission Fixes
+// pages/garden/my.js - Latest Version with Enhanced Features
 import { useEffect, useRef, useState } from 'react';
 import { auth, db } from '../../lib/firebase';
 import {
@@ -138,7 +138,10 @@ export default function MyGardenPage() {
     try {
       const ref = doc(db, 'flowers', seed.id);
       const snap = await getDoc(ref);
-      if (!snap.exists()) return;
+      if (!snap.exists()) {
+        toast.error('Seed not found');
+        return;
+      }
 
       const data = snap.data();
       const newCount = (data.waterCount || 0) + 1;
@@ -148,22 +151,11 @@ export default function MyGardenPage() {
       let flowerData = null;
       let flowerEmoji = data.bloomedFlower || '🌸';
       
-      if (bloomed && !data.bloomed) {
-        if (data.songSeed) {
-          // Special handling for song seeds
-          flowerData = {
-            emoji: '🎵',
-            name: 'Melody Bloom',
-            flowerLanguage: 'The song of your heart',
-            sharonMessage: 'Your melody has bloomed beautifully!'
-          };
-          flowerEmoji = '🎵';
-        } else if (data.seedTypeData) {
-          const possibleFlowers = data.seedTypeData.flowerTypes || [];
-          const randomFlower = possibleFlowers[Math.floor(Math.random() * possibleFlowers.length)];
-          flowerData = FLOWER_DATABASE[randomFlower] || {};
-          flowerEmoji = flowerData.emoji || '🌸';
-        }
+      if (bloomed && !data.bloomed && data.seedTypeData) {
+        const possibleFlowers = data.seedTypeData.flowerTypes || [];
+        const randomFlower = possibleFlowers[Math.floor(Math.random() * possibleFlowers.length)];
+        flowerData = FLOWER_DATABASE[randomFlower] || {};
+        flowerEmoji = flowerData.emoji || '🌸';
       }
 
       const updateData = {
@@ -185,20 +177,24 @@ export default function MyGardenPage() {
         }
       }
 
-      // Update the flower document
       await updateDoc(ref, updateData);
 
-      // Try to create watering log, but don't fail if permissions deny
+      // Add watering record - wrap in try/catch to not break if it fails
       try {
         await addDoc(collection(db, 'waterings'), {
           seedId: seed.id,
           userId: user.uid,
+          seedOwnerId: user.uid,
+          wateredByUserId: user.uid,
+          wateredByUsername: user.displayName || user.email || 'Anonymous',
           fromUsername: user.displayName || user.email || 'Anonymous',
           timestamp: serverTimestamp(),
+          isOwnerWatering: true,
+          resultedInBloom: bloomed && !data.bloomed
         });
-      } catch (logError) {
-        console.log('Could not create watering log (permission issue):', logError);
-        // Don't throw - continue since the main watering succeeded
+      } catch (wateringErr) {
+        console.log('Watering log failed (non-critical):', wateringErr);
+        // Don't throw - this is non-critical
       }
 
       localStorage.setItem(lastKey, new Date().toISOString());
@@ -213,52 +209,41 @@ export default function MyGardenPage() {
         });
         setShowBloomAnimation(true);
         
-        // Try to create notification, but don't fail if permissions deny
+        // Create notification - wrap in try/catch as it might fail
         try {
           await NotificationManager.seedBloomedNotification(
             user.uid,
             data.type,
             flowerEmoji
           );
-        } catch (notifError) {
-          console.log('Could not create notification (permission issue):', notifError);
+        } catch (notifErr) {
+          console.log('Notification failed (non-critical):', notifErr);
         }
         
-        if (audioOn && audioRef.current) audioRef.current.play();
+        if (audioOn && audioRef.current) {
+          audioRef.current.play().catch(e => console.log('Audio play failed:', e));
+        }
       } else {
         toast.success(`💧 Watered successfully! ${newCount}/7 waters`);
       }
-      
-      // Force refresh the seed data
-      const updatedSnap = await getDoc(ref);
-      if (updatedSnap.exists()) {
-        // Update the local state with new data
-        const updatedData = { id: seed.id, ...updatedSnap.data() };
-        // Seeds state will be updated by the onSnapshot listener
-      }
-      
+
+      // Update local state to reflect the change immediately
+      setSeeds(prevSeeds => 
+        prevSeeds.map(s => 
+          s.id === seed.id 
+            ? { ...s, ...updateData, waterCount: newCount }
+            : s
+        )
+      );
+
     } catch (err) {
       console.error('Watering error:', err);
-      
-      // Check if the water count actually increased despite the error
-      try {
-        const currentDoc = await getDoc(doc(db, 'flowers', seed.id));
-        if (currentDoc.exists()) {
-          const currentWaterCount = currentDoc.data()?.waterCount || 0;
-          
-          if (currentWaterCount > (seed.waterCount || 0)) {
-            // Water count increased, so it actually worked
-            toast.success(`💧 Watered successfully! ${currentWaterCount}/7 waters`);
-            localStorage.setItem(lastKey, new Date().toISOString());
-            return;
-          }
-        }
-      } catch (checkError) {
-        console.error('Error checking water status:', checkError);
+      // Only show error if it's the main operation failing
+      if (err.code === 'permission-denied') {
+        toast.error('Permission denied. Please refresh and try again.');
+      } else {
+        toast.error('Failed to water this flower.');
       }
-      
-      // Only show error if watering truly failed
-      toast.error('Failed to water this flower.');
     } finally {
       setIsWatering(false);
     }
