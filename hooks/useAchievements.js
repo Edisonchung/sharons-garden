@@ -18,7 +18,7 @@ export const BADGE_CATALOG = {
     id: 'green-thumb',
     emoji: '🌿',
     name: 'Green Thumb',
-    description: 'You've bloomed at least 5 flowers!',
+    description: 'You\'ve bloomed at least 5 flowers!',
     progress: { type: 'blooms', target: 5 }
   },
   '🌱 First Seed': {
@@ -31,7 +31,7 @@ export const BADGE_CATALOG = {
     id: 'bloom-master',
     emoji: '🌸',
     name: 'Bloom Master',
-    description: 'You've bloomed 10 flowers!',
+    description: 'You\'ve bloomed 10 flowers!',
     progress: { type: 'blooms', target: 10 }
   },
   '⭐ Streak Star': {
@@ -58,7 +58,7 @@ export const BADGE_CATALOG = {
     id: 'social-butterfly',
     emoji: '🦋',
     name: 'Social Butterfly',
-    description: 'You've shared 3 blooms with the world!',
+    description: 'You\'ve shared 3 blooms with the world!',
     progress: { type: 'shares', target: 3 }
   }
 };
