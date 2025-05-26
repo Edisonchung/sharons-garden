@@ -13,7 +13,8 @@ import {
   getDoc,
   arrayUnion,
   serverTimestamp,
-  where
+  where,
+  addDoc // Added this import
 } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import toast from 'react-hot-toast';
@@ -248,7 +249,7 @@ export default function NotificationBroadcasterPage() {
     });
   };
 
-  // Send notification
+  // Send notification - UPDATED METHOD
   const sendNotification = async () => {
     if (!notification.title || !notification.message) {
       toast.error('Please fill in title and message');
@@ -290,14 +291,14 @@ export default function NotificationBroadcasterPage() {
         targetedUsers = Array.from(uniqueUsers);
       }
 
-      // Create notification object
+      // Create notification object with regular timestamp (not serverTimestamp)
       const notificationData = {
         id: `broadcast_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         type: notification.type,
         title: notification.title,
         message: notification.message,
         read: false,
-        timestamp: serverTimestamp(),
+        timestamp: new Date().toISOString(), // Use ISO string instead of serverTimestamp
         createdAt: new Date().toISOString(),
         priority: notification.priority,
         sentBy: 'admin',
@@ -331,10 +332,10 @@ export default function NotificationBroadcasterPage() {
         );
       }
 
-      // Log to history
+      // Log to history with serverTimestamp (this is okay for setDoc/addDoc)
       await addDoc(collection(db, 'notificationHistory'), {
         ...notificationData,
-        sentAt: serverTimestamp(),
+        sentAt: serverTimestamp(), // This is fine here
         sentBy: auth.currentUser.uid,
         targetAudience,
         targetCount: targetedUsers.length,
