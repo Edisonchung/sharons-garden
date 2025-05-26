@@ -1,6 +1,4 @@
-// components/SeedTypeSelection.js
-// The 5 Seed Types emotional connection system
-
+// components/SeedTypeSelection.js - FIXED VERSION
 import { useState } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
@@ -70,12 +68,14 @@ export default function SeedTypeSelection({ isOpen, onClose, onSelectSeed, userN
   if (!isOpen) return null;
 
   const handleSelect = (seedType) => {
+    console.log('Selected seed type:', seedType); // Debug log
     setSelectedType(seedType);
     setShowConfirmation(true);
   };
 
   const handleConfirm = () => {
     if (selectedType) {
+      console.log('Confirming seed type:', selectedType); // Debug log
       onSelectSeed(selectedType);
       setShowConfirmation(false);
       setSelectedType(null);
@@ -89,7 +89,15 @@ export default function SeedTypeSelection({ isOpen, onClose, onSelectSeed, userN
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+      onClick={(e) => {
+        // Close modal if clicking on backdrop, but not on the modal content
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
+    >
       <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-xl">
         
         {!showConfirmation ? (
