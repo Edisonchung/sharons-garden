@@ -164,12 +164,23 @@ export default function SharonsGarden() {
     }
 
     try {
+      // Ensure seed has proper data structure
+      const seedDataToPass = {
+        ...seed,
+        seedTypeData: seed.seedTypeData || (seed.songSeed ? {
+          id: 'melody',
+          name: 'Melody Seed',
+          emoji: '🎵',
+          flowerTypes: ['Song Bloom']
+        } : null)
+      };
+      
       // Use the optimized watering manager
       const result = await waterSeed(
         user.uid,
         seed.id,
         user.displayName || user.email || 'Anonymous',
-        seed
+        seedDataToPass
       );
       
       if (result.bloomed) {
@@ -179,7 +190,7 @@ export default function SharonsGarden() {
           ...result.flowerData,
           waterCount: result.newWaterCount,
           bloomed: true,
-          bloomedFlower: result.flowerData?.emoji || '🌸'
+          bloomedFlower: result.flowerData?.emoji || (seed.songSeed ? '🎵' : '🌸')
         });
         setShowBloomAnimation(true);
         
@@ -187,7 +198,7 @@ export default function SharonsGarden() {
         await NotificationManager.seedBloomedNotification(
           user.uid,
           seed.type,
-          result.flowerData?.emoji || '🌸'
+          result.flowerData?.emoji || (seed.songSeed ? '🎵' : '🌸')
         );
         
         // Update unlocked slots if needed
