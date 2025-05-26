@@ -385,6 +385,12 @@ export default function AdminDashboard() {
                     🗄️ Database Tools
                   </Button>
                 </Link>
+                <Link href="/admin/command-center">
+                <Button className="w-full justify-start" variant="outline">
+                    🎮 Command Center
+                  </Button>
+                </Link>
+
                 <Button 
                   onClick={() => router.push('/admin/settings')}
                   variant="outline"
