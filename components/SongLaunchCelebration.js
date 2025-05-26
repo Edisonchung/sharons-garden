@@ -39,8 +39,8 @@ export function SongLaunchTrigger() {
 
   return <SongLaunchCelebration isOpen={showModal} onClose={() => setShowModal(false)} />;
 }
+
 const MELODY_SEED_DATA = {
-  id: 'melody-seed-2025',
   name: 'Melody Seed',
   emoji: '🎵',
   type: 'First Song',
@@ -188,20 +188,37 @@ export default function SongLaunchCelebration({ isOpen, onClose }) {
 
     setClaiming(true);
     try {
-      // Create the special seed
+      // Create the special seed in Firestore (not using the hardcoded ID)
       const specialSeed = {
         userId: auth.currentUser.uid,
-        ...MELODY_SEED_DATA,
+        name: auth.currentUser.displayName || auth.currentUser.email || 'Anonymous',
+        type: MELODY_SEED_DATA.type,
+        emoji: MELODY_SEED_DATA.emoji,
+        description: MELODY_SEED_DATA.description,
+        note: MELODY_SEED_DATA.sharonMessage,
         waterCount: 0,
         bloomed: false,
+        bloomedFlower: null,
         specialSeed: true,
         songSeed: true,
+        seedTypeData: {
+          id: 'melody',
+          name: 'Melody Seed',
+          emoji: '🎵',
+          flowerTypes: ['Song Bloom']
+        },
         createdAt: new Date().toISOString(),
         plantedBy: auth.currentUser.displayName || auth.currentUser.email,
-        launchDate: SONG_LAUNCH_DATE.toISOString()
+        launchDate: SONG_LAUNCH_DATE.toISOString(),
+        rarity: MELODY_SEED_DATA.rarity,
+        bgColor: MELODY_SEED_DATA.bgColor,
+        textColor: MELODY_SEED_DATA.textColor,
+        borderColor: MELODY_SEED_DATA.borderColor
       };
 
+      // Add to flowers collection
       const docRef = await addDoc(collection(db, 'flowers'), specialSeed);
+      console.log('Melody seed created with ID:', docRef.id);
 
       // Update user document
       await updateDoc(doc(db, 'users', auth.currentUser.uid), {
