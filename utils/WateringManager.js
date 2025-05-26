@@ -210,11 +210,21 @@ class WateringManager {
       
       // Get flower data
       let flowerData = {};
-      if (nowBloomed && seedData.seedTypeData) {
-        const { FLOWER_DATABASE } = await import('../hooks/useSeedTypes');
-        const possibleFlowers = seedData.seedTypeData.flowerTypes || [];
-        const randomFlower = possibleFlowers[Math.floor(Math.random() * possibleFlowers.length)];
-        flowerData = FLOWER_DATABASE[randomFlower] || {};
+      if (nowBloomed) {
+        if (currentSeedData.songSeed) {
+          // Special handling for song seeds
+          flowerData = {
+            emoji: '🎵',
+            name: 'Melody Bloom',
+            flowerLanguage: 'The song of your heart',
+            sharonMessage: 'Your melody has bloomed beautifully!'
+          };
+        } else if (seedData.seedTypeData) {
+          const { FLOWER_DATABASE } = await import('../hooks/useSeedTypes');
+          const possibleFlowers = seedData.seedTypeData.flowerTypes || [];
+          const randomFlower = possibleFlowers[Math.floor(Math.random() * possibleFlowers.length)];
+          flowerData = FLOWER_DATABASE[randomFlower] || {};
+        }
       }
 
       // Prepare update
