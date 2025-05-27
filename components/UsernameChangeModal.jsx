@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Dialog } from '@headlessui/react';
 import { auth, db } from '../lib/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { Button } from './ui/button';
 import toast from 'react-hot-toast';
 
 export default function UsernameChangeModal({ isOpen, onClose }) {
