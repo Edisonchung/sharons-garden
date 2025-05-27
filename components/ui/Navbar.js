@@ -23,12 +23,14 @@ import toast from 'react-hot-toast';
 
 export default function Navbar() {
   const [user, setUser] = useState(null);
+  const [userProfile, setUserProfile] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [hasUnwatered, setHasUnwatered] = useState(false);
   const [publicMenuSeen, setPublicMenuSeen] = useState(false);
   const [showCommunity, setShowCommunity] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  
   
   // Admin panel state
   const [showAdminMenu, setShowAdminMenu] = useState(false);
@@ -40,44 +42,33 @@ export default function Navbar() {
   const unreadNotifications = useNotificationCount();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      setUser(currentUser);
+  const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+    setUser(currentUser);
 
-      if (currentUser) {
-        // Check for unwatered flowers
-        const flowerQuery = query(
-          collection(db, 'flowers'),
-          where('userId', '==', currentUser.uid),
-          where('bloomed', '==', false)
-        );
-        const snapshot = await getDocs(flowerQuery);
-        const today = new Date().toDateString();
-        const needsWater = snapshot.docs.some((doc) => {
-          const lastKey = `lastWatered_${doc.id}`;
-          const last = localStorage.getItem(lastKey);
-          return !last || new Date(last).toDateString() !== today;
-        });
-        setHasUnwatered(needsWater);
+    if (currentUser) {
+      // ... existing code for checking unwatered flowers ...
 
-        // Get user data
-        const docRef = doc(db, 'users', currentUser.uid);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          const data = docSnap.data();
-          setPublicMenuSeen(data.publicMenuSeen || false);
-          if (data.role === 'admin') {
-            setIsAdmin(true);
-            fetchAdminStats(); // Fetch admin stats if admin
-          }
+      // Get user data including username
+      const docRef = doc(db, 'users', currentUser.uid);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setUserProfile(data); // Store full user profile
+        setPublicMenuSeen(data.publicMenuSeen || false);
+        if (data.role === 'admin') {
+          setIsAdmin(true);
+          fetchAdminStats();
         }
-      } else {
-        setHasUnwatered(false);
-        setIsAdmin(false);
       }
-    });
+    } else {
+      setUserProfile(null); // Clear profile when logged out
+      setHasUnwatered(false);
+      setIsAdmin(false);
+    }
+  });
 
-    return () => unsubscribe();
-  }, []);
+  return () => unsubscribe();
+}, []);
 
   // Fetch admin statistics
   const fetchAdminStats = async () => {
