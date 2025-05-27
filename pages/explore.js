@@ -1,4 +1,4 @@
-// pages/explore.js - Community Discovery Page
+// pages/explore.js - Fixed version without complex index requirements
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { 
@@ -7,10 +7,7 @@ import {
   query, 
   where, 
   orderBy, 
-  limit,
-  startAfter,
-  doc,
-  getDoc
+  limit
 } from 'firebase/firestore';
 import { db, auth } from '../lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -37,10 +34,6 @@ export default function ExplorePage() {
   // Recent blooms state
   const [recentBlooms, setRecentBlooms] = useState([]);
   const [bloomsLoading, setBloomsLoading] = useState(false);
-  
-  // Pagination
-  const [lastVisible, setLastVisible] = useState(null);
-  const [hasMore, setHasMore] = useState(true);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -72,32 +65,24 @@ export default function ExplorePage() {
     }
   };
 
-  // Load users with enhanced profiles
-  const loadUsers = async (loadMore = false) => {
+  // Simplified user loading without complex indexes
+  const loadUsers = async () => {
     try {
-      if (!loadMore) {
-        setUsersLoading(true);
-        setUsers([]);
-        setLastVisible(null);
-      }
+      setUsersLoading(true);
+      setUsers([]);
 
-      // Query public users with recent activity
-      let q = query(
+      // Simple query - only filter by public, no complex ordering
+      const q = query(
         collection(db, 'users'),
         where('public', '!=', false),
-        orderBy('public'),
-        orderBy('lastActive', 'desc'),
-        limit(12)
+        limit(20)
       );
-
-      if (loadMore && lastVisible) {
-        q = query(q, startAfter(lastVisible));
-      }
 
       const snapshot = await getDocs(q);
       
       if (snapshot.empty) {
-        setHasMore(false);
+        setUsers([]);
+        setUserStats({});
         return;
       }
 
@@ -113,12 +98,12 @@ export default function ExplorePage() {
 
         const userId = userDoc.id;
         
-        // Load user's flowers for stats
+        // Load user's flowers for stats (simplified)
         try {
           const flowersSnap = await getDocs(query(
             collection(db, 'flowers'),
             where('userId', '==', userId),
-            limit(50) // Limit for performance
+            limit(30) // Reduced limit for better performance
           ));
 
           const flowers = flowersSnap.docs.map(doc => doc.data());
@@ -153,22 +138,15 @@ export default function ExplorePage() {
         });
       }
 
-      // Sort by garden activity score
+      // Sort by garden activity score (client-side)
       userList.sort((a, b) => {
         const scoreA = calculateGardenScore(stats[a.id]);
         const scoreB = calculateGardenScore(stats[b.id]);
         return scoreB - scoreA;
       });
 
-      if (loadMore) {
-        setUsers(prev => [...prev, ...userList]);
-      } else {
-        setUsers(userList);
-      }
-      
-      setUserStats(prev => ({ ...prev, ...stats }));
-      setLastVisible(snapshot.docs[snapshot.docs.length - 1]);
-      setHasMore(userList.length === 12);
+      setUsers(userList);
+      setUserStats(stats);
 
     } catch (error) {
       console.error('Error loading users:', error);
@@ -178,27 +156,26 @@ export default function ExplorePage() {
     }
   };
 
-  // Load recent community activity
+  // Load recent community activity (simplified)
   const loadRecentActivity = async () => {
     try {
       setActivitiesLoading(true);
       
-      // Get recent waterings where friends helped others
+      // Get recent waterings (simplified query)
       const wateringsQuery = query(
         collection(db, 'waterings'),
-        where('resultedInBloom', '==', true),
         orderBy('timestamp', 'desc'),
-        limit(20)
+        limit(15)
       );
       
       const wateringsSnap = await getDocs(wateringsQuery);
       const activityList = [];
 
-      for (const doc of wateringsSnap.docs) {
+      wateringsSnap.docs.forEach(doc => {
         const data = doc.data();
         
-        // Skip self-watering
-        if (data.wateredByUserId === data.seedOwnerId) continue;
+        // Skip self-watering and include only blooms
+        if (data.wateredByUserId === data.seedOwnerId || !data.resultedInBloom) return;
 
         activityList.push({
           id: doc.id,
@@ -211,7 +188,7 @@ export default function ExplorePage() {
           seedType: data.seedType,
           emoji: '🌸'
         });
-      }
+      });
 
       setActivities(activityList);
 
@@ -223,17 +200,17 @@ export default function ExplorePage() {
     }
   };
 
-  // Load recent community blooms
+  // Load recent community blooms (simplified)
   const loadRecentBlooms = async () => {
     try {
-      setBoomsLoading(true);
+      setBloomsLoading(true);
       
-      // Get recent blooms from public users
+      // Get recent blooms (simplified query)
       const bloomsQuery = query(
         collection(db, 'flowers'),
         where('bloomed', '==', true),
         orderBy('bloomTime', 'desc'),
-        limit(20)
+        limit(15)
       );
       
       const bloomsSnap = await getDocs(bloomsQuery);
@@ -243,13 +220,18 @@ export default function ExplorePage() {
         const flowerData = flowerDoc.data();
         
         try {
-          // Check if user is public
-          const userDoc = await getDoc(doc(db, 'users', flowerData.userId));
-          if (!userDoc.exists() || userDoc.data().public === false) {
-            continue;
-          }
+          // Check if user is public (simplified check)
+          const userQuery = query(
+            collection(db, 'users'),
+            where('__name__', '==', flowerData.userId),
+            where('public', '!=', false),
+            limit(1)
+          );
+          
+          const userSnap = await getDocs(userQuery);
+          if (userSnap.empty) continue;
 
-          const userData = userDoc.data();
+          const userData = userSnap.docs[0].data();
 
           bloomList.push({
             id: flowerDoc.id,
@@ -274,7 +256,7 @@ export default function ExplorePage() {
       console.error('Error loading recent blooms:', error);
       toast.error('Failed to load recent blooms');
     } finally {
-      setBoomsLoading(false);
+      setBloomsLoading(false);
     }
   };
 
@@ -361,19 +343,19 @@ export default function ExplorePage() {
               </div>
               <div className="bg-white p-4 rounded-xl shadow text-center">
                 <div className="text-2xl font-bold text-green-600">
-                  {Object.values(userStats).reduce((sum, stat) => sum + stat.totalBlooms, 0)}
+                  {Object.values(userStats).reduce((sum, stat) => sum + (stat?.totalBlooms || 0), 0)}
                 </div>
                 <p className="text-sm text-gray-600">Total Blooms</p>
               </div>
               <div className="bg-white p-4 rounded-xl shadow text-center">
                 <div className="text-2xl font-bold text-yellow-600">
-                  {Object.values(userStats).reduce((sum, stat) => sum + stat.rareFlowers, 0)}
+                  {Object.values(userStats).reduce((sum, stat) => sum + (stat?.rareFlowers || 0), 0)}
                 </div>
                 <p className="text-sm text-gray-600">Rare Flowers</p>
               </div>
               <div className="bg-white p-4 rounded-xl shadow text-center">
                 <div className="text-2xl font-bold text-indigo-600">
-                  {Object.values(userStats).reduce((sum, stat) => sum + stat.specialSeeds, 0)}
+                  {Object.values(userStats).reduce((sum, stat) => sum + (stat?.specialSeeds || 0), 0)}
                 </div>
                 <p className="text-sm text-gray-600">Special Seeds</p>
               </div>
@@ -386,111 +368,101 @@ export default function ExplorePage() {
                 <p className="text-purple-700">Loading gardeners...</p>
               </div>
             ) : (
-              <>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {users.map((user) => {
-                    const stats = userStats[user.id] || {};
-                    const score = calculateGardenScore(stats);
-                    
-                    return (
-                      <Card key={user.id} className="bg-white shadow-lg hover:shadow-xl transition-all">
-                        <CardContent className="p-6">
-                          <div className="flex items-center gap-4 mb-4">
-                            <img
-                              src={user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.displayName || user.username)}&background=a855f7&color=fff`}
-                              alt="Profile"
-                              className="w-12 h-12 rounded-full border-2 border-purple-200"
-                            />
-                            <div className="flex-1">
-                              <h3 className="font-semibold text-purple-700">
-                                {user.displayName || user.username}
-                              </h3>
-                              <p className="text-sm text-gray-600">@{user.username}</p>
-                            </div>
-                            {score > 500 && (
-                              <div className="text-2xl" title="Top Gardener">⭐</div>
-                            )}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {users.map((user) => {
+                  const stats = userStats[user.id] || {};
+                  const score = calculateGardenScore(stats);
+                  
+                  return (
+                    <Card key={user.id} className="bg-white shadow-lg hover:shadow-xl transition-all">
+                      <CardContent className="p-6">
+                        <div className="flex items-center gap-4 mb-4">
+                          <img
+                            src={user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.displayName || user.username)}&background=a855f7&color=fff`}
+                            alt="Profile"
+                            className="w-12 h-12 rounded-full border-2 border-purple-200"
+                          />
+                          <div className="flex-1">
+                            <h3 className="font-semibold text-purple-700">
+                              {user.displayName || user.username}
+                            </h3>
+                            <p className="text-sm text-gray-600">@{user.username}</p>
                           </div>
-
-                          {user.bio && (
-                            <p className="text-sm text-gray-700 mb-4 line-clamp-2">
-                              {user.bio}
-                            </p>
+                          {score > 500 && (
+                            <div className="text-2xl" title="Top Gardener">⭐</div>
                           )}
+                        </div>
 
-                          {/* User Stats */}
-                          <div className="grid grid-cols-3 gap-2 mb-4 text-center">
-                            <div>
-                              <div className="text-lg font-bold text-green-600">{stats.totalBlooms || 0}</div>
-                              <p className="text-xs text-gray-600">Blooms</p>
-                            </div>
-                            <div>
-                              <div className="text-lg font-bold text-blue-600">{stats.conversionRate || 0}%</div>
-                              <p className="text-xs text-gray-600">Success</p>
-                            </div>
-                            <div>
-                              <div className="text-lg font-bold text-purple-600">{score}</div>
-                              <p className="text-xs text-gray-600">Score</p>
-                            </div>
+                        {user.bio && (
+                          <p className="text-sm text-gray-700 mb-4 line-clamp-2">
+                            {user.bio}
+                          </p>
+                        )}
+
+                        {/* User Stats */}
+                        <div className="grid grid-cols-3 gap-2 mb-4 text-center">
+                          <div>
+                            <div className="text-lg font-bold text-green-600">{stats.totalBlooms || 0}</div>
+                            <p className="text-xs text-gray-600">Blooms</p>
                           </div>
-
-                          {/* Special Achievements */}
-                          <div className="flex gap-1 mb-4 justify-center flex-wrap">
-                            {stats.rareFlowers > 0 && (
-                              <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">
-                                💎 {stats.rareFlowers} Rare
-                              </span>
-                            )}
-                            {stats.specialSeeds > 0 && (
-                              <span className="text-xs bg-indigo-100 text-indigo-800 px-2 py-1 rounded-full">
-                                ✨ {stats.specialSeeds} Special
-                              </span>
-                            )}
-                            {stats.lastBloom && (Date.now() - stats.lastBloom.getTime()) < (7 * 24 * 60 * 60 * 1000) && (
-                              <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
-                                🌱 Active
-                              </span>
-                            )}
+                          <div>
+                            <div className="text-lg font-bold text-blue-600">{stats.conversionRate || 0}%</div>
+                            <p className="text-xs text-gray-600">Success</p>
                           </div>
-
-                          {/* Action Buttons */}
-                          <div className="flex gap-2">
-                            <Button
-                              onClick={() => handleVisitProfile(user.username)}
-                              variant="outline"
-                              size="sm"
-                              className="flex-1"
-                            >
-                              👤 Profile
-                            </Button>
-                            <Button
-                              onClick={() => handleVisitGarden(user.username)}
-                              size="sm"
-                              className="flex-1"
-                            >
-                              🌱 Garden
-                            </Button>
+                          <div>
+                            <div className="text-lg font-bold text-purple-600">{score}</div>
+                            <p className="text-xs text-gray-600">Score</p>
                           </div>
+                        </div>
 
-                          <div className="mt-3 text-center">
-                            <p className="text-xs text-gray-500">
-                              Joined {formatDistanceToNow(user.joinedAt, { addSuffix: true })}
-                            </p>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                </div>
+                        {/* Special Achievements */}
+                        <div className="flex gap-1 mb-4 justify-center flex-wrap">
+                          {stats.rareFlowers > 0 && (
+                            <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">
+                              💎 {stats.rareFlowers} Rare
+                            </span>
+                          )}
+                          {stats.specialSeeds > 0 && (
+                            <span className="text-xs bg-indigo-100 text-indigo-800 px-2 py-1 rounded-full">
+                              ✨ {stats.specialSeeds} Special
+                            </span>
+                          )}
+                          {stats.lastBloom && (Date.now() - stats.lastBloom.getTime()) < (7 * 24 * 60 * 60 * 1000) && (
+                            <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
+                              🌱 Active
+                            </span>
+                          )}
+                        </div>
 
-                {hasMore && (
-                  <div className="text-center mt-8">
-                    <Button onClick={() => loadUsers(true)} variant="outline">
-                      Load More Gardeners
-                    </Button>
-                  </div>
-                )}
-              </>
+                        {/* Action Buttons */}
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={() => handleVisitProfile(user.username)}
+                            variant="outline"
+                            size="sm"
+                            className="flex-1"
+                          >
+                            👤 Profile
+                          </Button>
+                          <Button
+                            onClick={() => handleVisitGarden(user.username)}
+                            size="sm"
+                            className="flex-1"
+                          >
+                            🌱 Garden
+                          </Button>
+                        </div>
+
+                        <div className="mt-3 text-center">
+                          <p className="text-xs text-gray-500">
+                            Joined {formatDistanceToNow(user.joinedAt, { addSuffix: true })}
+                          </p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
             )}
           </div>
         )}
