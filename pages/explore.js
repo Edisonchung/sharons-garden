@@ -1,4 +1,4 @@
-// pages/explore.js - Ultra-robust version with comprehensive error handling
+// pages/explore.js - Updated with fixed Recent Blooms functionality
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { 
@@ -16,6 +16,9 @@ import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { formatDistanceToNow } from 'date-fns';
 import toast from 'react-hot-toast';
+
+// Import the fixed Recent Blooms component
+import RecentBloomsTab from '../components/RecentBloomsTab';
 
 export default function ExplorePage() {
   const router = useRouter();
@@ -52,41 +55,37 @@ export default function ExplorePage() {
   }, []);
 
   useEffect(() => {
-    if (!loading && !connectionError) {
+    if (!loading && !connectionError && activeTab === 'users') {
       loadUsers();
     }
-  }, [loading, connectionError]);
+  }, [loading, connectionError, activeTab]);
 
-  // Ultra-robust user loading with multiple fallback strategies
+  // Load users for the Gardeners tab
   const loadUsers = async () => {
     try {
       setUsersLoading(true);
       setUsers([]);
       setConnectionError(false);
 
-      // Strategy 1: Try the simple query first
       let userList = [];
       let stats = {};
 
       try {
         const q = query(
           collection(db, 'users'),
-          limit(15) // Reduced limit for better performance
+          limit(15)
         );
 
         const snapshot = await getDocs(q);
         
-        // Process users with error handling for each
         for (const userDoc of snapshot.docs) {
           try {
             const userData = userDoc.data();
             
-            // Skip invalid users
             if (!userData.username || userData.public === false) continue;
 
             const userId = userDoc.id;
             
-            // Try to load basic stats with timeout
             const userStats = await Promise.race([
               loadUserStats(userId),
               new Promise((_, reject) => 
@@ -111,21 +110,16 @@ export default function ExplorePage() {
 
           } catch (userError) {
             console.warn('Error processing user:', userDoc.id, userError);
-            // Continue with next user
           }
         }
 
       } catch (queryError) {
         console.error('Primary query failed:', queryError);
-        
-        // Fallback: Load mock/demo data if Firebase is having issues
         userList = getMockUsers();
         stats = getMockStats();
-        
         toast.error('Using demo data - Firebase connection issues');
       }
 
-      // Sort by activity (client-side)
       userList.sort((a, b) => {
         const scoreA = calculateGardenScore(stats[a.id] || {});
         const scoreB = calculateGardenScore(stats[b.id] || {});
@@ -138,18 +132,14 @@ export default function ExplorePage() {
     } catch (error) {
       console.error('Complete error in loadUsers:', error);
       setConnectionError(true);
-      
-      // Final fallback - show demo content
       setUsers(getMockUsers());
       setUserStats(getMockStats());
-      
       toast.error('Using demo mode - Please check your connection');
     } finally {
       setUsersLoading(false);
     }
   };
 
-  // Load user stats with error handling
   const loadUserStats = async (userId) => {
     try {
       const q = query(
@@ -180,7 +170,6 @@ export default function ExplorePage() {
     }
   };
 
-  // Mock data for fallback when Firebase is having issues
   const getMockUsers = () => [
     {
       id: 'demo1',
@@ -217,7 +206,6 @@ export default function ExplorePage() {
     demo3: { totalSeeds: 3, totalBlooms: 2, rareFlowers: 0, specialSeeds: 0, conversionRate: 67 }
   });
 
-  // Calculate garden activity score
   const calculateGardenScore = (stats) => {
     if (!stats) return 0;
     
@@ -245,13 +233,11 @@ export default function ExplorePage() {
     router.push(`/u/${username}/garden`);
   };
 
-  // Safe image URL with fallback
   const getSafeImageUrl = (photoURL, displayName, username) => {
-    if (photoURL && !photoURL.includes('photo.jpg')) {
+    if (photoURL && !photoURL.includes('photo.jpg') && photoURL !== '') {
       return photoURL;
     }
     
-    // Generate avatar fallback
     const name = encodeURIComponent(displayName || username || 'User');
     return `https://ui-avatars.com/api/?name=${name}&background=a855f7&color=fff&size=48`;
   };
@@ -287,150 +273,206 @@ export default function ExplorePage() {
           )}
         </div>
 
-        {/* Quick Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <div className="bg-white p-4 rounded-xl shadow text-center">
-            <div className="text-2xl font-bold text-purple-600">{users.length}</div>
-            <p className="text-sm text-gray-600">Gardeners Found</p>
-          </div>
-          <div className="bg-white p-4 rounded-xl shadow text-center">
-            <div className="text-2xl font-bold text-green-600">
-              {Object.values(userStats).reduce((sum, stat) => sum + (stat?.totalBlooms || 0), 0)}
-            </div>
-            <p className="text-sm text-gray-600">Total Blooms</p>
-          </div>
-          <div className="bg-white p-4 rounded-xl shadow text-center">
-            <div className="text-2xl font-bold text-yellow-600">
-              {Object.values(userStats).reduce((sum, stat) => sum + (stat?.rareFlowers || 0), 0)}
-            </div>
-            <p className="text-sm text-gray-600">Rare Flowers</p>
-          </div>
-          <div className="bg-white p-4 rounded-xl shadow text-center">
-            <div className="text-2xl font-bold text-indigo-600">
-              {Object.values(userStats).reduce((sum, stat) => sum + (stat?.specialSeeds || 0), 0)}
-            </div>
-            <p className="text-sm text-gray-600">Special Seeds</p>
+        {/* Tab Navigation */}
+        <div className="flex justify-center mb-8">
+          <div className="bg-white rounded-full p-1 shadow-lg">
+            <button
+              onClick={() => setActiveTab('users')}
+              className={`px-6 py-2 rounded-full transition-all ${
+                activeTab === 'users'
+                  ? 'bg-purple-600 text-white shadow-md'
+                  : 'text-purple-600 hover:bg-purple-50'
+              }`}
+            >
+              👥 Gardeners
+            </button>
+            <button
+              onClick={() => setActiveTab('activity')}
+              className={`px-6 py-2 rounded-full transition-all ${
+                activeTab === 'activity'
+                  ? 'bg-purple-600 text-white shadow-md'
+                  : 'text-purple-600 hover:bg-purple-50'
+              }`}
+            >
+              🌊 Activity
+            </button>
+            <button
+              onClick={() => setActiveTab('blooms')}
+              className={`px-6 py-2 rounded-full transition-all ${
+                activeTab === 'blooms'
+                  ? 'bg-purple-600 text-white shadow-md'
+                  : 'text-purple-600 hover:bg-purple-50'
+              }`}
+            >
+              🌸 Recent Blooms
+            </button>
           </div>
         </div>
 
-        {/* Users Grid */}
-        {usersLoading ? (
-          <div className="text-center py-12">
-            <div className="text-4xl animate-pulse mb-4">👥</div>
-            <p className="text-purple-700">Loading gardeners...</p>
-          </div>
-        ) : users.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="text-6xl mb-4">🌱</div>
-            <h3 className="text-xl font-semibold text-gray-700 mb-2">No gardeners found</h3>
-            <p className="text-gray-500 mb-4">Be the first to start your garden!</p>
-            <Button onClick={() => router.push('/auth')}>
-              🌸 Start Your Garden
-            </Button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {users.map((user) => {
-              const stats = userStats[user.id] || {};
-              const score = calculateGardenScore(stats);
-              
-              return (
-                <Card key={user.id} className="bg-white shadow-lg hover:shadow-xl transition-all">
-                  <CardContent className="p-6">
-                    <div className="flex items-center gap-4 mb-4">
-                      <img
-                        src={getSafeImageUrl(user.photoURL, user.displayName, user.username)}
-                        alt="Profile"
-                        className="w-12 h-12 rounded-full border-2 border-purple-200"
-                        onError={(e) => {
-                          e.target.src = getSafeImageUrl('', user.displayName, user.username);
-                        }}
-                      />
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-purple-700">
-                          {user.displayName || user.username}
-                        </h3>
-                        <p className="text-sm text-gray-600">@{user.username}</p>
-                        {user.id.startsWith('demo') && (
-                          <span className="text-xs bg-yellow-100 text-yellow-600 px-2 py-1 rounded-full">
-                            Demo
-                          </span>
+        {/* Tab Content */}
+        {activeTab === 'users' && (
+          <>
+            {/* Quick Stats */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+              <div className="bg-white p-4 rounded-xl shadow text-center">
+                <div className="text-2xl font-bold text-purple-600">{users.length}</div>
+                <p className="text-sm text-gray-600">Gardeners Found</p>
+              </div>
+              <div className="bg-white p-4 rounded-xl shadow text-center">
+                <div className="text-2xl font-bold text-green-600">
+                  {Object.values(userStats).reduce((sum, stat) => sum + (stat?.totalBlooms || 0), 0)}
+                </div>
+                <p className="text-sm text-gray-600">Total Blooms</p>
+              </div>
+              <div className="bg-white p-4 rounded-xl shadow text-center">
+                <div className="text-2xl font-bold text-yellow-600">
+                  {Object.values(userStats).reduce((sum, stat) => sum + (stat?.rareFlowers || 0), 0)}
+                </div>
+                <p className="text-sm text-gray-600">Rare Flowers</p>
+              </div>
+              <div className="bg-white p-4 rounded-xl shadow text-center">
+                <div className="text-2xl font-bold text-indigo-600">
+                  {Object.values(userStats).reduce((sum, stat) => sum + (stat?.specialSeeds || 0), 0)}
+                </div>
+                <p className="text-sm text-gray-600">Special Seeds</p>
+              </div>
+            </div>
+
+            {/* Users Grid */}
+            {usersLoading ? (
+              <div className="text-center py-12">
+                <div className="text-4xl animate-pulse mb-4">👥</div>
+                <p className="text-purple-700">Loading gardeners...</p>
+              </div>
+            ) : users.length === 0 ? (
+              <div className="text-center py-12">
+                <div className="text-6xl mb-4">🌱</div>
+                <h3 className="text-xl font-semibold text-gray-700 mb-2">No gardeners found</h3>
+                <p className="text-gray-500 mb-4">Be the first to start your garden!</p>
+                <Button onClick={() => router.push('/auth')}>
+                  🌸 Start Your Garden
+                </Button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {users.map((user) => {
+                  const stats = userStats[user.id] || {};
+                  const score = calculateGardenScore(stats);
+                  
+                  return (
+                    <Card key={user.id} className="bg-white shadow-lg hover:shadow-xl transition-all">
+                      <CardContent className="p-6">
+                        <div className="flex items-center gap-4 mb-4">
+                          <img
+                            src={getSafeImageUrl(user.photoURL, user.displayName, user.username)}
+                            alt="Profile"
+                            className="w-12 h-12 rounded-full border-2 border-purple-200"
+                            onError={(e) => {
+                              e.target.src = getSafeImageUrl('', user.displayName, user.username);
+                            }}
+                          />
+                          <div className="flex-1">
+                            <h3 className="font-semibold text-purple-700">
+                              {user.displayName || user.username}
+                            </h3>
+                            <p className="text-sm text-gray-600">@{user.username}</p>
+                            {user.id.startsWith('demo') && (
+                              <span className="text-xs bg-yellow-100 text-yellow-600 px-2 py-1 rounded-full">
+                                Demo
+                              </span>
+                            )}
+                          </div>
+                          {score > 500 && (
+                            <div className="text-2xl" title="Top Gardener">⭐</div>
+                          )}
+                        </div>
+
+                        {user.bio && (
+                          <p className="text-sm text-gray-700 mb-4 line-clamp-2">
+                            {user.bio}
+                          </p>
                         )}
-                      </div>
-                      {score > 500 && (
-                        <div className="text-2xl" title="Top Gardener">⭐</div>
-                      )}
-                    </div>
 
-                    {user.bio && (
-                      <p className="text-sm text-gray-700 mb-4 line-clamp-2">
-                        {user.bio}
-                      </p>
-                    )}
+                        <div className="grid grid-cols-3 gap-2 mb-4 text-center">
+                          <div>
+                            <div className="text-lg font-bold text-green-600">{stats.totalBlooms || 0}</div>
+                            <p className="text-xs text-gray-600">Blooms</p>
+                          </div>
+                          <div>
+                            <div className="text-lg font-bold text-blue-600">{stats.conversionRate || 0}%</div>
+                            <p className="text-xs text-gray-600">Success</p>
+                          </div>
+                          <div>
+                            <div className="text-lg font-bold text-purple-600">{score}</div>
+                            <p className="text-xs text-gray-600">Score</p>
+                          </div>
+                        </div>
 
-                    {/* User Stats */}
-                    <div className="grid grid-cols-3 gap-2 mb-4 text-center">
-                      <div>
-                        <div className="text-lg font-bold text-green-600">{stats.totalBlooms || 0}</div>
-                        <p className="text-xs text-gray-600">Blooms</p>
-                      </div>
-                      <div>
-                        <div className="text-lg font-bold text-blue-600">{stats.conversionRate || 0}%</div>
-                        <p className="text-xs text-gray-600">Success</p>
-                      </div>
-                      <div>
-                        <div className="text-lg font-bold text-purple-600">{score}</div>
-                        <p className="text-xs text-gray-600">Score</p>
-                      </div>
-                    </div>
+                        <div className="flex gap-1 mb-4 justify-center flex-wrap">
+                          {stats.rareFlowers > 0 && (
+                            <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">
+                              💎 {stats.rareFlowers} Rare
+                            </span>
+                          )}
+                          {stats.specialSeeds > 0 && (
+                            <span className="text-xs bg-indigo-100 text-indigo-800 px-2 py-1 rounded-full">
+                              ✨ {stats.specialSeeds} Special
+                            </span>
+                          )}
+                        </div>
 
-                    {/* Special Achievements */}
-                    <div className="flex gap-1 mb-4 justify-center flex-wrap">
-                      {stats.rareFlowers > 0 && (
-                        <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">
-                          💎 {stats.rareFlowers} Rare
-                        </span>
-                      )}
-                      {stats.specialSeeds > 0 && (
-                        <span className="text-xs bg-indigo-100 text-indigo-800 px-2 py-1 rounded-full">
-                          ✨ {stats.specialSeeds} Special
-                        </span>
-                      )}
-                    </div>
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={() => handleVisitProfile(user.username)}
+                            variant="outline"
+                            size="sm"
+                            className="flex-1"
+                          >
+                            👤 Profile
+                          </Button>
+                          <Button
+                            onClick={() => handleVisitGarden(user.username)}
+                            size="sm"
+                            className="flex-1"
+                          >
+                            🌱 Garden
+                          </Button>
+                        </div>
 
-                    {/* Action Buttons */}
-                    <div className="flex gap-2">
-                      <Button
-                        onClick={() => handleVisitProfile(user.username)}
-                        variant="outline"
-                        size="sm"
-                        className="flex-1"
-                      >
-                        👤 Profile
-                      </Button>
-                      <Button
-                        onClick={() => handleVisitGarden(user.username)}
-                        size="sm"
-                        className="flex-1"
-                      >
-                        🌱 Garden
-                      </Button>
-                    </div>
+                        <div className="mt-3 text-center">
+                          <p className="text-xs text-gray-500">
+                            Joined {formatDistanceToNow(user.joinedAt, { addSuffix: true })}
+                          </p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </>
+        )}
 
-                    <div className="mt-3 text-center">
-                      <p className="text-xs text-gray-500">
-                        Joined {formatDistanceToNow(user.joinedAt, { addSuffix: true })}
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
+        {/* Activity Tab */}
+        {activeTab === 'activity' && (
+          <div className="text-center py-12">
+            <div className="text-6xl mb-4">🌊</div>
+            <h3 className="text-xl font-semibold text-gray-700 mb-2">
+              Activity Feed Coming Soon
+            </h3>
+            <p className="text-gray-500">
+              See real-time updates from the community!
+            </p>
           </div>
         )}
 
+        {/* Recent Blooms Tab */}
+        {activeTab === 'blooms' && (
+          <RecentBloomsTab onVisitGarden={handleVisitGarden} />
+        )}
+
         {/* Retry Button */}
-        {connectionError && (
+        {connectionError && activeTab === 'users' && (
           <div className="text-center mt-8">
             <Button onClick={loadUsers} variant="outline">
               🔄 Retry Connection
