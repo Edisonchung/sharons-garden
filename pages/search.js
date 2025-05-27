@@ -8,7 +8,10 @@ import {
   where, 
   orderBy, 
   limit,
-  startAfter
+  startAfter,
+  doc,  // ADD THIS MISSING IMPORT
+  getDoc // ADD THIS MISSING IMPORT
+
 } from 'firebase/firestore';
 import { db, auth } from '../lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
