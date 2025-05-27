@@ -1,4 +1,6 @@
 // components/RecentBloomsTab.js - Fixed version with proper error handling
+
+import { doc, getDoc } from 'firebase/firestore';
 import { useState, useEffect } from 'react';
 import { 
   collection, 
