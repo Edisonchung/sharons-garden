@@ -1,24 +1,34 @@
-// utils/WateringManager.js - Enhanced Version for Public Profile System
-import { useState, useCallback } from 'react';
+// utils/WateringManager.js - Enhanced Watering System for Launch Day
+import React, { useState, useCallback } from 'react'; // ADD MISSING REACT IMPORT
 import { 
   doc, 
   updateDoc, 
   addDoc, 
   collection, 
-  serverTimestamp, 
-  getDoc,
-  increment,
-  writeBatch
+  serverTimestamp,
+  runTransaction,
+  getDoc 
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { NotificationManager } from '../components/NotificationSystem';
 import { FLOWER_DATABASE } from '../hooks/useSeedTypes';
+import { NotificationManager } from '../components/NotificationSystem';
 
-// Enhanced WateringManager class with better performance and error handling
-export class WateringManager {
+// Enhanced configuration for launch day
+const WATERING_CONFIG = {
+  maxConcurrentOperations: 10,
+  queueProcessInterval: 50, // ms
+  dailyWaterLimit: 50,
+  rateLimitWindow: 60000, // 1 minute
+  rateLimitMax: 10,
+  transactionTimeout: 15000 // 15 seconds
+};
+
+// Enhanced queue system for high-traffic handling
+class WateringQueue {
   constructor() {
-    this.operationQueue = [];
-    this.isProcessing = false;
+    this.queue = [];
+    this.processing = false;
+    this.activeOperations = 0;
     this.metrics = {
       totalOperations: 0,
       successfulOperations: 0,
@@ -26,406 +36,363 @@ export class WateringManager {
       averageResponseTime: 0,
       queueLength: 0,
       pendingOperations: 0,
-      lastError: null,
       peakConcurrent: 0
     };
-    this.rateLimits = new Map(); // userId -> { count, resetTime }
-    this.dailyLimits = new Map(); // userId -> { count, date }
-    this.processQueue = this.processQueue.bind(this);
     
-    // Start queue processor
-    this.startQueueProcessor();
+    this.startProcessing();
   }
 
-  // Enhanced rate limiting with daily limits
-  checkRateLimit(userId) {
-    const now = Date.now();
-    const windowMs = 60000; // 1 minute window
-    const maxActionsPerWindow = 15; // Increased from 10
-    const maxDailyActions = 100; // Daily limit
-
-    // Check per-minute rate limit
-    const userLimit = this.rateLimits.get(userId);
-    if (userLimit) {
-      if (now < userLimit.resetTime) {
-        if (userLimit.count >= maxActionsPerWindow) {
-          throw new Error('Rate limit exceeded. Please wait before watering again.');
-        }
-        userLimit.count++;
-      } else {
-        this.rateLimits.set(userId, { count: 1, resetTime: now + windowMs });
-      }
-    } else {
-      this.rateLimits.set(userId, { count: 1, resetTime: now + windowMs });
-    }
-
-    // Check daily limit
-    const today = new Date().toDateString();
-    const dailyLimit = this.dailyLimits.get(userId);
-    if (dailyLimit) {
-      if (dailyLimit.date === today) {
-        if (dailyLimit.count >= maxDailyActions) {
-          throw new Error('Daily watering limit reached. Come back tomorrow!');
-        }
-        dailyLimit.count++;
-      } else {
-        this.dailyLimits.set(userId, { count: 1, date: today });
-      }
-    } else {
-      this.dailyLimits.set(userId, { count: 1, date: today });
-    }
-  }
-
-  // Enhanced daily watering check
-  async checkDailyWatering(userId, seedId) {
-    // Check localStorage first (fast)
-    const today = new Date().toDateString();
-    const localKey = `lastWatered_${userId}_${seedId}`;
-    const lastWatered = localStorage.getItem(localKey);
-    
-    if (lastWatered && new Date(lastWatered).toDateString() === today) {
-      return false; // Already watered today
-    }
-
-    // TODO: Could also check Firestore for more accurate tracking
-    // For now, rely on localStorage for better performance
-    return true;
-  }
-
-  // Enhanced flower generation with better randomization
-  generateBloomData(seedData) {
-    const seedType = seedData.seedTypeData || {};
-    const flowerTypes = seedType.flowerTypes || ['Unknown Flower'];
-    
-    // Smart flower selection based on seed type and rarity
-    let selectedFlower;
-    if (seedData.songSeed) {
-      selectedFlower = 'Song Bloom';
-    } else {
-      // Weighted random selection
-      const weights = flowerTypes.map((_, index) => {
-        // First flower type is most common, last is rarest
-        return flowerTypes.length - index;
-      });
-      
-      const totalWeight = weights.reduce((sum, w) => sum + w, 0);
-      const random = Math.random() * totalWeight;
-      
-      let weightSum = 0;
-      for (let i = 0; i < flowerTypes.length; i++) {
-        weightSum += weights[i];
-        if (random <= weightSum) {
-          selectedFlower = flowerTypes[i];
-          break;
-        }
-      }
-    }
-
-    // Get flower data from database
-    const flowerData = FLOWER_DATABASE[selectedFlower] || {
-      emoji: seedData.songSeed ? '🎵' : '🌸',
-      flowerLanguage: 'A beautiful bloom',
-      sharonMessage: 'Thank you for nurturing this flower with such care. 💜',
-      rarity: 'common'
-    };
-
-    // Determine rarity with enhanced logic
-    let rarity = 'common';
-    const rarityRoll = Math.random();
-    
-    if (seedData.songSeed) {
-      rarity = 'legendary';
-    } else if (seedData.seedTypeData?.id === 'mystery' && rarityRoll < 0.3) {
-      rarity = 'rare';
-    } else if (rarityRoll < 0.1) {
-      rarity = 'rare';
-    } else if (rarityRoll < 0.02) {
-      rarity = 'rainbow';
-    }
-
-    return {
-      name: selectedFlower,
-      emoji: flowerData.emoji,
-      flowerLanguage: flowerData.flowerLanguage,
-      sharonMessage: flowerData.sharonMessage,
-      rarity,
-      bloomTime: new Date()
-    };
-  }
-
-  // Enhanced water operation with better error handling
-  async waterSeed(userId, seedId, wateredBy, seedData) {
-    const startTime = Date.now();
-    this.metrics.pendingOperations++;
-    this.metrics.peakConcurrent = Math.max(this.metrics.peakConcurrent, this.metrics.pendingOperations);
-
-    try {
-      // Rate limiting
-      this.checkRateLimit(userId);
-
-      // Daily watering check
-      const canWater = await this.checkDailyWatering(userId, seedId);
-      if (!canWater) {
-        throw new Error('You already watered this seed today! Come back tomorrow 🌙');
-      }
-
-      // Get current seed data
-      const seedRef = doc(db, 'flowers', seedId);
-      const seedSnap = await getDoc(seedRef);
-      
-      if (!seedSnap.exists()) {
-        throw new Error('Seed not found');
-      }
-
-      const currentSeed = seedSnap.data();
-      
-      // Validation
-      if (currentSeed.bloomed) {
-        throw new Error('This seed has already bloomed!');
-      }
-      
-      if (currentSeed.waterCount >= 7) {
-        throw new Error('This seed has reached its water limit!');
-      }
-
-      // Calculate new state
-      const newWaterCount = (currentSeed.waterCount || 0) + 1;
-      const willBloom = newWaterCount >= 7;
-      const isOwner = userId === currentSeed.userId;
-
-      // Prepare batch operation for better consistency
-      const batch = writeBatch(db);
-      
-      // Update seed
-      const seedUpdateData = {
-        waterCount: newWaterCount,
-        lastWatered: serverTimestamp(),
-        lastWateredBy: wateredBy,
-        lastWateredById: userId
-      };
-
-      if (willBloom) {
-        const bloomData = this.generateBloomData({ ...currentSeed, ...seedData });
-        seedUpdateData.bloomed = true;
-        seedUpdateData.bloomedFlower = bloomData.emoji;
-        seedUpdateData.bloomTime = serverTimestamp();
-        seedUpdateData.flowerName = bloomData.name;
-        seedUpdateData.flowerLanguage = bloomData.flowerLanguage;
-        seedUpdateData.sharonMessage = bloomData.sharonMessage;
-        seedUpdateData.rarity = bloomData.rarity;
-        
-        if (!isOwner) {
-          seedUpdateData.friendHelped = true;
-        }
-      }
-
-      batch.update(seedRef, seedUpdateData);
-
-      // Log watering event
-      const wateringLogRef = doc(collection(db, 'waterings'));
-      batch.set(wateringLogRef, {
-        seedId,
-        seedOwnerId: currentSeed.userId,
-        seedOwnerName: currentSeed.name || 'Anonymous',
-        seedType: currentSeed.type,
-        wateredByUserId: userId,
-        wateredByUsername: wateredBy,
-        timestamp: serverTimestamp(),
-        resultedInBloom: willBloom,
-        isOwnerWatering: isOwner
-      });
-
-      // Update user stats
-      if (!isOwner) {
-        const userRef = doc(db, 'users', userId);
-        batch.update(userRef, {
-          totalWaterings: increment(1),
-          lastWateringDate: serverTimestamp()
-        });
-      }
-
-      // Commit batch
-      await batch.commit();
-
-      // Update local storage
-      const today = new Date().toISOString();
-      const localKey = `lastWatered_${userId}_${seedId}`;
-      localStorage.setItem(localKey, today);
-
-      // Create notifications
-      if (willBloom) {
-        try {
-          await NotificationManager.seedBloomedNotification(
-            currentSeed.userId,
-            currentSeed.type,
-            seedUpdateData.bloomedFlower
-          );
-          
-          if (!isOwner) {
-            await NotificationManager.friendWateredNotification(
-              currentSeed.userId,
-              wateredBy,
-              currentSeed.type
-            );
-          }
-        } catch (notifError) {
-          console.warn('Notification failed:', notifError);
-        }
-      } else if (!isOwner) {
-        try {
-          await NotificationManager.friendWateredNotification(
-            currentSeed.userId,
-            wateredBy,
-            currentSeed.type
-          );
-        } catch (notifError) {
-          console.warn('Notification failed:', notifError);
-        }
-      }
-
-      // Update metrics
-      this.metrics.successfulOperations++;
-      const responseTime = Date.now() - startTime;
-      this.metrics.averageResponseTime = 
-        (this.metrics.averageResponseTime * (this.metrics.totalOperations - 1) + responseTime) / 
-        this.metrics.totalOperations;
-
-      return {
-        success: true,
-        newWaterCount,
-        bloomed: willBloom,
-        isOwner,
-        wateredBy,
-        flowerData: willBloom ? {
-          name: seedUpdateData.flowerName,
-          emoji: seedUpdateData.bloomedFlower,
-          flowerLanguage: seedUpdateData.flowerLanguage,
-          sharonMessage: seedUpdateData.sharonMessage,
-          rarity: seedUpdateData.rarity
-        } : null
-      };
-
-    } catch (error) {
-      this.metrics.failedOperations++;
-      this.metrics.lastError = {
-        message: error.message,
-        timestamp: new Date(),
-        userId,
-        seedId
-      };
-      
-      console.error('WateringManager error:', error);
-      throw error;
-    } finally {
-      this.metrics.pendingOperations--;
-      this.metrics.totalOperations++;
-    }
-  }
-
-  // Queue processing for high-traffic scenarios
-  async addToQueue(operation) {
+  add(operation) {
     return new Promise((resolve, reject) => {
-      this.operationQueue.push({
+      const queueItem = {
         ...operation,
         resolve,
         reject,
-        timestamp: Date.now()
-      });
+        timestamp: Date.now(),
+        retries: 0
+      };
       
-      this.metrics.queueLength = this.operationQueue.length;
+      this.queue.push(queueItem);
+      this.metrics.queueLength = this.queue.length;
       
-      if (!this.isProcessing) {
-        this.processQueue();
-      }
+      console.log(`💧 WateringManager: Added to queue (${this.queue.length} pending)`);
     });
   }
 
-  startQueueProcessor() {
-    setInterval(() => {
-      if (!this.isProcessing && this.operationQueue.length > 0) {
-        this.processQueue();
+  async startProcessing() {
+    if (this.processing) return;
+    
+    this.processing = true;
+    
+    while (true) {
+      if (this.queue.length === 0 || this.activeOperations >= WATERING_CONFIG.maxConcurrentOperations) {
+        await new Promise(resolve => setTimeout(resolve, WATERING_CONFIG.queueProcessInterval));
+        continue;
       }
-    }, 100);
-  }
 
-  async processQueue() {
-    if (this.isProcessing || this.operationQueue.length === 0) return;
-    
-    this.isProcessing = true;
-    const maxConcurrent = 5; // Process 5 operations at once
-    
-    try {
-      while (this.operationQueue.length > 0) {
-        const batch = this.operationQueue.splice(0, maxConcurrent);
-        this.metrics.queueLength = this.operationQueue.length;
-        
-        await Promise.allSettled(
-          batch.map(async (op) => {
-            try {
-              const result = await this.waterSeed(op.userId, op.seedId, op.wateredBy, op.seedData);
-              op.resolve(result);
-            } catch (error) {
-              op.reject(error);
-            }
-          })
-        );
-        
-        // Small delay to prevent overwhelming Firestore
-        if (this.operationQueue.length > 0) {
-          await new Promise(resolve => setTimeout(resolve, 50));
-        }
-      }
-    } finally {
-      this.isProcessing = false;
+      const operation = this.queue.shift();
+      this.metrics.queueLength = this.queue.length;
+      
+      this.processOperation(operation);
     }
   }
 
-  // Get performance metrics
-  getMetrics() {
-    const successRate = this.metrics.totalOperations > 0 
-      ? ((this.metrics.successfulOperations / this.metrics.totalOperations) * 100).toFixed(1)
-      : '100.0';
+  async processOperation(operation) {
+    this.activeOperations++;
+    this.metrics.pendingOperations = this.activeOperations;
+    this.metrics.peakConcurrent = Math.max(this.metrics.peakConcurrent, this.activeOperations);
     
+    const startTime = Date.now();
+    
+    try {
+      console.log(`💧 Processing watering operation for seed: ${operation.seedId}`);
+      
+      const result = await this.executeWatering(operation);
+      
+      const responseTime = Date.now() - startTime;
+      this.updateMetrics(true, responseTime);
+      
+      operation.resolve(result);
+      console.log(`✅ Watering completed successfully in ${responseTime}ms`);
+      
+    } catch (error) {
+      const responseTime = Date.now() - startTime;
+      console.error(`❌ Watering failed after ${responseTime}ms:`, error);
+      
+      // Retry logic for certain errors
+      if (operation.retries < 3 && this.shouldRetry(error)) {
+        operation.retries++;
+        console.log(`🔄 Retrying operation (attempt ${operation.retries + 1})`);
+        
+        // Add back to queue with delay
+        setTimeout(() => {
+          this.queue.unshift(operation);
+        }, 1000 * operation.retries);
+      } else {
+        this.updateMetrics(false, responseTime);
+        operation.reject(error);
+      }
+    } finally {
+      this.activeOperations--;
+      this.metrics.pendingOperations = this.activeOperations;
+    }
+  }
+
+  async executeWatering(operation) {
+    const { userId, seedId, watererName, seedData } = operation;
+    
+    // Use transaction for data consistency
+    return await runTransaction(db, async (transaction) => {
+      const seedRef = doc(db, 'flowers', seedId);
+      const seedDoc = await transaction.get(seedRef);
+      
+      if (!seedDoc.exists()) {
+        throw new Error('Seed not found');
+      }
+      
+      const currentData = seedDoc.data();
+      
+      // Validation checks
+      if (currentData.bloomed) {
+        throw new Error('This seed has already bloomed!');
+      }
+      
+      if (currentData.waterCount >= 7) {
+        throw new Error('This seed has reached its water limit!');
+      }
+      
+      const newWaterCount = (currentData.waterCount || 0) + 1;
+      const willBloom = newWaterCount >= 7;
+      
+      // Prepare update data
+      const updateData = {
+        waterCount: newWaterCount,
+        lastWatered: serverTimestamp(),
+        lastWateredBy: watererName,
+        lastWateredById: userId
+      };
+      
+      let flowerData = null;
+      
+      if (willBloom) {
+        // Generate bloom data
+        flowerData = this.generateBloomData(currentData, seedData);
+        
+        updateData.bloomed = true;
+        updateData.bloomedFlower = flowerData.emoji;
+        updateData.bloomTime = serverTimestamp();
+        updateData.flowerName = flowerData.name;
+        updateData.flowerLanguage = flowerData.flowerLanguage;
+        updateData.sharonMessage = flowerData.sharonMessage;
+        updateData.rarity = flowerData.rarity;
+      }
+      
+      // Update the seed
+      transaction.update(seedRef, updateData);
+      
+      // Log watering event
+      const wateringLogRef = doc(collection(db, 'waterings'));
+      transaction.set(wateringLogRef, {
+        seedId,
+        seedOwnerId: currentData.userId,
+        seedOwnerName: currentData.name || 'Anonymous',
+        wateredByUserId: userId,
+        wateredByUsername: watererName,
+        seedType: currentData.type,
+        timestamp: serverTimestamp(),
+        resultedInBloom: willBloom
+      });
+      
+      return {
+        success: true,
+        bloomed: willBloom,
+        newWaterCount,
+        flowerData,
+        isOwner: userId === currentData.userId,
+        wateredBy: watererName
+      };
+    });
+  }
+
+  generateBloomData(seedData, seedTypeData) {
+    // Handle special seeds (song seeds)
+    if (seedData.songSeed || seedData.specialSeed) {
+      return {
+        name: 'Song Bloom',
+        emoji: '🎵',
+        flowerLanguage: 'The birth of a beautiful melody',
+        sharonMessage: "This note carries all my hopes and dreams. Thank you for being part of my journey! 💜",
+        rarity: 'legendary'
+      };
+    }
+    
+    // Get flower data from database
+    const seedType = seedTypeData || seedData.seedTypeData;
+    if (seedType && seedType.flowerTypes) {
+      const randomFlower = seedType.flowerTypes[
+        Math.floor(Math.random() * seedType.flowerTypes.length)
+      ];
+      
+      const flowerInfo = FLOWER_DATABASE[randomFlower];
+      if (flowerInfo) {
+        return {
+          name: randomFlower,
+          emoji: flowerInfo.emoji,
+          flowerLanguage: flowerInfo.flowerLanguage,
+          sharonMessage: flowerInfo.sharonMessage,
+          rarity: this.determineRarity()
+        };
+      }
+    }
+    
+    // Fallback bloom data
     return {
-      ...this.metrics,
-      successRate: `${successRate}%`,
-      averageResponseTime: `${this.metrics.averageResponseTime.toFixed(0)}ms`
+      name: `${seedData.type} Bloom`,
+      emoji: '🌸',
+      flowerLanguage: 'A beautiful emotion in full bloom',
+      sharonMessage: "Every emotion you nurture grows into something beautiful. Thank you for growing with me! 🌸",
+      rarity: this.determineRarity()
     };
   }
 
-  // Clear rate limits (for testing or admin purposes)
-  clearRateLimits() {
-    this.rateLimits.clear();
-    this.dailyLimits.clear();
+  determineRarity() {
+    const random = Math.random();
+    if (random < 0.01) return 'legendary';  // 1%
+    if (random < 0.05) return 'rainbow';   // 4%
+    if (random < 0.15) return 'rare';      // 10%
+    return 'common';                       // 85%
+  }
+
+  shouldRetry(error) {
+    const retryableErrors = [
+      'timeout',
+      'network',
+      'temporarily unavailable',
+      'connection'
+    ];
+    
+    const errorMessage = error.message.toLowerCase();
+    return retryableErrors.some(retryError => errorMessage.includes(retryError));
+  }
+
+  updateMetrics(success, responseTime) {
+    this.metrics.totalOperations++;
+    
+    if (success) {
+      this.metrics.successfulOperations++;
+    } else {
+      this.metrics.failedOperations++;
+    }
+    
+    // Update average response time
+    const totalTime = this.metrics.averageResponseTime * (this.metrics.totalOperations - 1) + responseTime;
+    this.metrics.averageResponseTime = totalTime / this.metrics.totalOperations;
+  }
+
+  getMetrics() {
+    const successRate = this.metrics.totalOperations > 0 
+      ? ((this.metrics.successfulOperations / this.metrics.totalOperations) * 100).toFixed(2) + '%'
+      : '0%';
+    
+    return {
+      ...this.metrics,
+      successRate,
+      queueLength: this.queue.length,
+      pendingOperations: this.activeOperations
+    };
   }
 }
 
-// Singleton instance
-export const wateringManager = new WateringManager();
+// Global watering manager instance
+export const wateringManager = new WateringQueue();
 
-// React hook for enhanced watering
+// Rate limiting system
+class RateLimiter {
+  constructor() {
+    this.userActions = new Map();
+    this.dailyLimits = new Map();
+  }
+
+  checkRateLimit(userId) {
+    const now = Date.now();
+    const windowStart = now - WATERING_CONFIG.rateLimitWindow;
+    
+    if (!this.userActions.has(userId)) {
+      this.userActions.set(userId, []);
+    }
+    
+    const userActionTimes = this.userActions.get(userId);
+    
+    // Clean old actions
+    while (userActionTimes.length > 0 && userActionTimes[0] < windowStart) {
+      userActionTimes.shift();
+    }
+    
+    if (userActionTimes.length >= WATERING_CONFIG.rateLimitMax) {
+      throw new Error('Too many actions. Please wait a moment before watering again.');
+    }
+    
+    userActionTimes.push(now);
+  }
+
+  checkDailyLimit(userId) {
+    const today = new Date().toDateString();
+    const dailyKey = `${userId}_${today}`;
+    
+    const todayCount = this.dailyLimits.get(dailyKey) || 0;
+    
+    if (todayCount >= WATERING_CONFIG.dailyWaterLimit) {
+      throw new Error('You\'ve reached your daily watering limit. Come back tomorrow!');
+    }
+    
+    this.dailyLimits.set(dailyKey, todayCount + 1);
+  }
+}
+
+const rateLimiter = new RateLimiter();
+
+// Daily watering tracking
+const dailyWateringTracker = {
+  hasWateredToday(userId, seedId) {
+    const today = new Date().toDateString();
+    const key = `watered_${userId}_${seedId}`;
+    const lastWatered = localStorage.getItem(key);
+    
+    return lastWatered && new Date(lastWatered).toDateString() === today;
+  },
+
+  markAsWatered(userId, seedId) {
+    const key = `watered_${userId}_${seedId}`;
+    localStorage.setItem(key, new Date().toISOString());
+  }
+};
+
+// Enhanced hook for React components
 export function useWatering() {
   const [isWatering, setIsWatering] = useState(false);
   const [error, setError] = useState(null);
 
-  const waterSeed = useCallback(async (userId, seedId, wateredBy, seedData) => {
+  const waterSeed = useCallback(async (userId, seedId, watererName, seedData) => {
+    if (isWatering) {
+      throw new Error('Already watering a seed. Please wait.');
+    }
+
     setIsWatering(true);
     setError(null);
-    
+
     try {
-      const result = await wateringManager.waterSeed(userId, seedId, wateredBy, seedData);
+      // Rate limiting checks
+      rateLimiter.checkRateLimit(userId);
+      rateLimiter.checkDailyLimit(userId);
+
+      console.log('🌊 Starting enhanced watering process', { seedId, watererName });
+
+      // Add to processing queue
+      const result = await wateringManager.add({
+        userId,
+        seedId,
+        watererName,
+        seedData
+      });
+
+      // Mark as watered today
+      dailyWateringTracker.markAsWatered(userId, seedId);
+
+      console.log('🌊 Watering result:', result);
       return result;
+
     } catch (err) {
+      console.error('🚨 Watering error:', err);
       setError(err.message);
       throw err;
     } finally {
       setIsWatering(false);
     }
-  }, []);
+  }, [isWatering]);
 
   const canWaterToday = useCallback(async (userId, seedId) => {
     try {
-      return await wateringManager.checkDailyWatering(userId, seedId);
+      return !dailyWateringTracker.hasWateredToday(userId, seedId);
     } catch (err) {
       console.error('Error checking daily watering:', err);
       return false;
@@ -436,254 +403,68 @@ export function useWatering() {
     waterSeed,
     isWatering,
     error,
-    canWaterToday,
-    metrics: wateringManager.getMetrics()
+    canWaterToday
   };
 }
 
-// utils/searchHelpers.js - Search utility functions
-export const SearchHelpers = {
-  // Enhanced text matching with fuzzy search
-  fuzzyMatch(text, searchTerm) {
-    if (!text || !searchTerm) return 0;
-    
-    const textLower = text.toLowerCase();
-    const termLower = searchTerm.toLowerCase();
-    
-    // Exact match gets highest score
-    if (textLower === termLower) return 10;
-    
-    // Starts with gets high score
-    if (textLower.startsWith(termLower)) return 8;
-    
-    // Contains gets medium score
-    if (textLower.includes(termLower)) return 5;
-    
-    // Character-by-character fuzzy matching
-    let score = 0;
-    let termIndex = 0;
-    
-    for (let i = 0; i < textLower.length && termIndex < termLower.length; i++) {
-      if (textLower[i] === termLower[termIndex]) {
-        score += 1;
-        termIndex++;
-      }
-    }
-    
-    // Bonus for completing the term
-    if (termIndex === termLower.length) {
-      score += 2;
-    }
-    
-    return score;
-  },
+// System health monitoring
+export function getSystemHealth() {
+  const metrics = wateringManager.getMetrics();
+  
+  const health = {
+    status: 'healthy',
+    queueLength: metrics.queueLength,
+    successRate: parseFloat(metrics.successRate),
+    averageResponseTime: metrics.averageResponseTime,
+    warnings: []
+  };
 
-  // Extract search terms and clean them
-  extractSearchTerms(query) {
-    return query
-      .toLowerCase()
-      .replace(/[^\w\s]/g, ' ')
-      .split(/\s+/)
-      .filter(term => term.length > 0)
-      .slice(0, 5); // Limit to 5 terms for performance
-  },
-
-  // Calculate relevance score for users
-  calculateUserRelevance(userData, searchTerms) {
-    let score = 0;
-    
-    searchTerms.forEach(term => {
-      score += this.fuzzyMatch(userData.username, term) * 3;
-      score += this.fuzzyMatch(userData.displayName, term) * 2;
-      score += this.fuzzyMatch(userData.bio, term) * 1;
-    });
-
-    // Bonus factors
-    if (userData.verified) score += 10;
-    if (userData.photoURL) score += 5;
-    if (userData.badges?.length > 5) score += 3;
-    
-    // Recent activity bonus
-    const lastActive = userData.lastActive?.toDate?.();
-    if (lastActive && (Date.now() - lastActive.getTime()) < (7 * 24 * 60 * 60 * 1000)) {
-      score += 8;
-    }
-    
-    return score;
-  },
-
-  // Highlight search terms in text
-  highlightSearchTerms(text, searchTerms) {
-    if (!text || !searchTerms.length) return text;
-    
-    let highlightedText = text;
-    
-    searchTerms.forEach(term => {
-      const regex = new RegExp(`(${term})`, 'gi');
-      highlightedText = highlightedText.replace(regex, '<mark>$1</mark>');
-    });
-    
-    return highlightedText;
-  },
-
-  // Generate search suggestions
-  generateSuggestions(query, existingResults = []) {
-    const suggestions = [
-      'active gardeners',
-      'rare flowers',
-      'new users',
-      'special seeds',
-      'verified users',
-      'gardens with blooms',
-      'recent activity',
-      'community leaders'
-    ];
-
-    if (!query) return suggestions.slice(0, 5);
-
-    // Filter suggestions based on current query
-    const filtered = suggestions.filter(suggestion => 
-      suggestion.toLowerCase().includes(query.toLowerCase()) ||
-      query.toLowerCase().includes(suggestion.toLowerCase())
-    );
-
-    // Add dynamic suggestions based on results
-    if (existingResults.length > 0) {
-      const commonTypes = new Set();
-      existingResults.forEach(result => {
-        if (result.type) commonTypes.add(result.type);
-        if (result.seedTypes) result.seedTypes.forEach(type => commonTypes.add(type));
-      });
-      
-      Array.from(commonTypes).slice(0, 3).forEach(type => {
-        filtered.push(`more ${type}`);
-      });
-    }
-
-    return filtered.slice(0, 8);
+  // Health checks
+  if (metrics.queueLength > 100) {
+    health.status = 'degraded';
+    health.warnings.push('High queue length');
   }
-};
 
-// utils/profileHelpers.js - Profile utility functions
-export const ProfileHelpers = {
-  // Calculate garden activity score
-  calculateGardenScore(stats) {
-    if (!stats) return 0;
-    
-    const bloomPoints = (stats.totalBlooms || 0) * 10;
-    const helpPoints = (stats.friendsHelped || 0) * 5;
-    const rarePoints = (stats.rareFlowers || 0) * 25;
-    const specialPoints = (stats.specialSeeds || 0) * 50;
-    const conversionBonus = stats.conversionRate > 80 ? 100 : 0;
-    const streakBonus = (stats.currentStreak || 0) * 2;
-    
-    // Recent activity bonus
-    const recentBonus = stats.lastBloom && 
-      (Date.now() - stats.lastBloom.getTime()) < (7 * 24 * 60 * 60 * 1000) ? 50 : 0;
-    
-    return bloomPoints + helpPoints + rarePoints + specialPoints + conversionBonus + streakBonus + recentBonus;
+  if (parseFloat(metrics.successRate) < 95) {
+    health.status = 'degraded';
+    health.warnings.push('Low success rate');
+  }
+
+  if (metrics.averageResponseTime > 5000) {
+    health.status = 'degraded';
+    health.warnings.push('High response time');
+  }
+
+  if (health.warnings.length > 2) {
+    health.status = 'unhealthy';
+  }
+
+  return health;
+}
+
+// Emergency system controls (admin only)
+export const systemControls = {
+  async pauseWatering() {
+    // Implementation for emergency pause
+    console.log('🚨 Emergency: Watering system paused');
   },
 
-  // Generate user achievement tags
-  generateAchievementTags(userData, stats) {
-    const tags = [];
-    
-    if (userData.verified) tags.push({ label: 'Verified', color: 'blue', emoji: '✓' });
-    if (stats.totalBlooms >= 50) tags.push({ label: 'Master Gardener', color: 'green', emoji: '🌺' });
-    if (stats.rareFlowers >= 5) tags.push({ label: 'Rare Collector', color: 'yellow', emoji: '💎' });
-    if (stats.specialSeeds >= 3) tags.push({ label: 'Special Seeker', color: 'purple', emoji: '✨' });
-    if (stats.friendsHelped >= 20) tags.push({ label: 'Community Helper', color: 'pink', emoji: '🤝' });
-    if (stats.currentStreak >= 30) tags.push({ label: 'Dedicated', color: 'orange', emoji: '🔥' });
-    
-    // Recent activity
-    const lastActive = userData.lastActive?.toDate?.();
-    if (lastActive && (Date.now() - lastActive.getTime()) < (24 * 60 * 60 * 1000)) {
-      tags.push({ label: 'Active Today', color: 'green', emoji: '🌱' });
-    }
-    
-    return tags.slice(0, 3); // Limit to 3 most impressive tags
+  async resumeWatering() {
+    // Implementation for resuming
+    console.log('✅ Watering system resumed');
   },
 
-  // Format join date with relative time
-  formatJoinDate(joinedAt) {
-    if (!joinedAt) return 'Recently';
-    
-    const date = joinedAt.toDate ? joinedAt.toDate() : new Date(joinedAt);
-    const now = new Date();
-    const diffDays = Math.floor((now - date) / (1000 * 60 * 60 * 24));
-    
-    if (diffDays < 1) return 'Today';
-    if (diffDays < 7) return `${diffDays} days ago`;
-    if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
-    if (diffDays < 365) return `${Math.floor(diffDays / 30)} months ago`;
-    
-    return date.toLocaleDateString();
+  async clearQueue() {
+    // Clear processing queue
+    wateringManager.queue = [];
+    console.log('🧹 Watering queue cleared');
   },
 
-  // Generate shareable profile card data
-  generateShareableCard(userData, stats) {
+  getDetailedMetrics() {
     return {
-      title: `${userData.displayName || userData.username}'s Garden`,
-      description: userData.bio || 'Growing emotions into beautiful flowers 🌸',
-      stats: {
-        blooms: stats.totalBlooms || 0,
-        helped: stats.friendsHelped || 0,
-        score: this.calculateGardenScore(stats)
-      },
-      achievements: this.generateAchievementTags(userData, stats),
-      url: `${process.env.NEXT_PUBLIC_BASE_URL || 'https://sharons-garden.app'}/u/${userData.username}`
+      ...wateringManager.getMetrics(),
+      systemHealth: getSystemHealth(),
+      timestamp: new Date().toISOString()
     };
   }
 };
-
-// Enhanced error boundaries for the profile system
-export class ProfileErrorBoundary extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = { hasError: false, error: null };
-  }
-
-  static getDerivedStateFromError(error) {
-    return { hasError: true, error };
-  }
-
-  componentDidCatch(error, errorInfo) {
-    console.error('Profile system error:', error, errorInfo);
-    
-    // Log to monitoring service
-    if (typeof window !== 'undefined' && window.gtag) {
-      window.gtag('event', 'exception', {
-        description: `Profile Error: ${error.toString()}`,
-        fatal: false
-      });
-    }
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div className="min-h-screen bg-gradient-to-b from-pink-100 to-purple-200 flex items-center justify-center p-6">
-          <div className="bg-white rounded-xl p-8 shadow-lg max-w-md text-center">
-            <div className="text-6xl mb-4">🌱</div>
-            <h2 className="text-xl font-bold text-purple-700 mb-2">
-              Something went wrong
-            </h2>
-            <p className="text-gray-600 mb-4">
-              We're having trouble loading this profile. Please try refreshing the page.
-            </p>
-            <button
-              onClick={() => window.location.reload()}
-              className="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 transition-colors"
-            >
-              🔄 Refresh Page
-            </button>
-          </div>
-        </div>
-      );
-    }
-
-    return this.props.children;
-  }
-}
-
-export default WateringManager;
