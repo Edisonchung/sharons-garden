@@ -292,9 +292,10 @@ export default function Navbar() {
                 <Link href="/explore" className="hover:underline">🌸 Explore Feed</Link>
                 <Link href="/rankings" className="hover:underline">🏆 Leaderboard</Link>
                 <Link href="/top-badges" className="hover:underline">🎖️ Top Badges</Link>
-                <Link href={`/u/${user?.displayName || 'username'}/badges`} className="hover:underline">
-                  📛 My Public Badge Page
+                <Link href={`/u/${userProfile?.username || 'username'}/badges`} className="hover:underline">
+                📛 My Public Badge Page
                 </Link>
+
               </div>
             )}
           </div>
