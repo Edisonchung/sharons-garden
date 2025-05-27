@@ -1,8 +1,9 @@
-// pages/u/[username]/timeline.js - Production Version with Enhanced Features
+// pages/u/[username]/timeline.js - Updated with Unified Navigation
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 import { collection, getDocs, query, where, orderBy, limit } from 'firebase/firestore';
 import { db } from '../../../lib/firebase';
+import { PublicProfileLayout, getCurrentPageFromPath } from '../../../components/PublicProfileLayout';
 import { Card, CardContent } from '../../../components/ui/card';
 import { Button } from '../../../components/ui/button';
 import { formatDistanceToNow } from 'date-fns';
@@ -18,8 +19,8 @@ export default function EnhancedPublicTimelinePage() {
   const router = useRouter();
   const { username } = router.query;
 
-  const [timeline, setTimeline] = useState([]);
   const [profile, setProfile] = useState(null);
+  const [timeline, setTimeline] = useState([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [filterType, setFilterType] = useState('all');
@@ -57,17 +58,26 @@ export default function EnhancedPublicTimelinePage() {
           return;
         }
 
-        setProfile({
+        // Enhanced profile data for the layout
+        const profileData = {
           id: userId,
-          name: userData.displayName || username,
-          avatar: userData.photoURL || '',
-          joined: userData.joinedAt?.toDate?.().toLocaleDateString() || 'N/A',
           username: userData.username,
-          bio: userData.bio || ''
-        });
+          displayName: userData.displayName || username,
+          photoURL: userData.photoURL || '',
+          bio: userData.bio || '',
+          joinedDate: userData.joinedAt?.toDate?.().toLocaleDateString() || 'N/A',
+          isVerified: userData.verified || false,
+          stats: {
+            badges: (userData.badges || []).length,
+            blooms: 0, // Will be calculated below
+            helped: 0  // Will be calculated below
+          }
+        };
+
+        setProfile(profileData);
 
         // Load all timeline activities
-        await loadTimelineActivities(userId, userData);
+        await loadTimelineActivities(userId, userData, profileData);
         await loadTimelineStats(userId);
 
       } catch (err) {
@@ -81,7 +91,7 @@ export default function EnhancedPublicTimelinePage() {
     fetchPublicTimeline();
   }, [username]);
 
-  const loadTimelineActivities = async (userId, userData) => {
+  const loadTimelineActivities = async (userId, userData, profileData) => {
     try {
       const activities = [];
 
@@ -197,6 +207,19 @@ export default function EnhancedPublicTimelinePage() {
 
       setTimeline(sortedActivities);
 
+      // Update profile stats
+      const bloomCount = activities.filter(a => a.type === 'bloom').length;
+      const helpCount = activities.filter(a => a.type === 'watering').length;
+      
+      setProfile(prev => ({
+        ...prev,
+        stats: {
+          ...prev.stats,
+          blooms: bloomCount,
+          helped: helpCount
+        }
+      }));
+
     } catch (error) {
       console.error('Error loading timeline activities:', error);
       setTimeline([]);
@@ -271,64 +294,31 @@ export default function EnhancedPublicTimelinePage() {
     return item.category === filterType;
   });
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-b from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-black p-6">
-        <div className="max-w-4xl mx-auto text-center">
-          <div className="text-4xl animate-pulse mb-4">📖</div>
-          <p className="text-indigo-700 dark:text-indigo-300">Loading timeline for @{username}...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (notFound) {
-    return (
-      <div className="min-h-screen bg-gradient-to-b from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-black p-6">
-        <div className="max-w-2xl mx-auto text-center">
-          <div className="bg-white dark:bg-gray-900 rounded-xl p-8 shadow-lg">
-            <div className="text-6xl mb-4">🔒</div>
-            <h1 className="text-2xl font-bold text-red-700 dark:text-red-400 mb-2">Timeline Not Available</h1>
-            <p className="text-gray-600 dark:text-gray-400 mb-4">
-              User @{username} not found or their timeline is private.
-            </p>
-            <Button onClick={() => router.push('/')}>
-              🏠 Go to Main Garden
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const currentPage = getCurrentPageFromPath(router.pathname);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-black p-6">
-      <div className="max-w-4xl mx-auto">
+    <PublicProfileLayout 
+      username={username} 
+      userData={profile} 
+      currentPage={currentPage}
+      loading={loading}
+      notFound={notFound}
+    >
+      {/* Page Content */}
+      <div className="space-y-6">
         
-        {/* Header */}
-        <div className="text-center mb-6">
-          {profile.avatar && (
-            <img 
-              src={profile.avatar} 
-              alt={profile.name} 
-              className="mx-auto w-20 h-20 rounded-full border-4 border-white shadow-lg mb-3" 
-            />
-          )}
-          <h1 className="text-3xl font-bold text-indigo-700 dark:text-indigo-300">
-            📖 {profile.name}'s Timeline
-          </h1>
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            @{profile.username} • Joined: {profile.joined}
+        {/* Timeline Header */}
+        <div className="text-center">
+          <h2 className="text-3xl font-bold text-indigo-700 dark:text-indigo-300 mb-2">
+            📖 Garden Timeline
+          </h2>
+          <p className="text-gray-600 dark:text-gray-400">
+            A complete history of {profile?.displayName}'s garden journey
           </p>
-          {profile.bio && (
-            <p className="text-gray-700 dark:text-gray-300 mt-2 max-w-md mx-auto">
-              {profile.bio}
-            </p>
-          )}
         </div>
 
         {/* Timeline Stats Dashboard */}
-        <Card className="mb-6">
+        <Card>
           <CardContent className="p-6">
             <h3 className="text-lg font-semibold mb-4 text-indigo-700 dark:text-indigo-300">📊 Garden Journey</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -371,7 +361,7 @@ export default function EnhancedPublicTimelinePage() {
         </Card>
 
         {/* Timeline Filters and Controls */}
-        <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+        <div className="flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="flex gap-2 flex-wrap justify-center">
             {Object.entries(TIMELINE_FILTERS).map(([key, filter]) => (
               <button
@@ -427,30 +417,8 @@ export default function EnhancedPublicTimelinePage() {
             ))
           )}
         </div>
-
-        {/* Navigation Links */}
-        <div className="mt-12 flex justify-center gap-4 flex-wrap">
-          <Button
-            onClick={() => router.push(`/u/${username}`)}
-            variant="outline"
-          >
-            👤 View Profile
-          </Button>
-          <Button
-            onClick={() => router.push(`/u/${username}/garden`)}
-            variant="outline"
-          >
-            🌱 Visit Garden
-          </Button>
-          <Button
-            onClick={() => router.push(`/u/${username}/badges`)}
-            variant="outline"
-          >
-            🏅 View Badges
-          </Button>
-        </div>
       </div>
-    </div>
+    </PublicProfileLayout>
   );
 }
 
