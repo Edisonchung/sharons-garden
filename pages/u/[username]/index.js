@@ -1,7 +1,7 @@
-// pages/u/[username]/index.js - Updated with Unified Navigation
+// pages/u/[username]/index.js - Updated to work with Unified Header (followers/following removed)
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import { collection, query, where, getDocs, doc, updateDoc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { db, auth } from '../../../lib/firebase';
 import { PublicProfileLayout, getCurrentPageFromPath } from '../../../components/PublicProfileLayout';
 import { Card, CardContent } from '../../../components/ui/card';
@@ -16,8 +16,6 @@ export default function EnhancedPublicUserPage() {
   const [userData, setUserData] = useState(null);
   const [userStats, setUserStats] = useState({});
   const [recentActivity, setRecentActivity] = useState([]);
-  const [isFollowing, setIsFollowing] = useState(false);
-  const [followerCount, setFollowerCount] = useState(0);
   const [isOwnProfile, setIsOwnProfile] = useState(false);
   const [showQRCode, setShowQRCode] = useState(false);
   const [notFound, setNotFound] = useState(false);
@@ -85,11 +83,6 @@ export default function EnhancedPublicUserPage() {
         // Load comprehensive stats and update profile
         await loadUserStats(userDoc.id, profileData);
         await loadRecentActivity(userDoc.id);
-        
-        // Only load follow status if user is signed in and it's not their own profile
-        if (auth.currentUser && auth.currentUser.uid !== userDoc.id) {
-          await loadFollowStatus(userDoc.id);
-        }
         
       } catch (err) {
         console.error('Failed to fetch public profile:', err);
@@ -201,92 +194,26 @@ export default function EnhancedPublicUserPage() {
     }
   };
 
-  const loadFollowStatus = async (userId) => {
-    if (!auth.currentUser || auth.currentUser.uid === userId) return;
-
-    try {
-      // Try to check if current user follows this user
-      try {
-        const followDoc = await getDoc(
-          doc(db, 'users', auth.currentUser.uid, 'following', userId)
-        );
-        setIsFollowing(followDoc.exists());
-      } catch (followError) {
-        console.warn('Could not check following status - user may not have permission:', followError);
-        setIsFollowing(false);
-      }
-
-      // Try to get follower count
-      try {
-        const followersSnap = await getDocs(
-          collection(db, 'users', userId, 'followers')
-        );
-        setFollowerCount(followersSnap.size);
-      } catch (followerError) {
-        console.warn('Could not get follower count - profile may be private:', followerError);
-        setFollowerCount(0);
-      }
-
-    } catch (error) {
-      console.warn('Error loading follow status (this is normal for private profiles):', error);
-    }
-  };
-
-  const handleFollow = async () => {
-    if (!auth.currentUser || isOwnProfile) return;
-
-    try {
-      const userId = userData.id;
-      const currentUserId = auth.currentUser.uid;
-
-      if (isFollowing) {
-        // Unfollow
-        try {
-          await Promise.all([
-            deleteDoc(doc(db, 'users', currentUserId, 'following', userId)),
-            deleteDoc(doc(db, 'users', userId, 'followers', currentUserId))
-          ]);
-          setIsFollowing(false);
-          setFollowerCount(prev => Math.max(0, prev - 1));
-          toast.success('Unfollowed successfully');
-        } catch (unfollowError) {
-          console.error('Error unfollowing:', unfollowError);
-          toast.error('Failed to unfollow - you may not have permission');
-        }
-      } else {
-        // Follow
-        try {
-          await Promise.all([
-            setDoc(doc(db, 'users', currentUserId, 'following', userId), {
-              username: userData.username,
-              displayName: userData.displayName,
-              photoURL: userData.photoURL,
-              followedAt: new Date()
-            }),
-            setDoc(doc(db, 'users', userId, 'followers', currentUserId), {
-              username: auth.currentUser.displayName,
-              displayName: auth.currentUser.displayName,
-              photoURL: auth.currentUser.photoURL,
-              followedAt: new Date()
-            })
-          ]);
-          setIsFollowing(true);
-          setFollowerCount(prev => prev + 1);
-          toast.success('Following!');
-        } catch (followError) {
-          console.error('Error following:', followError);
-          toast.error('Failed to follow - profile may be private');
-        }
-      }
-    } catch (error) {
-      console.error('Error updating follow status:', error);
-      toast.error('Failed to update follow status');
-    }
-  };
-
   const generateQRCode = () => {
     const profileUrl = `${window.location.origin}/u/${username}`;
-    setShowQRCode(true);
+    
+    // Create a simple QR code placeholder or use a library
+    const qrText = `Visit ${userData?.displayName || username}'s garden at:\n${profileUrl}`;
+    
+    if (navigator.share) {
+      navigator.share({
+        title: `${userData?.displayName || username}'s Garden Profile`,
+        text: `Check out ${userData?.displayName || username}'s garden in Sharon's Garden!`,
+        url: profileUrl
+      }).catch(() => {
+        // Fallback to clipboard
+        navigator.clipboard.writeText(profileUrl);
+        toast.success('Profile link copied!');
+      });
+    } else {
+      navigator.clipboard.writeText(profileUrl);
+      toast.success('Profile link copied!');
+    }
   };
 
   const calculateGardenScore = (flowers, waterings, friendsHelped) => {
@@ -326,111 +253,117 @@ export default function EnhancedPublicUserPage() {
       {/* Page Content */}
       <div className="space-y-6">
         
-        {/* Enhanced Profile Header Content */}
-        <Card className="overflow-hidden">
-          <div className="bg-gradient-to-r from-purple-400 to-pink-400 h-16"></div>
-          <CardContent className="relative pt-0 pb-6">
+        {/* Garden Overview */}
+        <Card>
+          <CardContent className="p-6">
+            <h3 className="text-lg font-semibold text-purple-700 dark:text-purple-300 mb-4">
+              🌱 Garden Overview
+            </h3>
             
-            {/* Profile Actions */}
-            <div className="flex justify-end gap-2 mt-4">
-              {!isOwnProfile && auth.currentUser && (
-                <Button
-                  onClick={handleFollow}
-                  variant={isFollowing ? 'outline' : 'default'}
-                >
-                  {isFollowing ? 'Following' : 'Follow'}
-                </Button>
-              )}
+            {/* Quick Stats Grid */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+              <div className="text-center p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                <div className="text-2xl font-bold text-green-600">{userStats.totalBlooms || 0}</div>
+                <p className="text-sm text-green-700 dark:text-green-400">Flowers Bloomed</p>
+              </div>
               
-              <Button onClick={generateQRCode} variant="outline">
-                📱 Share
-              </Button>
+              <div className="text-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                <div className="text-2xl font-bold text-blue-600">{userStats.friendsHelped || 0}</div>
+                <p className="text-sm text-blue-700 dark:text-blue-400">Friends Helped</p>
+              </div>
               
-              {isOwnProfile && (
-                <Button onClick={() => router.push('/garden/profile')} variant="outline">
-                  ✏️ Edit Profile
-                </Button>
-              )}
+              <div className="text-center p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+                <div className="text-2xl font-bold text-purple-600">{userStats.conversionRate || 0}%</div>
+                <p className="text-sm text-purple-700 dark:text-purple-400">Success Rate</p>
+              </div>
+              
+              <div className="text-center p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
+                <div className="text-2xl font-bold text-orange-600">{userStats.currentStreak || 0}</div>
+                <p className="text-sm text-orange-700 dark:text-orange-400">Day Streak</p>
+              </div>
             </div>
 
-            {/* Follower info */}
-            {followerCount > 0 && (
-              <div className="mt-4 text-center">
-                <span className="text-sm text-gray-600">👥 {followerCount} followers</span>
-              </div>
-            )}
+            {/* Garden Score Section */}
+            <div className="text-center p-4 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-lg">
+              <h4 className="text-lg font-semibold text-purple-700 dark:text-purple-300 mb-2">
+                🏆 Garden Score
+              </h4>
+              <div className="text-3xl font-bold text-purple-600 mb-2">{userStats.gardenScore || 0}</div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Based on blooms, helping others, and rare collections
+              </p>
+            </div>
           </CardContent>
         </Card>
 
-        {/* Enhanced Stats Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="p-4 text-center">
-              <div className="text-2xl font-bold text-green-600">{userStats.totalBlooms || 0}</div>
-              <p className="text-sm text-gray-600">Flowers Bloomed</p>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-4 text-center">
-              <div className="text-2xl font-bold text-blue-600">{userStats.friendsHelped || 0}</div>
-              <p className="text-sm text-gray-600">Friends Helped</p>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-4 text-center">
-              <div className="text-2xl font-bold text-purple-600">{userStats.conversionRate || 0}%</div>
-              <p className="text-sm text-gray-600">Success Rate</p>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-4 text-center">
-              <div className="text-2xl font-bold text-orange-600">{userStats.currentStreak || 0}</div>
-              <p className="text-sm text-gray-600">Day Streak</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Garden Score */}
-        <Card>
-          <CardContent className="p-6 text-center">
-            <h3 className="text-lg font-semibold text-purple-700 mb-2">🏆 Garden Score</h3>
-            <div className="text-4xl font-bold text-purple-600 mb-2">{userStats.gardenScore || 0}</div>
-            <p className="text-sm text-gray-600">
-              Based on blooms, helping others, and rare collections
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* Advanced Stats */}
+        {/* Advanced Garden Statistics */}
         {(userStats.rareFlowers > 0 || userStats.specialSeeds > 0 || userStats.averageBloomTime > 0) && (
           <Card>
             <CardContent className="p-6">
-              <h3 className="text-lg font-semibold text-purple-700 mb-4">🏆 Garden Achievements</h3>
+              <h3 className="text-lg font-semibold text-purple-700 dark:text-purple-300 mb-4">
+                ✨ Special Achievements
+              </h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 
                 {userStats.rareFlowers > 0 && (
-                  <div className="text-center p-3 bg-yellow-50 rounded-lg">
-                    <div className="text-xl font-bold text-yellow-600">💎 {userStats.rareFlowers}</div>
-                    <p className="text-sm text-yellow-700">Rare Flowers</p>
+                  <div className="text-center p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-700">
+                    <div className="text-2xl font-bold text-yellow-600 mb-1">💎 {userStats.rareFlowers}</div>
+                    <p className="text-sm text-yellow-700 dark:text-yellow-400">Rare Flowers</p>
+                    <p className="text-xs text-yellow-600 dark:text-yellow-500 mt-1">Collector's Pride</p>
                   </div>
                 )}
                 
                 {userStats.specialSeeds > 0 && (
-                  <div className="text-center p-3 bg-indigo-50 rounded-lg">
-                    <div className="text-xl font-bold text-indigo-600">✨ {userStats.specialSeeds}</div>
-                    <p className="text-sm text-indigo-700">Special Seeds</p>
+                  <div className="text-center p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg border border-indigo-200 dark:border-indigo-700">
+                    <div className="text-2xl font-bold text-indigo-600 mb-1">✨ {userStats.specialSeeds}</div>
+                    <p className="text-sm text-indigo-700 dark:text-indigo-400">Special Seeds</p>
+                    <p className="text-xs text-indigo-600 dark:text-indigo-500 mt-1">Exclusive Collection</p>
                   </div>
                 )}
                 
                 {userStats.averageBloomTime > 0 && (
-                  <div className="text-center p-3 bg-green-50 rounded-lg">
-                    <div className="text-xl font-bold text-green-600">📅 {userStats.averageBloomTime}</div>
-                    <p className="text-sm text-green-700">Avg. Bloom Days</p>
+                  <div className="text-center p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-700">
+                    <div className="text-2xl font-bold text-green-600 mb-1">📅 {userStats.averageBloomTime}</div>
+                    <p className="text-sm text-green-700 dark:text-green-400">Avg. Bloom Days</p>
+                    <p className="text-xs text-green-600 dark:text-green-500 mt-1">Gardening Efficiency</p>
                   </div>
                 )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Community Impact */}
+        {(userStats.friendsHelped > 0 || userStats.helpersReceived > 0) && (
+          <Card>
+            <CardContent className="p-6">
+              <h3 className="text-lg font-semibold text-purple-700 dark:text-purple-300 mb-4">
+                🤝 Community Impact
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                
+                <div className="text-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                  <div className="text-3xl font-bold text-blue-600 mb-2">{userStats.friendsHelped || 0}</div>
+                  <p className="text-sm text-blue-700 dark:text-blue-400 font-medium">Gardeners Helped</p>
+                  <p className="text-xs text-blue-600 dark:text-blue-500 mt-1">
+                    Spreading kindness across the community
+                  </p>
+                </div>
+                
+                <div className="text-center p-4 bg-pink-50 dark:bg-pink-900/20 rounded-lg">
+                  <div className="text-3xl font-bold text-pink-600 mb-2">{userStats.helpersReceived || 0}</div>
+                  <p className="text-sm text-pink-700 dark:text-pink-400 font-medium">Community Helpers</p>
+                  <p className="text-xs text-pink-600 dark:text-pink-500 mt-1">
+                    Friends who've helped this garden grow
+                  </p>
+                </div>
+              </div>
+              
+              {/* Encouragement message for interaction */}
+              <div className="mt-4 p-3 bg-gradient-to-r from-purple-100 to-pink-100 dark:from-purple-900/30 dark:to-pink-900/30 rounded-lg text-center">
+                <p className="text-sm text-purple-700 dark:text-purple-300">
+                  💧 Visit their garden to help water their seeds and grow the community!
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -439,47 +372,143 @@ export default function EnhancedPublicUserPage() {
         {/* Recent Activity Feed */}
         <Card>
           <CardContent className="p-6">
-            <h3 className="text-lg font-semibold text-purple-700 mb-4">📈 Recent Activity</h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-purple-700 dark:text-purple-300">
+                📈 Recent Activity
+              </h3>
+              {recentActivity.length > 10 && (
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => router.push(`/u/${username}/timeline`)}
+                >
+                  📖 View Full Timeline
+                </Button>
+              )}
+            </div>
             
             {recentActivity.length === 0 ? (
-              <p className="text-gray-500 text-center py-4">No recent activity</p>
+              <div className="text-center py-8">
+                <div className="text-4xl mb-2">🌱</div>
+                <p className="text-gray-500 dark:text-gray-400">No recent activity</p>
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                  Activity will appear here as they garden
+                </p>
+              </div>
             ) : (
-              <div className="space-y-3 max-h-64 overflow-y-auto">
-                {recentActivity.map((activity, index) => (
-                  <div key={index} className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg">
-                    <span className="text-2xl">{activity.emoji}</span>
-                    <div className="flex-1">
-                      <p className="text-sm text-gray-700">{activity.description}</p>
-                      <p className="text-xs text-gray-500">
+              <div className="space-y-3 max-h-80 overflow-y-auto">
+                {recentActivity.slice(0, 10).map((activity, index) => (
+                  <div key={index} className="flex items-center gap-3 p-3 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg transition-colors">
+                    <span className="text-2xl flex-shrink-0">{activity.emoji}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-gray-700 dark:text-gray-300">{activity.description}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
                         {formatDistanceToNow(activity.timestamp, { addSuffix: true })}
                       </p>
                     </div>
                     {activity.type === 'bloom' && (
-                      <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
+                      <span className="text-xs bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 px-2 py-1 rounded-full flex-shrink-0">
                         {activity.flowerType}
                       </span>
                     )}
                   </div>
                 ))}
+                
+                {recentActivity.length > 10 && (
+                  <div className="text-center pt-2">
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => router.push(`/u/${username}/timeline`)}
+                    >
+                      View {recentActivity.length - 10} more activities →
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
           </CardContent>
         </Card>
 
-        {/* QR Code Modal */}
-        {showQRCode && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl p-6 max-w-sm w-full text-center">
-              <h3 className="text-lg font-semibold mb-4">Share Profile</h3>
-              <div className="w-48 h-48 bg-gray-100 rounded-lg mx-auto mb-4 flex items-center justify-center">
-                <p className="text-gray-500">QR Code</p>
-              </div>
-              <p className="text-sm text-gray-600 mb-4">
-                Scan to visit {userData?.displayName}'s garden
-              </p>
-              <Button onClick={() => setShowQRCode(false)}>Close</Button>
+        {/* Garden Actions */}
+        <Card>
+          <CardContent className="p-6">
+            <h3 className="text-lg font-semibold text-purple-700 dark:text-purple-300 mb-4">
+              🌿 Garden Actions
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              
+              <Button 
+                onClick={() => router.push(`/u/${username}/garden`)}
+                className="w-full"
+              >
+                💧 Water Their Garden
+              </Button>
+              
+              <Button 
+                onClick={() => router.push(`/u/${username}/badges`)}
+                variant="outline"
+                className="w-full"
+              >
+                🏅 View Badges
+              </Button>
+              
+              <Button 
+                onClick={generateQRCode}
+                variant="outline"
+                className="w-full"
+              >
+                📱 Share Profile
+              </Button>
             </div>
-          </div>
+            
+            {/* Profile Actions for Own Profile */}
+            {isOwnProfile && (
+              <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-3 text-center">
+                  This is your profile - manage your garden settings
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <Button 
+                    onClick={() => router.push('/garden/profile')}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    ✏️ Edit Profile
+                  </Button>
+                  <Button 
+                    onClick={() => router.push('/garden/settings')}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    ⚙️ Privacy Settings
+                  </Button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Call to Action for Non-Members */}
+        {!auth.currentUser && (
+          <Card className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 border border-purple-200 dark:border-purple-700">
+            <CardContent className="p-6 text-center">
+              <h3 className="text-lg font-semibold text-purple-700 dark:text-purple-300 mb-2">
+                🌱 Join the Community
+              </h3>
+              <p className="text-purple-600 dark:text-purple-400 mb-4">
+                Start your own emotional garden and connect with {userData?.displayName} and other gardeners!
+              </p>
+              <div className="flex gap-2 justify-center flex-wrap">
+                <Button onClick={() => router.push('/auth')}>
+                  🌸 Start Your Garden
+                </Button>
+                <Button variant="outline" onClick={() => router.push('/explore')}>
+                  👥 Explore Community
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         )}
       </div>
     </PublicProfileLayout>
