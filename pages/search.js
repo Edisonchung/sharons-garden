@@ -1,6 +1,5 @@
 // pages/search.js - Advanced User Search and Discovery
 import { useState, useEffect, useCallback } from 'react';
-import { doc, getDoc } from 'firebase/firestore';
 import { useRouter } from 'next/router';
 import { 
   collection, 
@@ -9,10 +8,7 @@ import {
   where, 
   orderBy, 
   limit,
-  startAfter,
-  doc,  // ADD THIS MISSING IMPORT
-  getDoc // ADD THIS MISSING IMPORT
-
+  startAfter
 } from 'firebase/firestore';
 import { db, auth } from '../lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
