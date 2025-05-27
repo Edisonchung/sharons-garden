@@ -1,9 +1,7 @@
-// Enhanced Public Profile Pages with Advanced Features
-
-// ============= ENHANCED PUBLIC PROFILE (pages/u/[username]/index.js) =============
+// pages/u/[username]/index.js - Fixed Version
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import { collection, query, where, getDocs, doc, updateDoc, getDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, updateDoc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
 import { db, auth } from '../../../lib/firebase';
 import { Card, CardContent } from '../../../components/ui/card';
 import { Button } from '../../../components/ui/button';
@@ -16,13 +14,27 @@ export default function EnhancedPublicUserPage() {
   const [userData, setUserData] = useState(null);
   const [userStats, setUserStats] = useState({});
   const [recentActivity, setRecentActivity] = useState([]);
-  const [userGrowthData, setUserGrowthData] = useState([]);
   const [isFollowing, setIsFollowing] = useState(false);
   const [followerCount, setFollowerCount] = useState(0);
   const [isOwnProfile, setIsOwnProfile] = useState(false);
   const [showQRCode, setShowQRCode] = useState(false);
   const [notFound, setNotFound] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  // Helper function to generate safe avatar URLs
+  const getSafeAvatarUrl = (photoURL, displayName, username, size = 80) => {
+    if (photoURL && 
+        photoURL !== '' && 
+        !photoURL.includes('default-avatar.png') &&
+        !photoURL.includes('undefined') &&
+        photoURL.startsWith('http')) {
+      return photoURL;
+    }
+    
+    // Generate avatar using UI Avatars service
+    const name = encodeURIComponent(displayName || username || 'User');
+    return `https://ui-avatars.com/api/?name=${name}&background=a855f7&color=fff&size=${size}`;
+  };
 
   useEffect(() => {
     if (!username) return;
@@ -46,13 +58,22 @@ export default function EnhancedPublicUserPage() {
           return;
         }
 
-        setUserData({ id: userDoc.id, ...data });
+        setUserData({ 
+          id: userDoc.id, 
+          ...data,
+          // Use safe avatar URL
+          photoURL: getSafeAvatarUrl(data.photoURL, data.displayName, data.username)
+        });
         setIsOwnProfile(auth.currentUser?.uid === userDoc.id);
         
         // Load comprehensive stats
         await loadUserStats(userDoc.id);
         await loadRecentActivity(userDoc.id);
-        await loadFollowStatus(userDoc.id);
+        
+        // Only load follow status if user is signed in and it's not their own profile
+        if (auth.currentUser && auth.currentUser.uid !== userDoc.id) {
+          await loadFollowStatus(userDoc.id);
+        }
         
       } catch (err) {
         console.error('Failed to fetch public profile:', err);
@@ -156,20 +177,32 @@ export default function EnhancedPublicUserPage() {
     if (!auth.currentUser || auth.currentUser.uid === userId) return;
 
     try {
-      // Check if current user follows this user
-      const followDoc = await getDoc(
-        doc(db, 'users', auth.currentUser.uid, 'following', userId)
-      );
-      setIsFollowing(followDoc.exists());
+      // Try to check if current user follows this user
+      // Use a safer approach with error handling
+      try {
+        const followDoc = await getDoc(
+          doc(db, 'users', auth.currentUser.uid, 'following', userId)
+        );
+        setIsFollowing(followDoc.exists());
+      } catch (followError) {
+        console.warn('Could not check following status - user may not have permission:', followError);
+        setIsFollowing(false);
+      }
 
-      // Get follower count
-      const followersSnap = await getDocs(
-        collection(db, 'users', userId, 'followers')
-      );
-      setFollowerCount(followersSnap.size);
+      // Try to get follower count
+      try {
+        const followersSnap = await getDocs(
+          collection(db, 'users', userId, 'followers')
+        );
+        setFollowerCount(followersSnap.size);
+      } catch (followerError) {
+        console.warn('Could not get follower count - profile may be private:', followerError);
+        setFollowerCount(0);
+      }
 
     } catch (error) {
-      console.error('Error loading follow status:', error);
+      console.warn('Error loading follow status (this is normal for private profiles):', error);
+      // Don't set any errors - just continue without follow functionality
     }
   };
 
@@ -181,33 +214,43 @@ export default function EnhancedPublicUserPage() {
       const currentUserId = auth.currentUser.uid;
 
       if (isFollowing) {
-        // Unfollow
-        await Promise.all([
-          deleteDoc(doc(db, 'users', currentUserId, 'following', userId)),
-          deleteDoc(doc(db, 'users', userId, 'followers', currentUserId))
-        ]);
-        setIsFollowing(false);
-        setFollowerCount(prev => prev - 1);
-        toast.success('Unfollowed successfully');
+        // Unfollow - with error handling
+        try {
+          await Promise.all([
+            deleteDoc(doc(db, 'users', currentUserId, 'following', userId)),
+            deleteDoc(doc(db, 'users', userId, 'followers', currentUserId))
+          ]);
+          setIsFollowing(false);
+          setFollowerCount(prev => Math.max(0, prev - 1));
+          toast.success('Unfollowed successfully');
+        } catch (unfollowError) {
+          console.error('Error unfollowing:', unfollowError);
+          toast.error('Failed to unfollow - you may not have permission');
+        }
       } else {
-        // Follow
-        await Promise.all([
-          setDoc(doc(db, 'users', currentUserId, 'following', userId), {
-            username: userData.username,
-            displayName: userData.displayName,
-            photoURL: userData.photoURL,
-            followedAt: new Date()
-          }),
-          setDoc(doc(db, 'users', userId, 'followers', currentUserId), {
-            username: auth.currentUser.displayName,
-            displayName: auth.currentUser.displayName,
-            photoURL: auth.currentUser.photoURL,
-            followedAt: new Date()
-          })
-        ]);
-        setIsFollowing(true);
-        setFollowerCount(prev => prev + 1);
-        toast.success('Following!');
+        // Follow - with error handling
+        try {
+          await Promise.all([
+            setDoc(doc(db, 'users', currentUserId, 'following', userId), {
+              username: userData.username,
+              displayName: userData.displayName,
+              photoURL: userData.photoURL,
+              followedAt: new Date()
+            }),
+            setDoc(doc(db, 'users', userId, 'followers', currentUserId), {
+              username: auth.currentUser.displayName,
+              displayName: auth.currentUser.displayName,
+              photoURL: auth.currentUser.photoURL,
+              followedAt: new Date()
+            })
+          ]);
+          setIsFollowing(true);
+          setFollowerCount(prev => prev + 1);
+          toast.success('Following!');
+        } catch (followError) {
+          console.error('Error following:', followError);
+          toast.error('Failed to follow - profile may be private');
+        }
       }
     } catch (error) {
       console.error('Error updating follow status:', error);
@@ -286,9 +329,13 @@ export default function EnhancedPublicUserPage() {
             <div className="flex flex-col md:flex-row items-center md:items-end gap-4 -mt-12 md:-mt-8">
               <div className="relative">
                 <img
-                  src={userData.photoURL || '/default-avatar.png'}
+                  src={userData.photoURL}
                   alt="Profile"
                   className="w-24 h-24 rounded-full border-4 border-white shadow-lg bg-white"
+                  onError={(e) => {
+                    // Additional fallback if the safe URL also fails
+                    e.target.src = getSafeAvatarUrl('', userData.displayName, userData.username, 96);
+                  }}
                 />
                 {userData.verified && (
                   <div className="absolute -bottom-1 -right-1 bg-blue-500 rounded-full p-1">
@@ -377,7 +424,7 @@ export default function EnhancedPublicUserPage() {
         </div>
 
         {/* Advanced Stats */}
-        {userStats.rareFlowers > 0 || userStats.specialSeeds > 0 || userStats.averageBloomTime > 0 && (
+        {(userStats.rareFlowers > 0 || userStats.specialSeeds > 0 || userStats.averageBloomTime > 0) && (
           <Card className="mb-6">
             <CardContent className="p-6">
               <h3 className="text-lg font-semibold text-purple-700 mb-4">🏆 Garden Achievements</h3>
@@ -481,163 +528,6 @@ export default function EnhancedPublicUserPage() {
             </div>
           </div>
         )}
-      </div>
-    </div>
-  );
-}
-
-// ============= ENHANCED BADGE SYSTEM (pages/u/[username]/badges.js) =============
-export function EnhancedPublicBadgesPage() {
-  const [achievements, setAchievements] = useState([]);
-  const [badgeCategories, setBadgeCategories] = useState({});
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [badgeStats, setBadgeStats] = useState({});
-
-  const BADGE_CATEGORIES = {
-    growth: { name: 'Growth', emoji: '🌱', color: 'green' },
-    social: { name: 'Social', emoji: '👥', color: 'blue' },
-    special: { name: 'Special', emoji: '✨', color: 'purple' },
-    streak: { name: 'Consistency', emoji: '🔥', color: 'orange' }
-  };
-
-  // Enhanced badge display with categories, rarity indicators, and progress tracking
-  return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-indigo-100 p-6">
-      {/* Badge Categories Filter */}
-      <div className="flex justify-center gap-2 mb-6 flex-wrap">
-        <button
-          onClick={() => setSelectedCategory('all')}
-          className={`px-4 py-2 rounded-full transition-colors ${
-            selectedCategory === 'all' 
-              ? 'bg-purple-600 text-white' 
-              : 'bg-white text-gray-600 hover:bg-gray-100'
-          }`}
-        >
-          All Badges
-        </button>
-        {Object.entries(BADGE_CATEGORIES).map(([key, category]) => (
-          <button
-            key={key}
-            onClick={() => setSelectedCategory(key)}
-            className={`px-4 py-2 rounded-full transition-colors ${
-              selectedCategory === key 
-                ? 'bg-purple-600 text-white' 
-                : 'bg-white text-gray-600 hover:bg-gray-100'
-            }`}
-          >
-            {category.emoji} {category.name}
-          </button>
-        ))}
-      </div>
-
-      {/* Badge Statistics */}
-      <Card className="mb-6">
-        <CardContent className="p-6">
-          <h3 className="text-lg font-semibold mb-4">🏆 Badge Statistics</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-purple-600">{badgeStats.total || 0}</div>
-              <p className="text-sm text-gray-600">Total Earned</p>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-yellow-600">{badgeStats.rare || 0}</div>
-              <p className="text-sm text-gray-600">Rare Badges</p>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-blue-600">{badgeStats.social || 0}</div>
-              <p className="text-sm text-gray-600">Social Badges</p>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-green-600">{badgeStats.completion || 0}%</div>
-              <p className="text-sm text-gray-600">Completion Rate</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Enhanced Badge Grid with Rarity and Animation */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-        {/* Implementation would include animated badge cards with rarity indicators */}
-      </div>
-    </div>
-  );
-}
-
-// ============= ENHANCED TIMELINE (pages/u/[username]/timeline.js) =============
-export function EnhancedPublicTimelinePage() {
-  const [timelineData, setTimelineData] = useState([]);
-  const [timelineStats, setTimelineStats] = useState({});
-  const [filterType, setFilterType] = useState('all');
-  const [sortOrder, setSortOrder] = useState('newest');
-
-  const TIMELINE_FILTERS = {
-    all: { name: 'All Activity', emoji: '📜' },
-    blooms: { name: 'Blooms', emoji: '🌸' },
-    milestones: { name: 'Milestones', emoji: '🏆' },
-    social: { name: 'Social', emoji: '👥' }
-  };
-
-  // Enhanced timeline with rich media, social interactions, and milestone tracking
-  return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-indigo-100 p-6">
-      
-      {/* Timeline Stats Dashboard */}
-      <Card className="mb-6">
-        <CardContent className="p-6">
-          <h3 className="text-lg font-semibold mb-4">📊 Garden Journey</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="text-center p-3 bg-green-50 rounded-lg">
-              <div className="text-xl font-bold text-green-600">{timelineStats.totalBlooms || 0}</div>
-              <p className="text-sm text-green-700">Total Blooms</p>
-            </div>
-            <div className="text-center p-3 bg-blue-50 rounded-lg">
-              <div className="text-xl font-bold text-blue-600">{timelineStats.daysActive || 0}</div>
-              <p className="text-sm text-blue-700">Days Active</p>
-            </div>
-            <div className="text-center p-3 bg-purple-50 rounded-lg">
-              <div className="text-xl font-bold text-purple-600">{timelineStats.milestones || 0}</div>
-              <p className="text-sm text-purple-700">Milestones</p>
-            </div>
-            <div className="text-center p-3 bg-orange-50 rounded-lg">
-              <div className="text-xl font-bold text-orange-600">{timelineStats.longestStreak || 0}</div>
-              <p className="text-sm text-orange-700">Best Streak</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Timeline Filters and Controls */}
-      <div className="flex justify-between items-center mb-6">
-        <div className="flex gap-2 flex-wrap">
-          {Object.entries(TIMELINE_FILTERS).map(([key, filter]) => (
-            <button
-              key={key}
-              onClick={() => setFilterType(key)}
-              className={`px-3 py-1 rounded-full text-sm transition-colors ${
-                filterType === key 
-                  ? 'bg-purple-600 text-white' 
-                  : 'bg-white text-gray-600 hover:bg-gray-100'
-              }`}
-            >
-              {filter.emoji} {filter.name}
-            </button>
-          ))}
-        </div>
-        
-        <select
-          value={sortOrder}
-          onChange={(e) => setSortOrder(e.target.value)}
-          className="px-3 py-1 border rounded text-sm"
-        >
-          <option value="newest">Newest First</option>
-          <option value="oldest">Oldest First</option>
-          <option value="popularity">Most Popular</option>
-        </select>
-      </div>
-
-      {/* Enhanced Timeline Feed */}
-      <div className="space-y-4">
-        {/* Timeline items would include rich media, reactions, and enhanced metadata */}
       </div>
     </div>
   );
