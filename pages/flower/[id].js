@@ -1,4 +1,4 @@
-// pages/flower/[id].js - Improved Version
+// pages/flower/[id].js - Fixed Dynamic Routing Issue
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 import { doc, getDoc, updateDoc, addDoc, collection, serverTimestamp } from 'firebase/firestore';
@@ -36,20 +36,28 @@ export default function EnhancedFlowerDetail() {
     return () => unsubscribe();
   }, []);
 
-  // Load flower data from Firestore
+  // FIXED: Wait for router to be ready and id to be available
   useEffect(() => {
-    if (!id) return;
+    if (!router.isReady) return; // Wait for router to be ready
+    if (!id || typeof id !== 'string') {
+      setError('Invalid flower ID');
+      setLoading(false);
+      return;
+    }
+    
     loadFlowerData();
-  }, [id]);
+  }, [router.isReady, id]); // Added router.isReady dependency
 
   // Set share URL
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setShareUrl(window.location.href);
+    if (typeof window !== 'undefined' && id) {
+      setShareUrl(`${window.location.origin}/flower/${id}`);
     }
-  }, []);
+  }, [id]);
 
   const loadFlowerData = async () => {
+    if (!id) return;
+    
     try {
       setLoading(true);
       setError(null);
@@ -212,6 +220,42 @@ export default function EnhancedFlowerDetail() {
     const lastWater = localStorage.getItem(lastWaterKey);
     return !lastWater || new Date(lastWater).toDateString() !== today;
   };
+
+  // FIXED: Better loading and error states
+  if (!router.isReady) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-purple-100 to-pink-100">
+        <div className="text-center">
+          <div className="text-4xl animate-pulse mb-4">🌼</div>
+          <p className="text-purple-700">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!id || typeof id !== 'string') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-purple-100 to-pink-100 p-6">
+        <Card className="max-w-md w-full">
+          <CardContent className="p-8 text-center">
+            <div className="text-6xl mb-4">❌</div>
+            <h1 className="text-2xl font-bold text-red-700 mb-2">Invalid Flower Link</h1>
+            <p className="text-gray-600 mb-6">
+              This flower link is not valid or is missing information.
+            </p>
+            <div className="space-y-3">
+              <Button onClick={() => router.push('/')} className="w-full">
+                🏠 Go to Main Garden
+              </Button>
+              <Button onClick={() => router.push('/explore')} variant="outline" className="w-full">
+                🌸 Explore Flowers
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
