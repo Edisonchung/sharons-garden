@@ -1,4 +1,4 @@
-// components/ui/Navbar.js - Enhanced Version with Better UX and Features
+// components/ui/Navbar.js - Fixed Search Modal Z-Index Issue
 import React, { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
@@ -442,10 +442,16 @@ export default function Navbar() {
         </button>
       </div>
 
-      {/* Search Modal */}
+      {/* FIXED: Search Modal with Much Higher Z-Index */}
       {showSearch && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-60 flex items-start justify-center pt-20">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-2xl w-full mx-4">
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center pt-20"
+          style={{ zIndex: 9999 }}
+        >
+          <div 
+            className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-2xl w-full mx-4"
+            style={{ zIndex: 10000 }}
+          >
             <form onSubmit={handleSearch} className="p-4">
               <div className="flex items-center gap-3">
                 <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
