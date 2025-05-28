@@ -1,14 +1,16 @@
-// pages/search.js - Advanced User Search and Discovery
+// pages/search.js - Fixed version with proper Firebase imports
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import { 
   collection, 
   getDocs, 
-  query, 
+  query as firestoreQuery, 
   where, 
   orderBy, 
   limit,
-  startAfter
+  startAfter,
+  doc,
+  getDoc
 } from 'firebase/firestore';
 import { db, auth } from '../lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -129,214 +131,232 @@ export default function SearchPage() {
     }
   };
 
-  const searchUsers = async (query, loadMore = false) => {
-    const searchTerms = query.toLowerCase().split(' ').filter(Boolean);
+  const searchUsers = async (queryText, loadMore = false) => {
+    const searchTerms = queryText.toLowerCase().split(' ').filter(Boolean);
     
-    // Build query for username search
-    let q = query(
-      collection(db, 'users'),
-      where('public', '!=', false),
-      orderBy('public'),
-      limit(12)
-    );
-
-    if (loadMore && lastVisible) {
-      q = query(q, startAfter(lastVisible));
-    }
-
-    const snapshot = await getDocs(q);
-    const users = [];
-
-    for (const userDoc of snapshot.docs) {
-      const userData = userDoc.data();
-      
-      // Skip if no username
-      if (!userData.username) continue;
-
-      // Apply search filtering
-      const matchesSearch = searchTerms.some(term => 
-        userData.username?.toLowerCase().includes(term) ||
-        userData.displayName?.toLowerCase().includes(term) ||
-        userData.bio?.toLowerCase().includes(term)
+    try {
+      // Build query for username search - FIXED: Use firestoreQuery alias
+      let q = firestoreQuery(
+        collection(db, 'users'),
+        where('public', '!=', false),
+        orderBy('public'),
+        limit(12)
       );
 
-      if (!matchesSearch) continue;
-
-      // Apply filters
-      if (filters.hasPhoto && !userData.photoURL) continue;
-      if (filters.hasBio && !userData.bio) continue;
-      if (filters.isActive) {
-        const lastActive = userData.lastActive?.toDate();
-        if (!lastActive || (Date.now() - lastActive.getTime()) > (7 * 24 * 60 * 60 * 1000)) {
-          continue;
-        }
+      if (loadMore && lastVisible) {
+        q = firestoreQuery(q, startAfter(lastVisible));
       }
 
-      // Load user stats for bloom filter
-      let userStats = null;
-      if (filters.minBlooms > 0) {
-        try {
-          const flowersSnap = await getDocs(query(
-            collection(db, 'flowers'),
-            where('userId', '==', userDoc.id),
-            where('bloomed', '==', true)
-          ));
-          
-          if (flowersSnap.size < filters.minBlooms) continue;
-          
-          userStats = {
-            totalBlooms: flowersSnap.size,
-            rareFlowers: flowersSnap.docs.filter(doc => 
-              doc.data().rarity === 'rare'
-            ).length
-          };
-        } catch (statsError) {
-          continue;
-        }
-      }
+      const snapshot = await getDocs(q);
+      const users = [];
 
-      users.push({
-        id: userDoc.id,
-        type: 'user',
-        ...userData,
-        stats: userStats,
-        relevanceScore: calculateUserRelevance(userData, searchTerms),
-        joinedAt: userData.joinedAt?.toDate?.() || new Date()
-      });
-    }
+      for (const userDoc of snapshot.docs) {
+        const userData = userDoc.data();
+        
+        // Skip if no username
+        if (!userData.username) continue;
 
-    // Sort by relevance or selected criteria
-    users.sort((a, b) => {
-      if (filters.sortBy === 'newest') {
-        return b.joinedAt - a.joinedAt;
-      } else if (filters.sortBy === 'active') {
-        const aActive = a.lastActive?.toDate?.() || a.joinedAt;
-        const bActive = b.lastActive?.toDate?.() || b.joinedAt;
-        return bActive - aActive;
-      } else {
-        return b.relevanceScore - a.relevanceScore;
-      }
-    });
-
-    if (!loadMore && snapshot.docs.length > 0) {
-      setLastVisible(snapshot.docs[snapshot.docs.length - 1]);
-    }
-
-    return { results: users, total: users.length };
-  };
-
-  const searchGardens = async (query, loadMore = false) => {
-    // Search for users with active gardens
-    const usersSnap = await getDocs(query(
-      collection(db, 'users'),
-      where('public', '!=', false),
-      limit(20)
-    ));
-
-    const gardens = [];
-    const searchTerms = query.toLowerCase().split(' ').filter(Boolean);
-
-    for (const userDoc of usersSnap.docs) {
-      const userData = userDoc.data();
-      
-      if (!userData.username) continue;
-
-      // Get user's active seeds
-      try {
-        const flowersSnap = await getDocs(query(
-          collection(db, 'flowers'),
-          where('userId', '==', userDoc.id),
-          limit(10)
-        ));
-
-        const flowers = flowersSnap.docs.map(doc => doc.data());
-        const activeSeeds = flowers.filter(f => !f.bloomed);
-        const blooms = flowers.filter(f => f.bloomed);
-
-        // Check if garden matches search
+        // Apply search filtering
         const matchesSearch = searchTerms.some(term => 
+          userData.username?.toLowerCase().includes(term) ||
           userData.displayName?.toLowerCase().includes(term) ||
-          flowers.some(f => 
-            f.type?.toLowerCase().includes(term) ||
-            f.note?.toLowerCase().includes(term)
-          )
+          userData.bio?.toLowerCase().includes(term)
         );
 
-        if (!matchesSearch || activeSeeds.length === 0) continue;
+        if (!matchesSearch) continue;
 
-        gardens.push({
+        // Apply filters
+        if (filters.hasPhoto && !userData.photoURL) continue;
+        if (filters.hasBio && !userData.bio) continue;
+        if (filters.isActive) {
+          const lastActive = userData.lastActive?.toDate();
+          if (!lastActive || (Date.now() - lastActive.getTime()) > (7 * 24 * 60 * 60 * 1000)) {
+            continue;
+          }
+        }
+
+        // Load user stats for bloom filter
+        let userStats = null;
+        if (filters.minBlooms > 0) {
+          try {
+            const flowersSnap = await getDocs(firestoreQuery(
+              collection(db, 'flowers'),
+              where('userId', '==', userDoc.id),
+              where('bloomed', '==', true)
+            ));
+            
+            if (flowersSnap.size < filters.minBlooms) continue;
+            
+            userStats = {
+              totalBlooms: flowersSnap.size,
+              rareFlowers: flowersSnap.docs.filter(doc => 
+                doc.data().rarity === 'rare'
+              ).length
+            };
+          } catch (statsError) {
+            continue;
+          }
+        }
+
+        users.push({
           id: userDoc.id,
-          type: 'garden',
-          owner: userData,
-          activeSeeds: activeSeeds.length,
-          totalBlooms: blooms.length,
-          recentSeeds: activeSeeds.slice(0, 3),
-          relevanceScore: calculateGardenRelevance(userData, flowers, searchTerms)
+          type: 'user',
+          ...userData,
+          stats: userStats,
+          relevanceScore: calculateUserRelevance(userData, searchTerms),
+          joinedAt: userData.joinedAt?.toDate?.() || new Date()
         });
-
-      } catch (error) {
-        console.warn('Error loading garden for user:', userDoc.id);
       }
-    }
 
-    gardens.sort((a, b) => b.relevanceScore - a.relevanceScore);
-    return { results: gardens.slice(0, 12), total: gardens.length };
+      // Sort by relevance or selected criteria
+      users.sort((a, b) => {
+        if (filters.sortBy === 'newest') {
+          return b.joinedAt - a.joinedAt;
+        } else if (filters.sortBy === 'active') {
+          const aActive = a.lastActive?.toDate?.() || a.joinedAt;
+          const bActive = b.lastActive?.toDate?.() || b.joinedAt;
+          return bActive - aActive;
+        } else {
+          return b.relevanceScore - a.relevanceScore;
+        }
+      });
+
+      if (!loadMore && snapshot.docs.length > 0) {
+        setLastVisible(snapshot.docs[snapshot.docs.length - 1]);
+      }
+
+      return { results: users, total: users.length };
+
+    } catch (error) {
+      console.error('Error in searchUsers:', error);
+      return { results: [], total: 0 };
+    }
   };
 
-  const searchFlowers = async (query, loadMore = false) => {
-    const searchTerms = query.toLowerCase().split(' ').filter(Boolean);
+  const searchGardens = async (queryText, loadMore = false) => {
+    try {
+      // Search for users with active gardens
+      const usersSnap = await getDocs(firestoreQuery(
+        collection(db, 'users'),
+        where('public', '!=', false),
+        limit(20)
+      ));
+
+      const gardens = [];
+      const searchTerms = queryText.toLowerCase().split(' ').filter(Boolean);
+
+      for (const userDoc of usersSnap.docs) {
+        const userData = userDoc.data();
+        
+        if (!userData.username) continue;
+
+        // Get user's active seeds
+        try {
+          const flowersSnap = await getDocs(firestoreQuery(
+            collection(db, 'flowers'),
+            where('userId', '==', userDoc.id),
+            limit(10)
+          ));
+
+          const flowers = flowersSnap.docs.map(doc => doc.data());
+          const activeSeeds = flowers.filter(f => !f.bloomed);
+          const blooms = flowers.filter(f => f.bloomed);
+
+          // Check if garden matches search
+          const matchesSearch = searchTerms.some(term => 
+            userData.displayName?.toLowerCase().includes(term) ||
+            flowers.some(f => 
+              f.type?.toLowerCase().includes(term) ||
+              f.note?.toLowerCase().includes(term)
+            )
+          );
+
+          if (!matchesSearch || activeSeeds.length === 0) continue;
+
+          gardens.push({
+            id: userDoc.id,
+            type: 'garden',
+            owner: userData,
+            activeSeeds: activeSeeds.length,
+            totalBlooms: blooms.length,
+            recentSeeds: activeSeeds.slice(0, 3),
+            relevanceScore: calculateGardenRelevance(userData, flowers, searchTerms)
+          });
+
+        } catch (error) {
+          console.warn('Error loading garden for user:', userDoc.id);
+        }
+      }
+
+      gardens.sort((a, b) => b.relevanceScore - a.relevanceScore);
+      return { results: gardens.slice(0, 12), total: gardens.length };
+
+    } catch (error) {
+      console.error('Error in searchGardens:', error);
+      return { results: [], total: 0 };
+    }
+  };
+
+  const searchFlowers = async (queryText, loadMore = false) => {
+    const searchTerms = queryText.toLowerCase().split(' ').filter(Boolean);
     
-    // Search in flowers collection
-    let q = query(
-      collection(db, 'flowers'),
-      where('bloomed', '==', true),
-      orderBy('bloomTime', 'desc'),
-      limit(20)
-    );
-
-    const flowersSnap = await getDocs(q);
-    const flowers = [];
-
-    for (const flowerDoc of flowersSnap.docs) {
-      const flowerData = flowerDoc.data();
-
-      // Check if flower matches search
-      const matchesSearch = searchTerms.some(term => 
-        flowerData.type?.toLowerCase().includes(term) ||
-        flowerData.note?.toLowerCase().includes(term) ||
-        flowerData.name?.toLowerCase().includes(term)
+    try {
+      // Search in flowers collection
+      let q = firestoreQuery(
+        collection(db, 'flowers'),
+        where('bloomed', '==', true),
+        orderBy('bloomTime', 'desc'),
+        limit(20)
       );
 
-      if (!matchesSearch) continue;
+      const flowersSnap = await getDocs(q);
+      const flowers = [];
 
-      // Get owner info
-      try {
-        const userDoc = await getDoc(doc(db, 'users', flowerData.userId));
-        if (!userDoc.exists() || userDoc.data().public === false) continue;
+      for (const flowerDoc of flowersSnap.docs) {
+        const flowerData = flowerDoc.data();
 
-        const userData = userDoc.data();
+        // Check if flower matches search
+        const matchesSearch = searchTerms.some(term => 
+          flowerData.type?.toLowerCase().includes(term) ||
+          flowerData.note?.toLowerCase().includes(term) ||
+          flowerData.name?.toLowerCase().includes(term)
+        );
 
-        flowers.push({
-          id: flowerDoc.id,
-          type: 'flower',
-          ...flowerData,
-          bloomTime: flowerData.bloomTime?.toDate?.() || new Date(),
-          owner: {
-            id: flowerData.userId,
-            username: userData.username,
-            displayName: userData.displayName || userData.username,
-            photoURL: userData.photoURL
-          },
-          relevanceScore: calculateFlowerRelevance(flowerData, searchTerms)
-        });
+        if (!matchesSearch) continue;
 
-      } catch (error) {
-        console.warn('Error loading flower owner:', flowerDoc.id);
+        // Get owner info
+        try {
+          const userDoc = await getDoc(doc(db, 'users', flowerData.userId));
+          if (!userDoc.exists() || userDoc.data().public === false) continue;
+
+          const userData = userDoc.data();
+
+          flowers.push({
+            id: flowerDoc.id,
+            type: 'flower',
+            ...flowerData,
+            bloomTime: flowerData.bloomTime?.toDate?.() || new Date(),
+            owner: {
+              id: flowerData.userId,
+              username: userData.username,
+              displayName: userData.displayName || userData.username,
+              photoURL: userData.photoURL
+            },
+            relevanceScore: calculateFlowerRelevance(flowerData, searchTerms)
+          });
+
+        } catch (error) {
+          console.warn('Error loading flower owner:', flowerDoc.id);
+        }
       }
-    }
 
-    flowers.sort((a, b) => b.relevanceScore - a.relevanceScore);
-    return { results: flowers.slice(0, 12), total: flowers.length };
+      flowers.sort((a, b) => b.relevanceScore - a.relevanceScore);
+      return { results: flowers.slice(0, 12), total: flowers.length };
+
+    } catch (error) {
+      console.error('Error in searchFlowers:', error);
+      return { results: [], total: 0 };
+    }
   };
 
   const calculateUserRelevance = (userData, searchTerms) => {
