@@ -1,4 +1,4 @@
-// utils/WateringManager.js - Debug Enhanced Version
+// utils/WateringManager.js - FIXED: Minimal Working Version
 import { useState, useCallback } from 'react';
 import { 
   doc, 
@@ -9,12 +9,9 @@ import {
   getDoc
 } from 'firebase/firestore';
 import { db, auth } from '../lib/firebase';
-import { FLOWER_DATABASE } from '../hooks/useSeedTypes';
 
-class DebugWateringManager {
+class SimpleWateringManager {
   constructor() {
-    this.operationQueue = [];
-    this.isProcessing = false;
     this.metrics = {
       totalOperations: 0,
       successfulOperations: 0,
@@ -23,8 +20,6 @@ class DebugWateringManager {
       pendingOperations: 0,
       averageResponseTime: 0
     };
-    
-    setInterval(() => this.processQueue(), 500);
   }
 
   async canWaterToday(userId, seedId) {
@@ -38,48 +33,124 @@ class DebugWateringManager {
   }
 
   async waterSeed(userId, seedId, wateredBy, seedData) {
-    console.log('🌊 Starting watering operation:', { userId, seedId, wateredBy, seedData });
+    console.log('🌊 FIXED: Starting direct watering operation:', { userId, seedId, wateredBy });
     
-    return new Promise((resolve, reject) => {
-      this.operationQueue.push({
-        userId,
-        seedId,
-        wateredBy,
-        seedData,
-        resolve,
-        reject,
-        timestamp: Date.now()
-      });
-      
-      this.metrics.queueLength = this.operationQueue.length;
-      console.log('📝 Added to queue, length:', this.metrics.queueLength);
-    });
-  }
-
-  async processQueue() {
-    if (this.isProcessing || this.operationQueue.length === 0) return;
-    
-    this.isProcessing = true;
-    const operation = this.operationQueue.shift();
-    this.metrics.queueLength = this.operationQueue.length;
-    
-    if (!operation) {
-      this.isProcessing = false;
-      return;
-    }
-    
-    console.log('⚙️ Processing watering operation...');
+    const startTime = Date.now();
     
     try {
-      this.metrics.pendingOperations++;
-      const result = await this.executeWatering(operation);
+      // STEP 1: Basic auth check
+      if (!auth.currentUser) {
+        throw new Error('Not authenticated');
+      }
+      console.log('✅ Auth check passed:', auth.currentUser.uid);
       
+      // STEP 2: Check daily limit
+      const canWater = await this.canWaterToday(userId, seedId);
+      if (!canWater) {
+        throw new Error('You have already watered this seed today. Come back tomorrow! 🌙');
+      }
+      console.log('✅ Daily limit check passed');
+
+      // STEP 3: Get current seed state (exactly like debug test)
+      const seedRef = doc(db, 'flowers', seedId);
+      console.log('📖 Reading seed document:', seedId);
+      
+      const seedSnap = await getDoc(seedRef);
+      
+      if (!seedSnap.exists()) {
+        console.error('❌ Seed not found:', seedId);
+        throw new Error('Seed not found or has been removed.');
+      }
+
+      const currentSeed = seedSnap.data();
+      console.log('📊 Current seed state:', {
+        waterCount: currentSeed.waterCount,
+        bloomed: currentSeed.bloomed,
+        userId: currentSeed.userId
+      });
+      
+      // STEP 4: Validation checks
+      if (currentSeed.bloomed) {
+        console.log('❌ Seed already bloomed');
+        throw new Error('This seed has already bloomed! 🌸');
+      }
+      
+      if (currentSeed.waterCount >= 7) {
+        console.log('❌ Seed at max water count');
+        throw new Error('This seed has reached its maximum water limit.');
+      }
+
+      // STEP 5: Calculate new state
+      const newWaterCount = (currentSeed.waterCount || 0) + 1;
+      const willBloom = newWaterCount >= 7;
+      const isOwner = userId === currentSeed.userId;
+      
+      console.log('🧮 Calculated update:', {
+        currentWaterCount: currentSeed.waterCount || 0,
+        newWaterCount,
+        willBloom,
+        isOwner
+      });
+
+      // STEP 6: EXACT SAME UPDATE AS DEBUG TEST - MINIMAL OBJECT
+      const seedUpdate = {
+        waterCount: newWaterCount
+      };
+
+      // Only add bloom fields if actually blooming
+      if (willBloom) {
+        console.log('🌸 Seed will bloom, adding bloom fields...');
+        seedUpdate.bloomed = true;
+        seedUpdate.bloomedFlower = '🌸';
+        seedUpdate.bloomTime = serverTimestamp();
+      }
+
+      console.log('📝 Final update object:', seedUpdate);
+      console.log('🔒 Current user:', auth.currentUser.uid);
+      console.log('🔒 Seed owner:', currentSeed.userId);
+
+      // STEP 7: Perform the update (exactly like debug test)
+      console.log('💾 Updating seed document...');
+      await updateDoc(seedRef, seedUpdate);
+      console.log('✅ Document updated successfully');
+
+      // STEP 8: Update localStorage (exactly like debug test)
+      localStorage.setItem(`lastWatered_${seedId}`, new Date().toISOString());
+      console.log('💾 Updated localStorage');
+
+      // STEP 9: Create logs in background (don't await - don't let this fail the main operation)
+      this.createLogsInBackground({
+        seedId,
+        seedOwnerId: currentSeed.userId,
+        seedType: currentSeed.type,
+        wateredByUserId: userId,
+        wateredByUsername: wateredBy,
+        waterCount: newWaterCount,
+        resultedInBloom: willBloom,
+        isOwnerWatering: isOwner
+      });
+
+      // STEP 10: Update metrics
+      this.metrics.totalOperations++;
       this.metrics.successfulOperations++;
-      this.updateMetrics(Date.now() - operation.timestamp);
-      
-      console.log('✅ Watering successful:', result);
-      operation.resolve(result);
-      
+      const responseTime = Date.now() - startTime;
+      this.updateAverageResponseTime(responseTime);
+
+      const result = {
+        success: true,
+        newWaterCount,
+        bloomed: willBloom,
+        isOwner,
+        wateredBy,
+        bloomedFlower: willBloom ? '🌸' : null,
+        responseTime,
+        seedOwnerId: currentSeed.userId,
+        seedType: currentSeed.type
+      };
+
+      console.log('🎉 Watering operation completed successfully:', result);
+      return result;
+
     } catch (error) {
       console.error('❌ Watering operation failed:', error);
       console.error('❌ Error details:', {
@@ -88,155 +159,40 @@ class DebugWateringManager {
         stack: error.stack
       });
       
+      this.metrics.totalOperations++;
       this.metrics.failedOperations++;
       
+      // Transform Firebase errors into user-friendly messages
       const userError = this.getUserFriendlyError(error);
-      operation.reject(new Error(userError));
-      
-    } finally {
-      this.metrics.pendingOperations--;
-      this.isProcessing = false;
+      throw new Error(userError);
     }
   }
 
-  async executeWatering({ userId, seedId, wateredBy, seedData }) {
-    const startTime = Date.now();
-    console.log('🔧 Executing watering:', { userId, seedId, wateredBy });
+  // Create logs in background - don't let this fail the main operation
+  createLogsInBackground(logData) {
+    console.log('📋 Creating logs in background...', logData);
     
-    // Check auth
-    if (!auth.currentUser) {
-      throw new Error('Not authenticated');
-    }
-    console.log('✅ Auth check passed:', auth.currentUser.uid);
-    
-    // Check daily limit
-    const canWater = await this.canWaterToday(userId, seedId);
-    if (!canWater) {
-      throw new Error('You have already watered this seed today. Come back tomorrow! 🌙');
-    }
-    console.log('✅ Daily limit check passed');
-
-    // Get current seed state
-    const seedRef = doc(db, 'flowers', seedId);
-    console.log('📖 Reading seed document:', seedId);
-    
-    const seedSnap = await getDoc(seedRef);
-    
-    if (!seedSnap.exists()) {
-      console.error('❌ Seed not found:', seedId);
-      throw new Error('Seed not found or has been removed.');
-    }
-
-    const currentSeed = seedSnap.data();
-    console.log('📊 Current seed state:', {
-      waterCount: currentSeed.waterCount,
-      bloomed: currentSeed.bloomed,
-      userId: currentSeed.userId
-    });
-    
-    // Validation checks
-    if (currentSeed.bloomed) {
-      console.log('❌ Seed already bloomed');
-      throw new Error('This seed has already bloomed! 🌸');
-    }
-    
-    if (currentSeed.waterCount >= 7) {
-      console.log('❌ Seed at max water count');
-      throw new Error('This seed has reached its maximum water limit.');
-    }
-
-    // Calculate new state
-    const newWaterCount = (currentSeed.waterCount || 0) + 1;
-    const willBloom = newWaterCount >= 7;
-    const isOwner = userId === currentSeed.userId;
-    
-    console.log('🧮 Calculated update:', {
-      currentWaterCount: currentSeed.waterCount || 0,
-      newWaterCount,
-      willBloom,
-      isOwner
-    });
-
-    // MINIMAL UPDATE OBJECT - Only essential fields
-    const seedUpdate = {
-      waterCount: newWaterCount
-    };
-
-    // Only add bloom fields if actually blooming
-    if (willBloom) {
-      console.log('🌸 Seed will bloom, adding bloom fields...');
-      seedUpdate.bloomed = true;
-      seedUpdate.bloomedFlower = '🌸';
-      seedUpdate.bloomTime = serverTimestamp();
-    }
-
-    console.log('📝 Final update object:', seedUpdate);
-    console.log('🔒 Current user:', auth.currentUser.uid);
-    console.log('🔒 Seed owner:', currentSeed.userId);
-
-    // Perform the update
-    console.log('💾 Updating seed document...');
-    await updateDoc(seedRef, seedUpdate);
-    console.log('✅ Document updated successfully');
-
-    // Create logs asynchronously (don't await)
-    this.createLogsAsync({
-      seedId,
-      seedOwnerId: currentSeed.userId,
-      seedType: currentSeed.type,
-      wateredByUserId: userId,
-      wateredByUsername: wateredBy,
-      waterCount: newWaterCount,
-      resultedInBloom: willBloom,
-      isOwnerWatering: isOwner
-    }).catch(logError => {
-      console.warn('⚠️ Failed to create logs (non-critical):', logError);
-    });
-
-    // Update localStorage
-    localStorage.setItem(`lastWatered_${seedId}`, new Date().toISOString());
-    console.log('💾 Updated localStorage');
-
-    const result = {
-      success: true,
-      newWaterCount,
-      bloomed: willBloom,
-      isOwner,
-      wateredBy,
-      bloomedFlower: willBloom ? '🌸' : null,
-      responseTime: Date.now() - startTime,
-      seedOwnerId: currentSeed.userId,
-      seedType: currentSeed.type
-    };
-
-    console.log('🎉 Watering operation completed:', result);
-    return result;
-  }
-
-  async createLogsAsync(logData) {
-    console.log('📋 Creating logs...', logData);
-    try {
+    // Fire and forget - don't await these
+    Promise.all([
       // Create watering log
-      const wateringDoc = await addDoc(collection(db, 'waterings'), {
+      addDoc(collection(db, 'waterings'), {
         ...logData,
         timestamp: serverTimestamp()
-      });
-      console.log('✅ Watering log created:', wateringDoc.id);
-
+      }).then(doc => console.log('✅ Watering log created:', doc.id)),
+      
       // Create daily watering record
-      const today = new Date().toDateString().replace(/\s/g, '_');
-      const dailyDoc = await addDoc(collection(db, 'dailyWaterings'), {
+      addDoc(collection(db, 'dailyWaterings'), {
         userId: logData.wateredByUserId,
         seedId: logData.seedId,
         seedOwnerId: logData.seedOwnerId,
-        date: today,
+        date: new Date().toDateString().replace(/\s/g, '_'),
         timestamp: serverTimestamp()
-      });
-      console.log('✅ Daily watering log created:', dailyDoc.id);
-
-    } catch (logError) {
+      }).then(doc => console.log('✅ Daily watering log created:', doc.id))
+      
+    ]).catch(logError => {
       console.warn('⚠️ Failed to create logs (non-critical):', logError);
-    }
+      // Don't fail the main operation for logging errors
+    });
   }
 
   getUserFriendlyError(error) {
@@ -264,15 +220,19 @@ class DebugWateringManager {
       return 'This seed has already bloomed! 🌸';
     }
     
-    // Return original message for debugging
-    return error.message || 'Something went wrong while watering. Please try again.';
+    // Return original message for debugging in development
+    if (process.env.NODE_ENV === 'development') {
+      return `DEV: ${error.message}`;
+    }
+    
+    return 'Something went wrong while watering. Please try again.';
   }
 
-  updateMetrics(responseTime) {
-    this.metrics.totalOperations++;
+  updateAverageResponseTime(responseTime) {
     const oldAvg = this.metrics.averageResponseTime;
+    const total = this.metrics.totalOperations;
     this.metrics.averageResponseTime = 
-      (oldAvg * (this.metrics.totalOperations - 1) + responseTime) / this.metrics.totalOperations;
+      (oldAvg * (total - 1) + responseTime) / total;
   }
 
   getMetrics() {
@@ -283,13 +243,15 @@ class DebugWateringManager {
     return {
       ...this.metrics,
       successRate: `${successRate}%`,
-      averageResponseTime: `${this.metrics.averageResponseTime.toFixed(0)}ms`
+      averageResponseTime: `${this.metrics.averageResponseTime.toFixed(0)}ms`,
+      queueLength: 0, // No queue in simple version
+      pendingOperations: 0 // No queue in simple version
     };
   }
 }
 
 // Create singleton instance
-export const wateringManager = new DebugWateringManager();
+export const wateringManager = new SimpleWateringManager();
 
 // React hook
 export function useWatering() {
